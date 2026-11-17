@@ -10,13 +10,15 @@ const body = Source_Sans_3({
   subsets: ["latin"],
   variable: "--font-body",
   weight: ["400", "500", "600", "700"],
+  fallback: ["system-ui", "Segoe UI", "Arial", "sans-serif"],
   display: "swap",
 });
 
 // Distinctive display serif — used for the sign-in hero and headings.
 const fraunces = Fraunces({
   subsets: ["latin"],
-  style: ["normal", "italic"],
+  style: ["normal"],
+  fallback: ["Georgia", "serif"],
   variable: "--font-display",
   display: "swap",
 });

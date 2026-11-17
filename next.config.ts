@@ -10,6 +10,9 @@ const nextConfig: NextConfig = {
   // to them is instant. Saving anything refreshes them straight away.
   experimental: {
     staleTimes: { dynamic: 30 },
+    // Put the stylesheet inside the page HTML itself, so the design can never
+    // be missing on a slow or flaky connection (no separate CSS file to wait for).
+    inlineCss: true,
   },
   // Browser security headers on every response: the portal can't be framed by
   // another site (click-jacking), the browser doesn't guess file types, the
@@ -18,6 +21,10 @@ const nextConfig: NextConfig = {
   // site itself for bus tracking).
   async headers() {
     return [{
+      // Images, icons and fonts in /public: let browsers keep them for a week.
+      source: "/:file(.*\\.(?:svg|png|jpg|jpeg|webp|ico|woff2))",
+      headers: [{ key: "Cache-Control", value: "public, max-age=604800, stale-while-revalidate=86400" }],
+    }, {
       source: "/:path*",
       headers: [
         { key: "X-Frame-Options", value: "DENY" },
