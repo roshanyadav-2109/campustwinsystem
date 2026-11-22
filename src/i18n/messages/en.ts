@@ -33,6 +33,9 @@ const en = {
     noAccess: "You don't have access to this page.",
   },
   nav: {
+    homework: "Homework",
+    admissions: "Admissions",
+    hr: "Staff HR",
     dashboard: "Dashboard",
     progress: "Progress",
     myProgress: "My Progress",

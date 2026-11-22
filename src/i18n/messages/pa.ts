@@ -34,6 +34,9 @@ const pa: PartialMessages = {
     noAccess: "ਤੁਹਾਨੂੰ ਇਹ ਪੰਨਾ ਵੇਖਣ ਦੀ ਇਜਾਜ਼ਤ ਨਹੀਂ ਹੈ।",
   },
   nav: {
+    homework: "ਘਰ ਦਾ ਕੰਮ",
+    admissions: "ਦਾਖ਼ਲਾ",
+    hr: "ਸਟਾਫ਼ ਐੱਚਆਰ",
     dashboard: "ਡੈਸ਼ਬੋਰਡ",
     progress: "ਤਰੱਕੀ",
     myProgress: "ਮੇਰੀ ਤਰੱਕੀ",

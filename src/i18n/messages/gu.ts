@@ -34,6 +34,9 @@ const gu: PartialMessages = {
     noAccess: "તમને આ પેજ જોવાની પરવાનગી નથી.",
   },
   nav: {
+    homework: "ગૃહકાર્ય",
+    admissions: "પ્રવેશ",
+    hr: "સ્ટાફ એચઆર",
     dashboard: "ડેશબોર્ડ",
     progress: "પ્રગતિ",
     myProgress: "મારી પ્રગતિ",

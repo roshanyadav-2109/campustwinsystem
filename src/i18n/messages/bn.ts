@@ -34,6 +34,9 @@ const bn: PartialMessages = {
     noAccess: "এই পৃষ্ঠায় আপনার প্রবেশাধিকার নেই।",
   },
   nav: {
+    homework: "বাড়ির কাজ",
+    admissions: "ভর্তি",
+    hr: "স্টাফ এইচআর",
     dashboard: "ড্যাশবোর্ড",
     progress: "অগ্রগতি ও বিশ্লেষণ",
     myProgress: "আমার অগ্রগতি",

@@ -34,6 +34,9 @@ const hi: PartialMessages = {
     noAccess: "आपको इस पृष्ठ तक पहुँच नहीं है।",
   },
   nav: {
+    homework: "गृहकार्य",
+    admissions: "प्रवेश",
+    hr: "स्टाफ एचआर",
     dashboard: "डैशबोर्ड",
     progress: "प्रगति एवं विश्लेषण",
     myProgress: "मेरी प्रगति",

@@ -5,7 +5,7 @@ import { safeNext } from "@/lib/safe-next";
 
 // Next 16 renamed `middleware` -> `proxy`. Runs before render: refreshes the
 // Supabase session cookie and gates unauthenticated users to /login.
-const PUBLIC_PATHS = ["/login", "/auth"];
+const PUBLIC_PATHS = ["/login", "/auth", "/apply"];
 
 export async function proxy(request: NextRequest) {
   let response = NextResponse.next({ request });
