@@ -64,7 +64,7 @@ let schoolB, staffB, studentB, userBId, userAId, studentA;
 
 try {
   console.log("--- setup: second institution (B) ---");
-  const [schoolBRow] = await adminInsert("school", { name: "Isolation Test College B", code: `ITCB-${Date.now()}` });
+  const [schoolBRow] = await adminInsert("school", { name: "Isolation Test College B", code: `ITCB-${Date.now()}`, slug: `itcb-${Date.now()}` });
   schoolB = schoolBRow.id;
   ok(schoolB > 1, `created school B (id ${schoolB})`);
 
