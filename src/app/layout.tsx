@@ -3,7 +3,7 @@ import { Source_Sans_3, Fraunces } from "next/font/google";
 import "./globals.css";
 import { getLocale } from "@/i18n/server";
 import { I18nProvider } from "@/i18n/provider";
-import { SCHOOL } from "@/lib/school";
+import { getBrand } from "@/lib/brand-server";
 
 // Source Sans 3 — formal, highly legible body face with clear figures.
 const body = Source_Sans_3({
@@ -21,10 +21,13 @@ const fraunces = Fraunces({
   display: "swap",
 });
 
-export const metadata: Metadata = {
-  title: `${SCHOOL.shortName} — Student Progress & School Portal`,
-  description: `Continuous student progress and analytics for ${SCHOOL.fullName}.`,
-};
+export async function generateMetadata(): Promise<Metadata> {
+  const brand = await getBrand();
+  return {
+    title: `${brand.shortName} — Student Progress & School Portal`,
+    description: `Continuous student progress and analytics for ${brand.fullName}.`,
+  };
+}
 
 // Colocate server rendering with the Supabase project (ap-southeast-1 / Singapore)
 // so DB queries don't cross regions.

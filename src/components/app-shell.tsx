@@ -25,18 +25,26 @@ export function AppShell({
   name,
   role,
   roleLabel,
+  modules,
+  brand,
   children,
 }: {
   name: string;
   role: NavRole;
   roleLabel: string;
+  modules?: Record<string, boolean>;
+  brand?: { name: string; place: string | null; logo: string | null; monogram: string | null };
   children: React.ReactNode;
 }) {
+  const bName = brand?.name || SCHOOL.name;
+  const bPlace = brand?.place ?? SCHOOL.place;
+  const bLogo = brand?.logo ?? undefined;
+  const bMono = brand?.monogram ?? undefined;
   const t = useT();
   const pathname = usePathname();
   const [open, setOpen] = useState(false);
   const [menuOpen, setMenuOpen] = useState(false);
-  const items = navFor(role);
+  const items = navFor(role, modules);
 
   // Desktop side menu can be hidden from the top bar for more room.
   const [collapsed, setCollapsed] = useState(false);
@@ -80,7 +88,7 @@ export function AppShell({
             ) : (
               <span className="absolute left-0 top-1/2 h-5 w-[3px] -translate-y-1/2 rounded-full bg-[rgb(156,163,175)] opacity-0 transition-opacity group-hover:opacity-100" />
             )}
-            <Icon size={24} />
+            <Icon size={20} active={active} />
             {t(item.labelKey)}
           </Link>
         );
@@ -90,10 +98,10 @@ export function AppShell({
 
   const brandHeader = (
     <div className="flex h-16 shrink-0 items-center gap-2.5 border-b border-hair px-4">
-      <SchoolEmblem size={32} />
+      <SchoolEmblem size={32} logo={bLogo} monogram={bMono} name={bName} />
       <div className="leading-tight">
-        <div className="text-[13px] font-bold text-ink-900">{SCHOOL.name}</div>
-        {SCHOOL.place && <div className="text-[11px] text-muted">{SCHOOL.place}</div>}
+        <div className="text-[13px] font-bold text-ink-900">{bName}</div>
+        {bPlace && <div className="text-[11px] text-muted">{bPlace}</div>}
       </div>
     </div>
   );
@@ -145,8 +153,8 @@ export function AppShell({
           <aside className="absolute left-0 top-0 flex h-full w-72 flex-col bg-surface shadow-[var(--shadow-pop)]">
             <div className="flex h-16 items-center justify-between border-b border-hair px-4">
               <div className="flex items-center gap-2.5">
-                <SchoolEmblem size={32} />
-                <span className="text-[13px] font-bold text-ink-900">{SCHOOL.name}</span>
+                <SchoolEmblem size={32} logo={bLogo} monogram={bMono} name={bName} />
+                <span className="text-[13px] font-bold text-ink-900">{bName}</span>
               </div>
             </div>
             <div className="flex-1 overflow-y-auto">
@@ -176,7 +184,7 @@ export function AppShell({
             <HamburgerIcon />
           </button>
           <div className={cn(!collapsed && "lg:hidden")}>
-            <SchoolEmblem size={28} />
+            <SchoolEmblem size={28} logo={bLogo} monogram={bMono} name={bName} />
           </div>
           {role !== "transport" && (
             <SearchBox placeholder={t(isStaffRole ? "x.searchEverything" : "x.searchFamily")} />

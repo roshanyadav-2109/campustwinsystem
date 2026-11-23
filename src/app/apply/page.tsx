@@ -1,18 +1,22 @@
 import type { Metadata } from "next";
 import { SchoolEmblem } from "@/components/brand";
-import { SCHOOL } from "@/lib/school";
+import { getBrand } from "@/lib/brand-server";
 import { getReference } from "@/lib/data/reference";
 import { ApplyForm } from "@/components/admissions/apply-form";
 import type { ClassRef } from "@/components/admissions/shared";
 
-export const metadata: Metadata = {
-  title: `Apply for admission | ${SCHOOL.shortName}`,
-  description: `Admission application for ${SCHOOL.fullName}.`,
-};
+export async function generateMetadata(): Promise<Metadata> {
+  const brand = await getBrand();
+  return {
+    title: `Apply for admission | ${brand.shortName}`,
+    description: `Admission application for ${brand.fullName}.`,
+  };
+}
 
 // Public page: no sign-in. It reads only the list of classes (from the shared
 // reference copy) and nothing about any person.
 export default async function ApplyPage() {
+  const brand = await getBrand();
   let classes: ClassRef[] = [];
   try {
     const ref = await getReference();
@@ -27,10 +31,10 @@ export default async function ApplyPage() {
     <div className="min-h-dvh bg-paper">
       <header className="border-b border-hair">
         <div className="mx-auto flex w-full max-w-2xl items-center gap-3 px-5 py-4 sm:px-8">
-          <SchoolEmblem size={48} />
+          <SchoolEmblem size={48} logo={brand.logo} monogram={brand.monogram} name={brand.name} />
           <div className="leading-tight">
-            <div className="text-[16px] font-semibold text-ink-900">{SCHOOL.name}</div>
-            {SCHOOL.place && <div className="text-[13px] text-ink-500">{SCHOOL.place}</div>}
+            <div className="text-[16px] font-semibold text-ink-900">{brand.name}</div>
+            {brand.place && <div className="text-[13px] text-ink-500">{brand.place}</div>}
           </div>
         </div>
       </header>

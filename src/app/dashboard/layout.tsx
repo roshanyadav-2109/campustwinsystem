@@ -12,7 +12,7 @@ export default async function AppLayout({ children }: { children: React.ReactNod
   const { t } = await getT();
   const roleLabel = t(`roles.${session.navRole}`);
   return (
-    <AppShell name={session.fullName} role={session.navRole as NavRole} roleLabel={roleLabel}>
+    <AppShell name={session.fullName} role={session.navRole as NavRole} roleLabel={roleLabel} modules={session.school.modules} brand={{ name: session.school.name, place: session.school.place, logo: session.school.logoUrl, monogram: session.school.monogram }}>
       {children}
     </AppShell>
   );

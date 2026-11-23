@@ -9,18 +9,19 @@ const EXTRA: Record<string, NavRole[]> = {
 };
 
 // May this person open the tab at `href`? The same rule as their side menu, so
-// typing or sharing an address can't open a page their role doesn't have.
+// typing or sharing an address can't open a page their role doesn't have — and
+// a module the institution has switched off is closed to everyone there.
 // (What a page then shows is still limited by the database's row rules.)
-export function roleCanOpen(role: NavRole, href: string): boolean {
+export function roleCanOpen(role: NavRole, href: string, modules?: Record<string, boolean>): boolean {
   if (EXTRA[href]) return EXTRA[href].includes(role);
-  return navFor(role).some((i) => i.href === href);
+  return navFor(role, modules).some((i) => i.href === href);
 }
 
 // Called at the top of every dashboard page: returns the "no access" screen to
 // show instead, or null when the person may see the page.
 export async function guardTab(href: string): Promise<React.ReactNode | null> {
   const session = await getSession();
-  if (session && roleCanOpen(session.navRole, href)) return null;
+  if (session && roleCanOpen(session.navRole, href, session.school.modules)) return null;
   return (
     <EmptyState
       art="no-results"

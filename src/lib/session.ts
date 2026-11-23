@@ -12,6 +12,7 @@ export type Session = {
   role: ProfileRole;
   fullName: string;
   locale: string;
+  schoolId: number;
   staffId: number | null;
   guardianId: number | null;
   studentId: number | null;
@@ -23,6 +24,23 @@ export type Session = {
   // role used to build nav/quick-links: a staff member who class-teaches a
   // section is treated as class_teacher regardless of their static staff.role.
   navRole: NavRole;
+  // The institution's registry: branding + which paid modules are switched on.
+  school: SchoolBrand;
+};
+
+export type SchoolModules = Record<string, boolean>;
+export type SchoolBrand = {
+  slug: string;
+  name: string;
+  shortName: string | null;
+  place: string | null;
+  monogram: string | null;
+  logoUrl: string | null;
+  loginImageUrl: string | null;
+  loginVideoId: string | null;
+  primaryColor: string;
+  modules: SchoolModules;
+  status: string;
 };
 
 // Load the signed-in user's profile (RLS: self-read). Returns null if signed out.
@@ -44,7 +62,7 @@ export const getSession = cache(async (): Promise<Session | null> => {
   const [{ data }, year] = await Promise.all([
     supabase
       .from("profile")
-      .select("id, role, full_name, locale, staff_id, guardian_id, student_id, staff:staff_id(role, email, teacher_allotment(academic_year_id, is_class_teacher)), guardian:guardian_id(email), student:student_id(email)")
+      .select("id, role, full_name, locale, school_id, staff_id, guardian_id, student_id, school:school_id(slug, name, short_name, place, monogram, logo_url, login_image_url, login_video_id, primary_color, modules, status), staff:staff_id(role, email, teacher_allotment(academic_year_id, is_class_teacher)), guardian:guardian_id(email), student:student_id(email)")
       .eq("id", user.id)
       .single(),
     getCurrentYear(),
@@ -74,11 +92,31 @@ export const getSession = cache(async (): Promise<Session | null> => {
 
   const navRole: NavRole = isClassTeacher ? "class_teacher" : (effectiveRole as NavRole);
 
+  const sc = data.school as unknown as {
+    slug: string; name: string; short_name: string | null; place: string | null; monogram: string | null;
+    logo_url: string | null; login_image_url: string | null; login_video_id: string | null;
+    primary_color: string; modules: SchoolModules | null; status: string;
+  } | null;
+  const school: SchoolBrand = {
+    slug: sc?.slug ?? "",
+    name: sc?.name ?? "",
+    shortName: sc?.short_name ?? null,
+    place: sc?.place ?? null,
+    monogram: sc?.monogram ?? null,
+    logoUrl: sc?.logo_url ?? null,
+    loginImageUrl: sc?.login_image_url ?? null,
+    loginVideoId: sc?.login_video_id ?? null,
+    primaryColor: sc?.primary_color ?? "#0F6CBD",
+    modules: (sc?.modules as SchoolModules) ?? {},
+    status: sc?.status ?? "active",
+  };
+
   return {
     userId: data.id,
     role: data.role,
     fullName: data.full_name,
     locale: data.locale,
+    schoolId: data.school_id,
     staffId: data.staff_id,
     guardianId: data.guardian_id,
     studentId: data.student_id,
@@ -87,6 +125,7 @@ export const getSession = cache(async (): Promise<Session | null> => {
     isAdminScope: staffRole === "principal" || staffRole === "office",
     isClassTeacher,
     navRole,
+    school,
   };
 });
 

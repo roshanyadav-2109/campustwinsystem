@@ -3,16 +3,23 @@ import { useState } from "react";
 import { cn } from "@/lib/utils";
 import { SCHOOL } from "@/lib/school";
 
-// The school emblem (SCHOOL.logo, a file in public/).
-// Falls back to a typographic monogram if the asset is missing.
-export function SchoolEmblem({ size = 40, className }: { size?: number; className?: string }) {
+// The institution emblem. Pass the runtime brand (logo/monogram/name) on public
+// pages and the signed-in shell; with nothing passed it falls back to the
+// build-time SCHOOL defaults. Falls back to a typographic monogram if the image
+// is missing.
+export function SchoolEmblem({
+  size = 40, className, logo, monogram, name,
+}: { size?: number; className?: string; logo?: string; monogram?: string; name?: string }) {
+  const src = logo ?? SCHOOL.logo;
+  const label = name ?? SCHOOL.name;
+  const mono = (monogram ?? SCHOOL.monogram).slice(0, 2).toUpperCase();
   const [failed, setFailed] = useState(false);
-  if (!failed) {
+  if (src && !failed) {
     return (
       // eslint-disable-next-line @next/next/no-img-element
       <img
-        src={SCHOOL.logo}
-        alt={`${SCHOOL.name} emblem`}
+        src={src}
+        alt={`${label} emblem`}
         width={size}
         height={size}
         onError={() => setFailed(true)}
@@ -22,7 +29,7 @@ export function SchoolEmblem({ size = 40, className }: { size?: number; classNam
   }
   return (
     <div
-      aria-label={`${SCHOOL.name} emblem placeholder`}
+      aria-label={`${label} emblem placeholder`}
       title="School emblem slot"
       style={{ width: size, height: size }}
       className={cn(
@@ -31,19 +38,21 @@ export function SchoolEmblem({ size = 40, className }: { size?: number; classNam
       )}
     >
       <span className="font-bold tracking-tight" style={{ fontSize: size * 0.42 }}>
-        {SCHOOL.monogram}
+        {mono}
       </span>
     </div>
   );
 }
 
-export function BrandLockup({ subtitle }: { subtitle?: string }) {
+export function BrandLockup({
+  subtitle, name, place, logo, monogram,
+}: { subtitle?: string; name?: string; place?: string; logo?: string; monogram?: string }) {
   return (
     <div className="flex items-center gap-3">
-      <SchoolEmblem size={40} />
+      <SchoolEmblem size={40} logo={logo} monogram={monogram} name={name} />
       <div className="leading-tight">
-        <div className="text-[15px] font-bold text-ink-900">{SCHOOL.name}</div>
-        <div className="text-[12px] text-ink-500">{subtitle ?? SCHOOL.place}</div>
+        <div className="text-[15px] font-bold text-ink-900">{name ?? SCHOOL.name}</div>
+        <div className="text-[12px] text-ink-500">{subtitle ?? place ?? SCHOOL.place}</div>
       </div>
     </div>
   );

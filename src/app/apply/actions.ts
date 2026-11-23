@@ -58,12 +58,16 @@ export async function submitApplication(input: ApplyInput): Promise<ApplyResult>
   try {
     const db = createAdminClient() as unknown as SupabaseClient;
 
-    const [cls, year] = await Promise.all([
-      db.from("class").select("id").eq("id", classId).maybeSingle(),
-      db.from("academic_year").select("id").eq("is_current", true).maybeSingle(),
-    ]);
-    if (cls.error || year.error) return { ok: false, error: TRY_AGAIN };
+    // The chosen class pins the institution (every class belongs to one). The
+    // current academic year is then that institution's current year. (Under
+    // per-subdomain branding, a site only offers its own institution's classes.)
+    const cls = await db.from("class").select("id, school_id").eq("id", classId).maybeSingle();
+    if (cls.error) return { ok: false, error: TRY_AGAIN };
     if (!cls.data) return { ok: false, error: "Please choose the class you are applying for." };
+    const schoolId = (cls.data as { school_id: number }).school_id;
+
+    const year = await db.from("academic_year").select("id").eq("is_current", true).eq("school_id", schoolId).maybeSingle();
+    if (year.error) return { ok: false, error: TRY_AGAIN };
     if (!year.data) return { ok: false, error: TRY_AGAIN };
 
     // One application per phone number per day.
@@ -90,6 +94,7 @@ export async function submitApplication(input: ApplyInput): Promise<ApplyResult>
       source: "online",
       status: "new",
       academic_year_id: (year.data as { id: number }).id,
+      school_id: schoolId,
     });
     if (error) return { ok: false, error: TRY_AGAIN };
   } catch {

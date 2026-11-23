@@ -6,7 +6,7 @@ import { safeNext } from "@/lib/safe-next";
 type Saved = { state: string; nonce: string; next: string };
 type GoogleClaims = { email?: string; email_verified?: boolean; name?: string; aud?: string };
 type Kind = "staff" | "guardian" | "student";
-type SchoolRecord = { kind: Kind; id: number; name: string; otherGuardianIds: number[] };
+type SchoolRecord = { kind: Kind; id: number; name: string; schoolId: number; otherGuardianIds: number[] };
 type Admin = ReturnType<typeof createAdminClient>;
 
 const LINK_COLUMN = { staff: "staff_id", guardian: "guardian_id", student: "student_id" } as const;
@@ -94,18 +94,18 @@ function readClaims(idToken: string): GoogleClaims | null {
 async function findRecord(admin: Admin, email: string): Promise<SchoolRecord | null> {
   const exact = email.replace(/[\\%_]/g, (c) => `\\${c}`);
   const [{ data: staff }, { data: guardians }, { data: students }] = await Promise.all([
-    admin.from("staff").select("id, full_name").ilike("email", exact).order("id"),
-    admin.from("guardian").select("id, full_name").ilike("email", exact).order("id"),
-    admin.from("student").select("id, full_name").ilike("email", exact).order("id"),
+    admin.from("staff").select("id, full_name, school_id").ilike("email", exact).order("id"),
+    admin.from("guardian").select("id, full_name, school_id").ilike("email", exact).order("id"),
+    admin.from("student").select("id, full_name, school_id").ilike("email", exact).order("id"),
   ]);
-  if (staff?.length) return { kind: "staff", id: staff[0].id, name: staff[0].full_name, otherGuardianIds: [] };
+  if (staff?.length) return { kind: "staff", id: staff[0].id, name: staff[0].full_name, schoolId: staff[0].school_id, otherGuardianIds: [] };
   if (guardians?.length) {
     const ids = guardians.map((g) => g.id);
     const { data: linked } = await admin.from("profile").select("guardian_id").in("guardian_id", ids);
     const chosen = guardians.find((g) => linked?.some((l) => l.guardian_id === g.id)) ?? guardians[0];
-    return { kind: "guardian", id: chosen.id, name: chosen.full_name, otherGuardianIds: ids.filter((i) => i !== chosen.id) };
+    return { kind: "guardian", id: chosen.id, name: chosen.full_name, schoolId: chosen.school_id, otherGuardianIds: ids.filter((i) => i !== chosen.id) };
   }
-  if (students?.length) return { kind: "student", id: students[0].id, name: students[0].full_name, otherGuardianIds: [] };
+  if (students?.length) return { kind: "student", id: students[0].id, name: students[0].full_name, schoolId: students[0].school_id, otherGuardianIds: [] };
   return null;
 }
 
@@ -136,6 +136,7 @@ async function loginForRecord(admin: Admin, record: SchoolRecord, email: string,
     id: created.user.id,
     role: record.kind,
     full_name: name,
+    school_id: record.schoolId,
     staff_id: record.kind === "staff" ? record.id : null,
     guardian_id: record.kind === "guardian" ? record.id : null,
     student_id: record.kind === "student" ? record.id : null,
@@ -158,6 +159,6 @@ async function gatherChildren(admin: Admin, record: SchoolRecord) {
   const have = new Set((mine ?? []).map((l) => l.student_id));
   const missing = [...new Set((others ?? []).map((l) => l.student_id))].filter((s) => !have.has(s));
   if (missing.length) {
-    await admin.from("guardian_student").insert(missing.map((student_id) => ({ guardian_id: record.id, student_id, is_primary: false })));
+    await admin.from("guardian_student").insert(missing.map((student_id) => ({ guardian_id: record.id, student_id, is_primary: false, school_id: record.schoolId })));
   }
 }
