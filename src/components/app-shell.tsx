@@ -27,6 +27,7 @@ export function AppShell({
   roleLabel,
   modules,
   brand,
+  university,
   children,
 }: {
   name: string;
@@ -34,6 +35,7 @@ export function AppShell({
   roleLabel: string;
   modules?: Record<string, boolean>;
   brand?: { name: string; place: string | null; logo: string | null; monogram: string | null };
+  university?: { name: string; activeCampusName: string | null } | null;
   children: React.ReactNode;
 }) {
   const bName = brand?.name || SCHOOL.name;
@@ -67,8 +69,26 @@ export function AppShell({
     .sort((a, b) => b.length - a.length)[0];
   const isActive = (href: string) => href === activeHref;
 
+  const universityActive = pathname === "/dashboard/university" || pathname.startsWith("/dashboard/university/");
   const navList = (
     <nav className="flex flex-col gap-0.5 p-3">
+      {university && (
+        <Link
+          href="/dashboard/university"
+          onClick={() => setOpen(false)}
+          aria-current={universityActive ? "page" : undefined}
+          className={cn(
+            "group relative mb-1 flex flex-col gap-0.5 rounded-sm border border-hair px-3 py-2 text-[13px] transition-colors",
+            universityActive ? "bg-panel" : "hover:bg-panel",
+          )}
+        >
+          <span className="text-[11px] font-medium uppercase tracking-wide text-muted">University</span>
+          <span className="font-semibold text-ink-900">{university.name}</span>
+          {university.activeCampusName && (
+            <span className="text-[12px] text-ink-500">In: {university.activeCampusName} · switch</span>
+          )}
+        </Link>
+      )}
       {items.map((item) => {
         const active = isActive(item.href);
         const Icon = item.icon;

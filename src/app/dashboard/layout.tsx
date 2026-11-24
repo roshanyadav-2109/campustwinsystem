@@ -11,8 +11,11 @@ export default async function AppLayout({ children }: { children: React.ReactNod
   if (!session) redirect("/auth/signout?error=google_not_registered");
   const { t } = await getT();
   const roleLabel = t(`roles.${session.navRole}`);
+  const university = session.isUniversityAdmin && session.university
+    ? { name: session.university.name, activeCampusName: session.school.name }
+    : null;
   return (
-    <AppShell name={session.fullName} role={session.navRole as NavRole} roleLabel={roleLabel} modules={session.school.modules} brand={{ name: session.school.name, place: session.school.place, logo: session.school.logoUrl, monogram: session.school.monogram }}>
+    <AppShell name={session.fullName} role={session.navRole as NavRole} roleLabel={roleLabel} modules={session.school.modules} brand={{ name: session.school.name, place: session.school.place, logo: session.school.logoUrl, monogram: session.school.monogram }} university={university}>
       {children}
     </AppShell>
   );

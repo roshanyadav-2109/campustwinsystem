@@ -2306,6 +2306,7 @@ export type Database = {
       }
       profile: {
         Row: {
+          active_campus_id: number | null
           created_at: string
           full_name: string
           guardian_id: number | null
@@ -2315,8 +2316,10 @@ export type Database = {
           school_id: number
           staff_id: number | null
           student_id: number | null
+          university_id: number | null
         }
         Insert: {
+          active_campus_id?: number | null
           created_at?: string
           full_name: string
           guardian_id?: number | null
@@ -2326,8 +2329,10 @@ export type Database = {
           school_id: number
           staff_id?: number | null
           student_id?: number | null
+          university_id?: number | null
         }
         Update: {
+          active_campus_id?: number | null
           created_at?: string
           full_name?: string
           guardian_id?: number | null
@@ -2337,8 +2342,16 @@ export type Database = {
           school_id?: number
           staff_id?: number | null
           student_id?: number | null
+          university_id?: number | null
         }
         Relationships: [
+          {
+            foreignKeyName: "profile_active_campus_id_fkey"
+            columns: ["active_campus_id"]
+            isOneToOne: false
+            referencedRelation: "school"
+            referencedColumns: ["id"]
+          },
           {
             foreignKeyName: "profile_guardian_id_fkey"
             columns: ["guardian_id"]
@@ -2365,6 +2378,13 @@ export type Database = {
             columns: ["student_id"]
             isOneToOne: true
             referencedRelation: "student"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "profile_university_id_fkey"
+            columns: ["university_id"]
+            isOneToOne: false
+            referencedRelation: "university"
             referencedColumns: ["id"]
           },
         ]
@@ -2587,6 +2607,7 @@ export type Database = {
           slug: string
           status: string
           tier: string
+          university_id: number | null
         }
         Insert: {
           address?: string | null
@@ -2609,6 +2630,7 @@ export type Database = {
           slug: string
           status?: string
           tier?: string
+          university_id?: number | null
         }
         Update: {
           address?: string | null
@@ -2631,8 +2653,17 @@ export type Database = {
           slug?: string
           status?: string
           tier?: string
+          university_id?: number | null
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "school_university_id_fkey"
+            columns: ["university_id"]
+            isOneToOne: false
+            referencedRelation: "university"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       section: {
         Row: {
@@ -3667,6 +3698,45 @@ export type Database = {
           },
         ]
       }
+      university: {
+        Row: {
+          created_at: string | null
+          id: number
+          logo_url: string | null
+          modules: Json | null
+          name: string
+          plan: string | null
+          primary_color: string | null
+          short_name: string | null
+          slug: string
+          status: string | null
+        }
+        Insert: {
+          created_at?: string | null
+          id?: number
+          logo_url?: string | null
+          modules?: Json | null
+          name: string
+          plan?: string | null
+          primary_color?: string | null
+          short_name?: string | null
+          slug: string
+          status?: string | null
+        }
+        Update: {
+          created_at?: string | null
+          id?: number
+          logo_url?: string | null
+          modules?: Json | null
+          name?: string
+          plan?: string | null
+          primary_color?: string | null
+          short_name?: string | null
+          slug?: string
+          status?: string | null
+        }
+        Relationships: []
+      }
     }
     Views: {
       library_book_stock: {
@@ -3982,6 +4052,7 @@ export type Database = {
         }[]
       }
       current_school_id: { Args: never; Returns: number }
+      current_university_id: { Args: never; Returns: number }
       drain_transport_alerts: { Args: never; Returns: string }
       end_stale_trips: { Args: never; Returns: number }
       expire_stale_alerts: { Args: never; Returns: number }
@@ -4185,6 +4256,19 @@ export type Database = {
           student_name: string
         }[]
       }
+      university_overview: {
+        Args: never
+        Returns: {
+          campus_id: number
+          campus_name: string
+          slug: string
+          staff: number
+          status: string
+          students: number
+        }[]
+      }
+      university_school_ids: { Args: never; Returns: number[] }
+      university_school_ids_university: { Args: never; Returns: number[] }
     }
     Enums: {
       announcement_scope: "school" | "class" | "section"

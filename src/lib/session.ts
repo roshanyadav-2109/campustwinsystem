@@ -26,6 +26,31 @@ export type Session = {
   navRole: NavRole;
   // The institution's registry: branding + which paid modules are switched on.
   school: SchoolBrand;
+  // Multi-campus: set when this profile is a central university admin. The admin
+  // works inside one "active" campus at a time (schoolId above already reflects
+  // it, because current_school_id() returns the active campus), and can switch
+  // between the university's campuses or see the cross-campus roll-up.
+  isUniversityAdmin: boolean;
+  university: UniversityBrand | null;
+  activeCampusId: number | null;
+  campuses: CampusLite[];
+};
+
+export type UniversityBrand = {
+  id: number;
+  name: string;
+  slug: string;
+  shortName: string | null;
+  logoUrl: string | null;
+  primaryColor: string;
+};
+export type CampusLite = {
+  id: number;
+  name: string;
+  slug: string;
+  status: string;
+  students: number;
+  staff: number;
 };
 
 export type SchoolModules = Record<string, boolean>;
@@ -62,7 +87,7 @@ export const getSession = cache(async (): Promise<Session | null> => {
   const [{ data }, year] = await Promise.all([
     supabase
       .from("profile")
-      .select("id, role, full_name, locale, school_id, staff_id, guardian_id, student_id, school:school_id(slug, name, short_name, place, monogram, logo_url, login_image_url, login_video_id, primary_color, modules, status), staff:staff_id(role, email, teacher_allotment(academic_year_id, is_class_teacher)), guardian:guardian_id(email), student:student_id(email)")
+      .select("id, role, full_name, locale, school_id, staff_id, guardian_id, student_id, university_id, active_campus_id, school:school_id(slug, name, short_name, place, monogram, logo_url, login_image_url, login_video_id, primary_color, modules, status), staff:staff_id(role, email, teacher_allotment(academic_year_id, is_class_teacher)), guardian:guardian_id(email), student:student_id(email)")
       .eq("id", user.id)
       .single(),
     getCurrentYear(),
@@ -111,6 +136,32 @@ export const getSession = cache(async (): Promise<Session | null> => {
     status: sc?.status ?? "active",
   };
 
+  // Central university admin: load the university brand and the campus list
+  // (via the SECURITY DEFINER roll-up, which returns all of this university's
+  // campuses even though normal RLS only exposes the active one).
+  const universityId = (data as { university_id: number | null }).university_id ?? null;
+  const activeCampusId = (data as { active_campus_id: number | null }).active_campus_id ?? null;
+  let university: UniversityBrand | null = null;
+  let campuses: CampusLite[] = [];
+  if (universityId) {
+    const [{ data: uni }, { data: rollup }] = await Promise.all([
+      supabase.from("university").select("id, name, slug, short_name, logo_url, primary_color").eq("id", universityId).maybeSingle(),
+      supabase.rpc("university_overview"),
+    ]);
+    if (uni) {
+      university = {
+        id: uni.id,
+        name: uni.name,
+        slug: uni.slug,
+        shortName: uni.short_name ?? null,
+        logoUrl: uni.logo_url ?? null,
+        primaryColor: uni.primary_color ?? "#0F6CBD",
+      };
+    }
+    campuses = ((rollup as { campus_id: number; campus_name: string; slug: string; status: string; students: number; staff: number }[] | null) ?? [])
+      .map((c) => ({ id: c.campus_id, name: c.campus_name, slug: c.slug, status: c.status, students: Number(c.students), staff: Number(c.staff) }));
+  }
+
   return {
     userId: data.id,
     role: data.role,
@@ -126,6 +177,10 @@ export const getSession = cache(async (): Promise<Session | null> => {
     isClassTeacher,
     navRole,
     school,
+    isUniversityAdmin: !!university,
+    university,
+    activeCampusId,
+    campuses,
   };
 });
 
