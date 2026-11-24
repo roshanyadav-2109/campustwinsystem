@@ -35,7 +35,7 @@ export default async function AnnouncementsZone({ params }: { params: Promise<{ 
           ))}
         </div>
       ) : (
-        <p className="rounded-lg border border-dashed border-cx-line px-4 py-10 text-center text-[13px] text-cx-muted">No announcements yet</p>
+        <p className="rounded-lg border border-dashed border-cx-line px-5 py-10 text-center text-[13px] text-cx-muted">No announcements yet</p>
       )}
     </div>
   );

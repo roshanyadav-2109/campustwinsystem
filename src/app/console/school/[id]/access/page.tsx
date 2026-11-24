@@ -1,31 +1,53 @@
 import { createAdminClient } from "@/lib/supabase/admin";
-import { loadSchool } from "@/lib/console/tenant";
-import { ConsoleTable, Pill, ZoneHeader, type Col } from "@/components/console/table";
+import { loadSchool, headCount } from "@/lib/console/tenant";
+import { ConsoleTable, Kpi, ZoneHeader, kpiStrip, type Col } from "@/components/console/table";
+import { Section } from "@/components/console/ui";
 
 type Row = { id: string; full_name: string; role: string; staff_id: number | null; student_id: number | null; guardian_id: number | null; created_at: string };
+const ROLE: Record<string, string> = { staff: "Staff", guardian: "Parent or guardian", student: "Student" };
+const fmt = (d: string) => new Date(d).toLocaleDateString("en-IN", { day: "numeric", month: "short", year: "numeric" });
 
 export default async function AccessZone({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
   const s = await loadSchool(id);
   const admin = createAdminClient();
-  const { data } = await admin.from("profile").select("id, full_name, role, staff_id, student_id, guardian_id, created_at").eq("school_id", s.id).order("created_at");
+  const { data } = await admin.from("profile").select("id, full_name, role, staff_id, student_id, guardian_id, created_at").eq("school_id", s.id).order("created_at", { ascending: false });
   const rows = (data ?? []) as Row[];
-
-  const linkOf = (r: Row) => r.staff_id ? `Staff #${r.staff_id}` : r.student_id ? `Student #${r.student_id}` : r.guardian_id ? `Guardian #${r.guardian_id}` : "—";
-  const tone = (role: string) => (role === "staff" ? "violet" : role === "student" ? "sky" : "amber") as "violet" | "sky" | "amber";
+  const [staffTotal, guardianTotal, studentTotal] = await Promise.all([headCount(admin, "staff", s.id), headCount(admin, "guardian", s.id), headCount(admin, "student", s.id)]);
+  const count = (role: string) => rows.filter((r) => r.role === role).length;
+  const share = (n: number, of: number) => (of ? `${n.toLocaleString("en-IN")} of ${of.toLocaleString("en-IN")}` : "None on record");
 
   const cols: Col<Row>[] = [
-    { key: "name", label: "Account", render: (r) => <span className="font-medium text-cx-text">{r.full_name}</span> },
-    { key: "role", label: "Role", render: (r) => <Pill tone={tone(r.role)}>{r.role}</Pill> },
-    { key: "link", label: "Linked record", render: (r) => <span className="text-cx-text-2">{linkOf(r)}</span> },
-    { key: "created", label: "Since", align: "right", render: (r) => <span className="text-cx-muted">{new Date(r.created_at).toLocaleDateString("en-IN", { day: "numeric", month: "short", year: "numeric" })}</span> },
+    { key: "name", label: "Name", render: (r) => <span className="font-medium text-cx-text">{r.full_name}</span> },
+    { key: "role", label: "Signs in as", render: (r) => ROLE[r.role] ?? r.role },
+    { key: "created", label: "First signed in", render: (r) => <span className="tabular-nums">{fmt(r.created_at)}</span> },
   ];
 
   return (
     <div>
-      <ZoneHeader title="Login access" sub={`${rows.length} account${rows.length === 1 ? "" : "s"} can sign in to this institution`} />
-      <ConsoleTable columns={cols} rows={rows} rowKey={(r) => r.id} empty="No one has signed in yet" />
-      <p className="mt-3 text-[12px] text-cx-muted">Accounts are created automatically when a staff member, parent or student first signs in with a Google email that matches a record here.</p>
+      <ZoneHeader title="Login access" />
+
+      <div className={kpiStrip}>
+        <Kpi label="Accounts" value={rows.length} />
+        <Kpi label="Staff with a login" value={count("staff")} sub={share(count("staff"), staffTotal)} />
+        <Kpi label="Parents with a login" value={count("guardian")} sub={share(count("guardian"), guardianTotal)} />
+        <Kpi label="Students with a login" value={count("student")} sub={share(count("student"), studentTotal)} />
+      </div>
+
+      <div className="grid items-start gap-4 xl:grid-cols-3">
+        <div className="xl:col-span-2">
+          <Section title="Accounts" desc="Newest first" flush>
+            <ConsoleTable bare columns={cols} rows={rows} rowKey={(r) => r.id} empty="No one has signed in yet" />
+          </Section>
+        </div>
+        <Section title="How sign-in works">
+          <ol className="space-y-3 text-[13px] leading-5 text-cx-text-2">
+            <li className="flex gap-3"><span className="flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-cx-raised text-[11px] font-semibold text-cx-text">1</span>The school office adds a person with their email address.</li>
+            <li className="flex gap-3"><span className="flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-cx-raised text-[11px] font-semibold text-cx-text">2</span>That person chooses Sign in with Google on the school&apos;s portal.</li>
+            <li className="flex gap-3"><span className="flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-cx-raised text-[11px] font-semibold text-cx-text">3</span>Their account is created on that first sign-in and appears in this list.</li>
+          </ol>
+        </Section>
+      </div>
     </div>
   );
 }

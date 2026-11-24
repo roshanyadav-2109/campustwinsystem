@@ -56,7 +56,7 @@ export default async function SchoolOverview({ params }: { params: Promise<{ id:
             {att && att.weekly.length > 1 ? <AttendanceTrend data={att.weekly} /> : <p className="py-10 text-center text-[13px] text-cx-muted">Not enough attendance marked yet</p>}
           </Section>
         </div>
-        <Section title="Students per class" desc={year?.name} flush>
+        <Section title="Students per class" flush>
           <MeterList rows={enrol.map((e) => ({ label: e.name, value: e.students }))} max={maxClass} format={(v) => v.toLocaleString("en-IN")} />
         </Section>
       </div>
@@ -67,13 +67,13 @@ export default async function SchoolOverview({ params }: { params: Promise<{ id:
             {(recent ?? []).length > 0 ? (
               <ul className="divide-y divide-cx-line">
                 {(recent ?? []).map((a) => (
-                  <li key={a.id} className="flex h-10 items-center justify-between gap-3 px-4 text-[13.5px]">
+                  <li key={a.id} className="flex h-10 items-center justify-between gap-3 px-5 text-[13.5px]">
                     <span className="min-w-0 truncate text-cx-text">{a.title}</span>
                     <span className="shrink-0 text-[12.5px] tabular-nums text-cx-muted">{fmtDate(a.published_at)}</span>
                   </li>
                 ))}
               </ul>
-            ) : <p className="px-4 py-6 text-[13px] text-cx-muted">No announcements yet</p>}
+            ) : <p className="px-5 py-6 text-[13px] text-cx-muted">No announcements yet</p>}
           </Section>
         </div>
 
@@ -81,16 +81,16 @@ export default async function SchoolOverview({ params }: { params: Promise<{ id:
           <Section title="Academic year" flush>
             {year ? (
               <dl className="divide-y divide-cx-line text-[13px]">
-                <div className="flex h-10 items-center justify-between px-4"><dt className="text-cx-muted">Session</dt><dd className="font-medium text-cx-text">{year.name}</dd></div>
-                <div className="flex h-10 items-center justify-between px-4"><dt className="text-cx-muted">Runs</dt><dd className="tabular-nums text-cx-text-2">{fmtDate(year.start_date)} – {fmtDate(year.end_date)}</dd></div>
+                <div className="flex h-10 items-center justify-between px-5"><dt className="text-cx-muted">Session</dt><dd className="font-medium text-cx-text">{year.name}</dd></div>
+                <div className="flex h-10 items-center justify-between px-5"><dt className="text-cx-muted">Runs</dt><dd className="tabular-nums text-cx-text-2">{fmtDate(year.start_date)} to {fmtDate(year.end_date)}</dd></div>
               </dl>
-            ) : <p className="px-4 py-6 text-[13px] text-cx-muted">No academic year set</p>}
+            ) : <p className="px-5 py-6 text-[13px] text-cx-muted">No academic year set</p>}
           </Section>
 
           <Section title="Modules" flush right={<Link href={`${base}/settings`} className="text-[13px] text-cx-link hover:underline">Manage</Link>}>
             <dl className="divide-y divide-cx-line text-[13px]">
               {PAID.map((m) => (
-                <div key={m} className="flex h-9 items-center justify-between px-4">
+                <div key={m} className="flex h-9 items-center justify-between px-5">
                   <dt className="text-cx-text-2">{MODULE_LABEL[m]}</dt>
                   <dd><Pill tone={mods[m] ? "green" : "slate"}>{mods[m] ? "On" : "Off"}</Pill></dd>
                 </div>

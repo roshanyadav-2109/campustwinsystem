@@ -1,7 +1,11 @@
 import { createAdminClient } from "@/lib/supabase/admin";
 import { loadSchool, modulesOf } from "@/lib/console/tenant";
 import { Kpi, ZoneHeader, kpiStrip } from "@/components/console/table";
+import { EmptyState, btnGhost } from "@/components/console/ui";
 import { ModuleNotice } from "@/components/console/module-notice";
+import { Icon } from "@/components/console/icons";
+
+const BASE = process.env.NEXT_PUBLIC_BASE_DOMAIN || "campustwin.org";
 
 export default async function FeesZone({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
@@ -18,15 +22,19 @@ export default async function FeesZone({ params }: { params: Promise<{ id: strin
     <div>
       <ZoneHeader title="Fees" />
       {!on && <ModuleNotice module="fees" schoolId={s.id} />}
-      {(invoices ?? 0) > 0 && (<div className={kpiStrip}>
-        <Kpi label="Fee heads" value={heads ?? 0} />
-        <Kpi label="Invoices raised" value={invoices ?? 0} />
-        <Kpi label="Payments" value={payments ?? 0} />
-      </div>)}
-      {(invoices ?? 0) === 0 && (
-        <p className="rounded-lg border border-dashed border-cx-line px-4 py-10 text-center text-[13px] text-cx-muted">
-          No fees have been billed yet. Fee heads, structures and invoices are managed by the school office inside the portal.
-        </p>
+      {(invoices ?? 0) > 0 ? (
+        <div className={kpiStrip}>
+          <Kpi label="Fee heads" value={heads ?? 0} />
+          <Kpi label="Invoices raised" value={invoices ?? 0} />
+          <Kpi label="Payments recorded" value={payments ?? 0} />
+        </div>
+      ) : (
+        <EmptyState
+          icon={<Icon name="fees" size={22} />}
+          title="No fees billed yet"
+          body={`${s.name} hasn't raised any invoices. The school office sets up fee heads and bills students from its own portal, and the totals appear here as soon as it does.`}
+          action={on ? <a href={`https://${s.slug}.${BASE}/dashboard/fees`} target="_blank" rel="noreferrer" className={btnGhost}>Open fees in the school portal <Icon name="external" size={14} /></a> : undefined}
+        />
       )}
     </div>
   );

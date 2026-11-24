@@ -31,7 +31,7 @@ export default async function StaffZone({ params, searchParams }: { params: Prom
       </div>
     ) },
     { key: "role", label: "Role", render: (r) => humanize(r.role) },
-    { key: "email", label: "Email", render: (r) => r.email ?? <span className="text-cx-faint">—</span> },
+    { key: "email", label: "Email", render: (r) => r.email ?? <span className="text-cx-muted">Not recorded</span> },
   ];
 
   return (
@@ -45,14 +45,13 @@ export default async function StaffZone({ params, searchParams }: { params: Prom
       </div>
 
       <Section
-        title={q ? `Matching “${q}”` : "All staff"}
-        desc={`${(count ?? 0).toLocaleString("en-IN")} records`}
+        title={q ? `Staff matching ${q}` : "All staff"}
         flush
         right={<a href={`${base}/export`} className={btnGhost}>Export CSV</a>}
       >
-        <div className="border-b border-cx-line px-4 py-3"><SearchForm action={base} defaultValue={q} placeholder="Search by name, employee code or email" /></div>
-        <ConsoleTable bare columns={cols} rows={rows} rowKey={(r) => r.id} empty={q ? `No staff match “${q}”` : "No staff"} />
-        <div className="border-t border-cx-line px-4 pb-3"><Pager page={page} pageSize={SIZE} total={count ?? 0} hrefFor={(p) => `${base}?${new URLSearchParams({ ...(q ? { q } : {}), page: String(p) })}`} /></div>
+        <div className="border-b border-cx-line px-5 py-3"><SearchForm action={base} defaultValue={q} placeholder="Search by name, employee code or email" /></div>
+        <ConsoleTable bare columns={cols} rows={rows} rowKey={(r) => r.id} empty={q ? `No staff match ${q}` : "No staff"} />
+        <div className="border-t border-cx-line px-5 pb-3"><Pager page={page} pageSize={SIZE} total={count ?? 0} hrefFor={(p) => `${base}?${new URLSearchParams({ ...(q ? { q } : {}), page: String(p) })}`} /></div>
       </Section>
     </div>
   );

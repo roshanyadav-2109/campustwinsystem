@@ -1,7 +1,11 @@
 import { createAdminClient } from "@/lib/supabase/admin";
 import { loadSchool, modulesOf } from "@/lib/console/tenant";
 import { Kpi, ZoneHeader, kpiStrip } from "@/components/console/table";
+import { EmptyState, btnGhost } from "@/components/console/ui";
 import { ModuleNotice } from "@/components/console/module-notice";
+import { Icon } from "@/components/console/icons";
+
+const BASE = process.env.NEXT_PUBLIC_BASE_DOMAIN || "campustwin.org";
 
 export default async function AdmissionsZone({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
@@ -18,15 +22,19 @@ export default async function AdmissionsZone({ params }: { params: Promise<{ id:
     <div>
       <ZoneHeader title="Admissions" />
       {!on && <ModuleNotice module="admissions" schoolId={s.id} />}
-      {(total ?? 0) > 0 && (<div className={kpiStrip}>
-        <Kpi label="Enquiries" value={total ?? 0} />
-        <Kpi label="Open" value={open ?? 0} />
-        <Kpi label="Follow-ups" value={followups ?? 0} />
-      </div>)}
-      {(total ?? 0) === 0 && (
-        <p className="rounded-lg border border-dashed border-cx-line px-4 py-10 text-center text-[13px] text-cx-muted">
-          No admission enquiries yet. The pipeline is managed by the school office inside the portal.
-        </p>
+      {(total ?? 0) > 0 ? (
+        <div className={kpiStrip}>
+          <Kpi label="Enquiries" value={total ?? 0} />
+          <Kpi label="Still open" value={open ?? 0} />
+          <Kpi label="Follow-ups logged" value={followups ?? 0} />
+        </div>
+      ) : (
+        <EmptyState
+          icon={<Icon name="admissions" size={22} />}
+          title="No admission enquiries yet"
+          body={`${s.name} hasn't logged any enquiries. Each enquiry the office records, and every follow-up on it, is counted here.`}
+          action={on ? <a href={`https://${s.slug}.${BASE}/dashboard/admissions`} target="_blank" rel="noreferrer" className={btnGhost}>Open admissions in the school portal <Icon name="external" size={14} /></a> : undefined}
+        />
       )}
     </div>
   );

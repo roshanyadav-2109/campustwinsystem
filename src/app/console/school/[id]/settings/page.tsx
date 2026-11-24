@@ -5,70 +5,93 @@ import { Section, StatusBadge, inputCls, labelCls, btnPrimary, btnGhost, btnDang
 
 const MODULES: { key: string; label: string; desc: string }[] = [
   { key: "fees", label: "Fees", desc: "Fee heads, invoices and collection" },
-  { key: "library", label: "Library", desc: "Catalogue, issue and returns" },
+  { key: "library", label: "Library", desc: "Catalogue, issues and returns" },
   { key: "homework", label: "Homework", desc: "Assignments and submissions" },
-  { key: "admissions", label: "Admissions", desc: "Enquiries and the admission pipeline" },
-  { key: "hr", label: "HR", desc: "Staff records, leave and payroll" },
-  { key: "transport", label: "Transport", desc: "Routes, vehicles and tracking" },
+  { key: "admissions", label: "Admissions", desc: "Enquiries and follow-ups" },
+  { key: "hr", label: "HR and payroll", desc: "Staff leave, salaries and payslips" },
+  { key: "transport", label: "Transport", desc: "Routes, buses and live tracking" },
 ];
+const hint = "mt-1 text-[12px] text-cx-muted";
 
 export default async function SettingsZone({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
   const s = await loadSchool(id);
   const mods = modulesOf(s.modules);
+  const active = s.status === "active";
 
   return (
-    <div className="max-w-4xl">
-      <ZoneHeader title="Settings">
-        <StatusBadge status={s.status} />
-        <form action={setSchoolStatus}>
-          <input type="hidden" name="id" value={s.id} />
-          <input type="hidden" name="status" value={s.status === "active" ? "suspended" : "active"} />
-          <button className={s.status === "active" ? btnDanger : btnPrimary}>{s.status === "active" ? "Suspend institution" : "Activate institution"}</button>
-        </form>
-      </ZoneHeader>
+    <div>
+      <ZoneHeader title="Settings" badges={<StatusBadge status={s.status} />} />
 
-      <div className="space-y-4">
-        <Section title="Branding" desc="Shown on this institution's sign-in page and dashboard">
-          <form action={updateBranding} className="grid gap-4 sm:grid-cols-2">
-            <input type="hidden" name="id" value={s.id} /><input type="hidden" name="kind" value="school" />
-            <div><label className={labelCls}>Name</label><input name="name" defaultValue={s.name} className={inputCls} /></div>
-            <div><label className={labelCls}>Place</label><input name="place" defaultValue={s.place ?? ""} className={inputCls} /></div>
-            <div>
-              <label className={labelCls}>Primary colour</label>
-              <div className="flex items-center gap-2">
-                <span className="h-9 w-9 shrink-0 rounded-md border border-cx-line" style={{ background: s.primary_color ?? "#0F6CBD" }} />
-                <input name="primary_color" defaultValue={s.primary_color ?? "#0F6CBD"} className={inputCls} />
+      <div className="grid items-start gap-4 xl:grid-cols-3">
+        <div className="space-y-4 xl:col-span-2">
+          <Section title="Branding" desc="What students, parents and staff see on sign-in and in the portal">
+            <form action={updateBranding} className="space-y-4">
+              <input type="hidden" name="id" value={s.id} /><input type="hidden" name="kind" value="school" />
+              <div className="grid gap-4 sm:grid-cols-2">
+                <div><label className={labelCls} htmlFor="b-name">Name</label><input id="b-name" name="name" defaultValue={s.name} className={inputCls} /></div>
+                <div><label className={labelCls} htmlFor="b-place">Town or city</label><input id="b-place" name="place" defaultValue={s.place ?? ""} className={inputCls} /></div>
+                <div>
+                  <label className={labelCls} htmlFor="b-color">Brand colour</label>
+                  <div className="flex items-center gap-2">
+                    <span className="h-8 w-8 shrink-0 rounded-md border border-cx-line" style={{ background: s.primary_color ?? "#0F6CBD" }} />
+                    <input id="b-color" name="primary_color" defaultValue={s.primary_color ?? "#0F6CBD"} className={inputCls} />
+                  </div>
+                  <p className={hint}>A hex value, used for the sign-in accent</p>
+                </div>
+                <div>
+                  <label className={labelCls} htmlFor="b-logo">Logo address</label>
+                  <input id="b-logo" name="logo_url" defaultValue={s.logo_url ?? ""} className={inputCls} placeholder="https://" />
+                  <p className={hint}>Square image, at least 256 pixels</p>
+                </div>
               </div>
-            </div>
-            <div><label className={labelCls}>Logo URL</label><input name="logo_url" defaultValue={s.logo_url ?? ""} className={inputCls} /></div>
-            <div className="sm:col-span-2"><button className={btnPrimary}>Save branding</button></div>
-          </form>
-        </Section>
+              <div className="flex justify-end border-t border-cx-line pt-4"><button className={btnPrimary}>Save branding</button></div>
+            </form>
+          </Section>
 
-        <Section title="Modules" desc="Paid features this institution can use">
-          <div className="grid gap-2 sm:grid-cols-2">
+          <Section title="Plan" desc="Billing tier recorded for this institution">
+            <form action={setPlan} className="flex flex-wrap items-end gap-2">
+              <input type="hidden" name="id" value={s.id} /><input type="hidden" name="kind" value="school" />
+              <div className="min-w-[220px] flex-1"><label className={labelCls} htmlFor="p-plan">Plan name</label><input id="p-plan" name="plan" defaultValue={s.plan ?? "standard"} className={inputCls} /></div>
+              <button className={btnGhost}>Update plan</button>
+            </form>
+          </Section>
+
+          <section className="rounded-lg border border-cx-bad/30 bg-cx-card">
+            <div className="flex flex-wrap items-center justify-between gap-4 px-5 py-3.5">
+              <div className="min-w-0">
+                <h2 className="text-[14px] font-semibold text-cx-text">{active ? "Suspend this institution" : "Reactivate this institution"}</h2>
+                <p className="text-[12.5px] text-cx-muted">{active ? "Everyone at the school is signed out and sees a suspended notice until you turn it back on. No data is deleted." : "Restores sign-in for every student, parent and staff member."}</p>
+              </div>
+              <form action={setSchoolStatus}>
+                <input type="hidden" name="id" value={s.id} />
+                <input type="hidden" name="status" value={active ? "suspended" : "active"} />
+                <button className={active ? btnDanger : btnPrimary}>{active ? "Suspend" : "Reactivate"}</button>
+              </form>
+            </div>
+          </section>
+        </div>
+
+        <Section title="Modules" desc="Paid features this institution can use" flush>
+          <ul className="divide-y divide-cx-line">
             {MODULES.map((m) => {
               const on = !!mods[m.key];
               return (
-                <form key={m.key} action={toggleModule} className={`flex items-center justify-between gap-3 rounded-lg border px-3.5 py-2.5 ${on ? "border-cx-line-strong bg-cx-card" : "border-cx-line bg-white"}`}>
-                  <input type="hidden" name="id" value={s.id} /><input type="hidden" name="key" value={m.key} />
-                  <div className="min-w-0"><p className="text-[13px] font-medium text-cx-text">{m.label}</p><p className="truncate text-[11.5px] text-cx-muted">{m.desc}</p></div>
-                  <button aria-label={`${on ? "Disable" : "Enable"} ${m.label}`} className={`relative h-5 w-9 shrink-0 rounded-full transition-colors ${on ? "bg-cx-text" : "bg-cx-line-strong"}`}>
-                    <span className={`absolute left-0.5 top-0.5 h-4 w-4 rounded-full bg-white shadow-sm transition-transform ${on ? "translate-x-4" : ""}`} />
-                  </button>
-                </form>
+                <li key={m.key}>
+                  <form action={toggleModule} className="flex items-center justify-between gap-3 px-5 py-3">
+                    <input type="hidden" name="id" value={s.id} /><input type="hidden" name="key" value={m.key} />
+                    <div className="min-w-0">
+                      <p className="text-[13.5px] font-medium text-cx-text">{m.label}</p>
+                      <p className="text-[12px] text-cx-muted">{m.desc}</p>
+                    </div>
+                    <button role="switch" aria-checked={on} aria-label={`${m.label} module`} className={`relative h-5 w-9 shrink-0 rounded-full transition-colors ${on ? "bg-cx-text" : "bg-cx-line-strong"}`}>
+                      <span className={`absolute left-0.5 top-0.5 h-4 w-4 rounded-full bg-white shadow-sm transition-transform ${on ? "translate-x-4" : ""}`} />
+                    </button>
+                  </form>
+                </li>
               );
             })}
-          </div>
-        </Section>
-
-        <Section title="Plan" desc="Billing tier">
-          <form action={setPlan} className="flex flex-wrap items-end gap-2">
-            <input type="hidden" name="id" value={s.id} /><input type="hidden" name="kind" value="school" />
-            <div className="min-w-[200px] flex-1"><label className={labelCls}>Plan name</label><input name="plan" defaultValue={s.plan ?? "standard"} className={inputCls} /></div>
-            <button className={btnGhost}>Update plan</button>
-          </form>
+          </ul>
         </Section>
       </div>
     </div>

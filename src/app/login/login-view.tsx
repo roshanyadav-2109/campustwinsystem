@@ -34,7 +34,7 @@ function Spinner() {
 
 // One sign-in screen. On a school subdomain it carries that school's logo, name
 // and colour; on the console host it carries the CampusTwin mark. Same layout.
-export function LoginView({ brand, owner = false }: { brand: Brand; owner?: boolean }) {
+export function LoginView({ brand, owner = false, demo = false }: { brand: Brand; owner?: boolean; demo?: boolean }) {
   const t = useT();
   const router = useRouter();
   const params = useSearchParams();
@@ -96,7 +96,7 @@ export function LoginView({ brand, owner = false }: { brand: Brand; owner?: bool
             {busy === "google" && <span className="absolute right-3"><Spinner /></span>}
           </button>
 
-          {!owner && DEMO_ACCOUNTS.length > 0 && (
+          {!owner && demo && DEMO_ACCOUNTS.length > 0 && (
             <>
               <div className="my-6 flex items-center gap-4 text-[13px] text-cx-muted">
                 <span className="h-px flex-1 bg-cx-line" />

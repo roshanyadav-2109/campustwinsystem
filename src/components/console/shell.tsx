@@ -6,7 +6,7 @@ import { Icon } from "./icons";
 function Rail() {
   return (
     <>
-      <RailLink href="/console" exact icon={<Icon name="overview" size={20} />} label="Home" />
+      <RailLink href="/console" exact icon={<Icon name="home" size={20} />} label="Home" />
       <RailLink href="/console/institutions" icon={<Icon name="institution" size={20} />} label="Institutions" also={["/console/school", "/console/university", "/console/new"]} />
       <RailLink href="/console/owners" icon={<Icon name="team" size={20} />} label="Team" />
     </>
@@ -39,9 +39,9 @@ export function Shell({ panel, crumbs, children }: { panel: React.ReactNode; cru
 
 export function PanelTitle({ title, sub }: { title: string; sub?: React.ReactNode }) {
   return (
-    <div className="mb-2 px-3 pt-1">
+    <div className="mb-3 border-b border-cx-line px-2 pb-3 pt-1">
       <p className="text-[15px] font-semibold leading-5 text-cx-text">{title}</p>
-      {sub && <div className="mt-0.5 text-[12px] text-cx-muted">{sub}</div>}
+      {sub && <div className="mt-1 text-[12px] text-cx-muted">{sub}</div>}
     </div>
   );
 }

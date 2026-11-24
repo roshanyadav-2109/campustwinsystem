@@ -1,6 +1,6 @@
 import { createAdminClient } from "@/lib/supabase/admin";
 import { loadSchool, currentYear, sectionClassMaps, studentBreakdown, humanize } from "@/lib/console/tenant";
-import { ConsoleTable, SearchForm, Pager, Avatar, Pill, ZoneHeader, type Col } from "@/components/console/table";
+import { ConsoleTable, SearchForm, Pager, Avatar, Pill, ZoneHeader, type Col, SessionTag } from "@/components/console/table";
 import { Section, btnGhost } from "@/components/console/ui";
 import { MeterList } from "@/components/console/meter-list";
 
@@ -43,13 +43,13 @@ export default async function StudentsZone({ params, searchParams }: { params: P
         <div className="min-w-0"><div className="truncate font-medium text-cx-text">{r.full_name}</div><div className="text-[12px] text-cx-muted">{r.admission_no}</div></div>
       </div>
     ) },
-    { key: "class", label: "Class", render: (r) => { const sec = classOf.get(r.id); return sec ? maps.sectionLabel.get(sec) ?? "—" : <span className="text-cx-faint">—</span>; } },
+    { key: "class", label: "Class", render: (r) => { const sec = classOf.get(r.id); return sec ? maps.sectionLabel.get(sec) ?? "" : <span className="text-cx-muted">Not enrolled</span>; } },
     { key: "status", label: "Status", render: (r) => <Pill tone={r.status === "active" ? "green" : "slate"}>{humanize(r.status)}</Pill> },
   ];
 
   return (
     <div>
-      <ZoneHeader title="Students" sub={year?.name} />
+      <ZoneHeader title="Students"><SessionTag name={year?.name} /></ZoneHeader>
 
       <div className="mb-4 grid gap-4 lg:grid-cols-2">
         <Section title="Enrolled students by gender" flush>
@@ -61,14 +61,13 @@ export default async function StudentsZone({ params, searchParams }: { params: P
       </div>
 
       <Section
-        title={q ? `Matching “${q}”` : "All students"}
-        desc={`${(count ?? 0).toLocaleString("en-IN")} records`}
+        title={q ? `Students matching ${q}` : "All students"}
         flush
         right={<a href={`${base}/export`} className={btnGhost}>Export CSV</a>}
       >
-        <div className="border-b border-cx-line px-4 py-3"><SearchForm action={base} defaultValue={q} placeholder="Search by name or admission number" /></div>
-        <ConsoleTable bare columns={cols} rows={rows} rowKey={(r) => r.id} empty={q ? `No students match “${q}”` : "No students"} />
-        <div className="border-t border-cx-line px-4 pb-3"><Pager page={page} pageSize={SIZE} total={count ?? 0} hrefFor={(p) => `${base}?${new URLSearchParams({ ...(q ? { q } : {}), page: String(p) })}`} /></div>
+        <div className="border-b border-cx-line px-5 py-3"><SearchForm action={base} defaultValue={q} placeholder="Search by name or admission number" /></div>
+        <ConsoleTable bare columns={cols} rows={rows} rowKey={(r) => r.id} empty={q ? `No students match ${q}` : "No students"} />
+        <div className="border-t border-cx-line px-5 pb-3"><Pager page={page} pageSize={SIZE} total={count ?? 0} hrefFor={(p) => `${base}?${new URLSearchParams({ ...(q ? { q } : {}), page: String(p) })}`} /></div>
       </Section>
     </div>
   );

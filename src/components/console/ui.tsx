@@ -31,18 +31,30 @@ export function TypeBadge({ kind }: { kind: string }) {
 }
 
 // A container in the AWS sense: a titled panel with a hairline under the header.
-export function Section({ title, desc, right, children, flush }: { title: string; desc?: string; right?: React.ReactNode; children: React.ReactNode; flush?: boolean }) {
+export function Section({ title, desc, right, children, flush }: { title?: string; desc?: string; right?: React.ReactNode; children: React.ReactNode; flush?: boolean }) {
   return (
-    <section className="rounded-lg border border-cx-line bg-cx-card">
-      <div className="flex items-center justify-between gap-3 border-b border-cx-line px-4 py-2.5">
+    <section className="overflow-hidden rounded-[10px] border border-cx-line bg-cx-card">
+      {title && <div className="flex items-center justify-between gap-4 border-b border-cx-line px-5 py-3.5">
         <div className="min-w-0">
-          <h2 className="text-[14px] font-semibold text-cx-text">{title}</h2>
-          {desc && <p className="text-[12.5px] text-cx-muted">{desc}</p>}
+          <h2 className="text-[17px] font-semibold leading-6 text-cx-text">{title}</h2>
+          {desc && <p className="mt-0.5 text-[13px] text-cx-muted">{desc}</p>}
         </div>
-        {right}
-      </div>
-      <div className={flush ? "" : "p-4"}>{children}</div>
+        {right && <div className="flex shrink-0 items-center gap-2">{right}</div>}
+      </div>}
+      <div className={flush ? "" : "p-5"}>{children}</div>
     </section>
+  );
+}
+
+// Empty state as a real card: what this area is for, and the one next step.
+export function EmptyState({ icon, title, body, action }: { icon: React.ReactNode; title: string; body: string; action?: React.ReactNode }) {
+  return (
+    <div className="flex flex-col items-center rounded-lg border border-cx-line bg-cx-card px-6 py-14 text-center">
+      <span className="flex h-12 w-12 items-center justify-center rounded-full bg-cx-raised text-cx-text-2">{icon}</span>
+      <h2 className="mt-4 text-[16px] font-semibold text-cx-text">{title}</h2>
+      <p className="mt-1.5 max-w-md text-[13.5px] leading-5 text-cx-muted">{body}</p>
+      {action && <div className="mt-5">{action}</div>}
+    </div>
   );
 }
 

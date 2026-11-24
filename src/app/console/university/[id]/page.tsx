@@ -2,7 +2,7 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { ConsoleTable, Kpi, ZoneHeader, type Col, kpiStrip } from "@/components/console/table";
-import { StatusBadge, TypeBadge } from "@/components/console/ui";
+import { Section, StatusBadge, TypeBadge } from "@/components/console/ui";
 
 const BASE = process.env.NEXT_PUBLIC_BASE_DOMAIN || "campustwin.org";
 const c = (a: { count: number }[] | null) => a?.[0]?.count ?? 0;
@@ -41,8 +41,7 @@ export default async function UniversityOverview({ params }: { params: Promise<{
         <Kpi label="Students" value={students} sub="all campuses" />
         <Kpi label="Staff" value={staff} sub="all campuses" />
       </div>
-      <p className="mb-2 text-[14px] font-semibold text-cx-text">Campuses</p>
-      <ConsoleTable columns={cols} rows={camps} rowKey={(x) => x.id} empty="No campuses yet" />
+      <Section title="Campuses" desc="Open a campus to see its people, classes and attendance" flush><ConsoleTable bare columns={cols} rows={camps} rowKey={(x) => x.id} empty="No campuses yet" /></Section>
     </div>
   );
 }

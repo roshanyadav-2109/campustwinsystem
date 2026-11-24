@@ -27,7 +27,7 @@ export function ConsoleTable<T>({ columns, rows, rowKey, empty = "Nothing here y
         <thead className="border-b border-cx-line bg-cx-raised/60">
           <tr>
             {columns.map((col) => (
-              <th key={col.key} style={{ width: col.width }} className={`h-9 whitespace-nowrap px-3 text-[12.5px] font-medium text-cx-muted ${align(col.align)}`}>
+              <th key={col.key} style={{ width: col.width }} className={`h-10 whitespace-nowrap px-3 text-[13px] font-medium text-cx-text-2 first:pl-5 last:pr-5 ${align(col.align)}`}>
                 {col.label}
               </th>
             ))}
@@ -37,14 +37,14 @@ export function ConsoleTable<T>({ columns, rows, rowKey, empty = "Nothing here y
           {rows.map((row) => (
             <tr key={rowKey(row)} className="transition-colors hover:bg-cx-raised/50">
               {columns.map((col) => (
-                <td key={col.key} className={`h-10 px-3 text-cx-text-2 ${align(col.align)} ${col.align === "right" ? "tabular-nums" : ""}`}>
+                <td key={col.key} className={`h-11 px-3 text-cx-text-2 first:pl-5 last:pr-5 ${align(col.align)} ${col.align === "right" ? "tabular-nums" : ""}`}>
                   {col.render(row)}
                 </td>
               ))}
             </tr>
           ))}
           {rows.length === 0 && (
-            <tr><td colSpan={columns.length} className="px-3 py-10 text-center text-[13px] text-cx-muted">{empty}</td></tr>
+            <tr><td colSpan={columns.length} className="px-5 py-10 text-center text-[13px] text-cx-muted">{empty}</td></tr>
           )}
         </tbody>
       </table>
@@ -79,7 +79,7 @@ export function Pager({ page, pageSize, total, hrefFor }: { page: number; pageSi
   const btn = "flex h-7 w-7 items-center justify-center rounded-md border border-cx-line-strong bg-cx-card transition-colors";
   return (
     <div className="mt-2 flex items-center justify-between text-[12.5px] text-cx-muted">
-      <span className="tabular-nums">{from.toLocaleString()}–{to.toLocaleString()} of {total.toLocaleString()}</span>
+      <span className="tabular-nums">{from.toLocaleString("en-IN")} to {to.toLocaleString("en-IN")} of {total.toLocaleString("en-IN")}</span>
       <div className="flex items-center gap-2">
         {page > 1
           ? <Link aria-label="Previous page" href={hrefFor(page - 1)} className={`${btn} text-cx-text hover:bg-cx-raised`}><Icon name="chevron-left" size={16} /></Link>
@@ -97,7 +97,7 @@ export function ZoneHeader({ title, sub, badges, children }: { title: string; su
   return (
     <div className="mb-4 flex flex-wrap items-end justify-between gap-3">
       <div className="min-w-0">
-        <h1 className="truncate text-[20px] font-semibold leading-7 text-cx-text">{title}</h1>
+        <h1 className="truncate text-[22px] font-semibold leading-8 text-cx-text">{title}</h1>
         {(badges || sub) && (
           <div className="mt-0.5 flex flex-wrap items-center gap-x-3 gap-y-0.5 text-[13px] text-cx-muted">
             {badges}
@@ -110,8 +110,19 @@ export function ZoneHeader({ title, sub, badges, children }: { title: string; su
   );
 }
 
+// The session a page is reporting on, shown as a quiet control in the page header.
+export function SessionTag({ name }: { name?: string | null }) {
+  if (!name) return null;
+  return (
+    <span className="inline-flex h-8 items-center gap-2 rounded-md border border-cx-line-strong bg-cx-card px-3 text-[13px] text-cx-text-2" aria-label={`Session ${name}`}>
+      <Icon name="attendance" size={15} className="text-cx-muted" />
+      {name}
+    </span>
+  );
+}
+
 export function Avatar({ src, name, size = 28 }: { src?: string | null; name: string; size?: number }) {
-  const initials = name.split(/\s+/).filter(Boolean).slice(0, 2).map((w) => w[0]).join("").toUpperCase() || "?";
+  const initials = name.split(/\s+/).filter((w) => /^\p{L}/u.test(w)).slice(0, 2).map((w) => w[0]).join("").toUpperCase() || "?";
   if (src) {
     // eslint-disable-next-line @next/next/no-img-element -- tenant CDN photo, dynamic
     return <img src={src} alt="" width={size} height={size} className="shrink-0 rounded-md object-cover" style={{ width: size, height: size }} />;

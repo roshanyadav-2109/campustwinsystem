@@ -138,3 +138,29 @@ export const staffRoles = (schoolId: number) =>
   }, ["console-staff-roles", String(schoolId)], { revalidate: 600 })();
 
 export const humanize = (s: string) => (s === "unknown" ? "Not recorded" : s.replace(/_/g, " ").replace(/^./, (c) => c.toUpperCase()));
+
+export const assessmentStats = (schoolId: number, yearId: number) =>
+  unstable_cache(async () => {
+    const admin = createAdminClient();
+    const rows = await pageAll<{ subject_id: number; section_id: number; assessed_on: string }>((from) =>
+      admin.from("assessment").select("subject_id, section_id, assessed_on").eq("school_id", schoolId).eq("academic_year_id", yearId).range(from, from + 999));
+    const { data: subjects } = await admin.from("subject").select("id, name").eq("school_id", schoolId);
+    const subjectName = new Map((subjects ?? []).map((x) => [x.id, x.name]));
+    const bySubject = tally(rows.map((r) => subjectName.get(r.subject_id) ?? "Other"));
+    const months = new Map<string, number>();
+    for (const r of rows) { const k = r.assessed_on.slice(0, 7); months.set(k, (months.get(k) ?? 0) + 1); }
+    const byMonth = [...months.entries()].sort(([a], [b]) => a.localeCompare(b)).map(([k, value]) => ({
+      key: k,
+      label: new Date(k + "-01T00:00:00Z").toLocaleDateString("en-IN", { month: "short", year: "2-digit", timeZone: "UTC" }),
+      value,
+    }));
+    const latest = rows.reduce<string | null>((m, r) => (!m || r.assessed_on > m ? r.assessed_on : m), null);
+    return { total: rows.length, subjects: bySubject.length, sections: new Set(rows.map((r) => r.section_id)).size, latest, bySubject, byMonth };
+  }, ["console-assessments", String(schoolId), String(yearId)], { revalidate: 600 })();
+
+export const guardianRelations = (schoolId: number) =>
+  unstable_cache(async () => {
+    const admin = createAdminClient();
+    const rows = await pageAll<{ relation: string | null }>((from) => admin.from("guardian").select("relation").eq("school_id", schoolId).range(from, from + 999));
+    return tally(rows.map((r) => (r.relation ? r.relation.toLowerCase() : null)));
+  }, ["console-guardian-relations", String(schoolId)], { revalidate: 600 })();

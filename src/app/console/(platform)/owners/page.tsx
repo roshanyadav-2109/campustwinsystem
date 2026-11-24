@@ -1,43 +1,65 @@
 import { createAdminClient } from "@/lib/supabase/admin";
 import { getOwnerEmail } from "@/lib/owner";
 import { addOwner, removeOwner } from "@/app/console/actions";
-import { PageHeader, Section, inputCls, btnPrimary, btnGhost } from "@/components/console/ui";
+import { ZoneHeader } from "@/components/console/table";
+import { Section, inputCls, labelCls, btnPrimary, btnGhost } from "@/components/console/ui";
+
+const fmt = (d: string) => new Date(d).toLocaleDateString("en-IN", { day: "numeric", month: "short", year: "numeric" });
 
 export default async function OwnersPage() {
   const me = await getOwnerEmail();
   const admin = createAdminClient();
-  const { data: owners } = await admin.from("platform_owner").select("email, note, created_at").order("created_at");
+  const { data: owners } = await admin.from("platform_owner").select("email, created_at").order("created_at");
+  const list = owners ?? [];
 
   return (
-    <div className="max-w-2xl">
-      <PageHeader title="Team" />
-      <p className="-mt-3 mb-4 text-[12.5px] text-cx-muted">
-        CampusTwin team members who can sign in to this console with Google and manage every institution.
-      </p>
+    <div>
+      <ZoneHeader title="Console access" sub="People who can sign in here and manage every institution" />
 
-      <Section title="Console access" desc={`${owners?.length ?? 0} member${(owners?.length ?? 0) === 1 ? "" : "s"}`}>
-        <ul className="divide-y divide-cx-line rounded-lg border border-cx-line">
-          {(owners ?? []).map((o) => (
-            <li key={o.email} className="flex items-center justify-between gap-3 px-3.5 py-2.5 text-[13px]">
-              <span className="flex items-center gap-2 text-cx-text">
-                <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-cx-raised text-[11px] font-semibold uppercase text-cx-muted">{o.email.slice(0, 2)}</span>
-                {o.email}
-                {o.email === me && <span className="rounded bg-cx-raised px-1.5 py-0.5 text-[10px] font-medium text-cx-link">You</span>}
-              </span>
-              {o.email !== me && (
-                <form action={removeOwner}>
-                  <input type="hidden" name="email" value={o.email} />
-                  <button className={btnGhost}>Remove</button>
-                </form>
-              )}
-            </li>
-          ))}
-        </ul>
-        <form action={addOwner} className="mt-3 flex items-center gap-2">
-          <input name="email" type="email" required placeholder="employee@campustwin.org" className={inputCls} />
-          <button className={`${btnPrimary} shrink-0`}>Add member</button>
-        </form>
-      </Section>
+      <div className="grid items-start gap-4 xl:grid-cols-3">
+        <div className="space-y-4 xl:col-span-2">
+          <Section title="Members" desc={`${list.length} ${list.length === 1 ? "person" : "people"}`} flush>
+            <ul className="divide-y divide-cx-line">
+              {list.map((o) => (
+                <li key={o.email} className="flex items-center justify-between gap-3 px-5 py-3">
+                  <span className="flex min-w-0 items-center gap-3">
+                    <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-cx-raised text-[12px] font-semibold text-cx-text-2">{o.email.slice(0, 1).toUpperCase()}</span>
+                    <span className="min-w-0">
+                      <span className="block truncate text-[13.5px] font-medium text-cx-text">{o.email}{o.email === me && <span className="ml-2 font-normal text-cx-muted">(you)</span>}</span>
+                      {o.created_at && <span className="block text-[12px] text-cx-muted">Added {fmt(o.created_at)}</span>}
+                    </span>
+                  </span>
+                  {o.email !== me && (
+                    <form action={removeOwner}>
+                      <input type="hidden" name="email" value={o.email} />
+                      <button className={btnGhost}>Remove</button>
+                    </form>
+                  )}
+                </li>
+              ))}
+            </ul>
+          </Section>
+
+          <Section title="Add a member">
+            <form action={addOwner} className="flex flex-wrap items-end gap-2">
+              <div className="min-w-[260px] flex-1">
+                <label className={labelCls} htmlFor="o-email">Google account email</label>
+                <input id="o-email" name="email" type="email" required placeholder="name@example.com" className={inputCls} />
+              </div>
+              <button className={btnPrimary}>Add member</button>
+            </form>
+          </Section>
+        </div>
+
+        <Section title="What members can do">
+          <ul className="space-y-2.5 text-[13px] leading-5 text-cx-text-2">
+            <li>Open any institution and see its people, classes, attendance and exams.</li>
+            <li>Create schools and universities, and change their branding and modules.</li>
+            <li>Suspend or reactivate an institution.</li>
+            <li>Export student and staff lists.</li>
+          </ul>
+        </Section>
+      </div>
     </div>
   );
 }

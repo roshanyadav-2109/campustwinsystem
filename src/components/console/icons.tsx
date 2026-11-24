@@ -64,6 +64,8 @@ const P = {
   external: ["M9 4.25H4.25V15.75H15.75V11", "M11.5 3.75H16.25V8.5", "M16.25 3.75L9.5 10.5"],
   "arrow-up": ["M10 16V4.5", "M5.5 9L10 4.5L14.5 9"],
   "arrow-down": ["M10 4V15.5", "M5.5 11L10 15.5L14.5 11"],
+  home: ["M3 8.75L10 3.25L17 8.75V17H12.25V12H7.75V17H3V8.75Z"],
+  briefcase: ["M2.75 6H17.25V16.75H2.75V6Z", "M7.25 6V3.25H12.75V6", "M2.75 10.75H17.25", "M10 9.5V12"],
 } as const;
 
 export type IconName = keyof typeof P;

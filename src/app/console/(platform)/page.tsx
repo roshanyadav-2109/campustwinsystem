@@ -50,18 +50,16 @@ export default async function ConsoleHome({ searchParams }: { searchParams: Prom
         {suspended > 0 && <Kpi label="Suspended" value={suspended} />}
       </div>
 
-      <div className="mb-4 grid gap-4 lg:grid-cols-2">
-        <Section title="Students by institution" flush>
-          <MeterList rows={top.map((t) => ({ label: t.name, value: t.students }))} max={Math.max(1, ...top.map((t) => t.students))} format={(v) => v.toLocaleString("en-IN")} labelWidth={220} />
-        </Section>
-        <Section title="Attendance rate by institution" desc="Present or late, last 30 days" flush>
-          <MeterList rows={attendance} max={100} format={(v) => `${v.toFixed(1)}%`} labelWidth={220} />
+      <div className="grid items-start gap-4 xl:grid-cols-3">
+        <div className="xl:col-span-2">
+          <Section title="Largest institutions" flush right={<Link href="/console/institutions" className="text-[13px] text-cx-link hover:underline">View all</Link>}>
+            <ConsoleTable bare columns={cols} rows={top.slice(0, 8)} rowKey={(r) => `${r.kind}-${r.id}`} empty="No institutions yet" />
+          </Section>
+        </div>
+        <Section title="Attendance rate" desc="Present or late, last 30 days" flush>
+          <MeterList rows={attendance} max={100} format={(v) => `${v.toFixed(1)}%`} labelWidth={150} />
         </Section>
       </div>
-
-      <Section title="Largest institutions" flush right={<Link href="/console/institutions" className="text-[13px] text-cx-link hover:underline">View all</Link>}>
-        <ConsoleTable bare columns={cols} rows={top.slice(0, 5)} rowKey={(r) => `${r.kind}-${r.id}`} empty="No institutions yet" />
-      </Section>
     </div>
   );
 }

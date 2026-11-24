@@ -1,9 +1,10 @@
 import { notFound } from "next/navigation";
 import { createAdminClient } from "@/lib/supabase/admin";
-import { Shell, NavLabel, PanelTitle } from "@/components/console/shell";
-import { PanelLink } from "@/components/console/nav-link";
+import { Shell, PanelTitle } from "@/components/console/shell";
+import { PanelLink, NavGroup } from "@/components/console/nav-link";
 import { Crumbs } from "@/components/console/crumbs";
 import { Dot } from "@/components/console/ui";
+import type { IconName } from "@/components/console/icons";
 
 const BASE = process.env.NEXT_PUBLIC_BASE_DOMAIN || "campustwin.org";
 
@@ -13,11 +14,10 @@ const ZONES: Record<string, string> = {
   fees: "Fees", admissions: "Admissions", transport: "Transport", library: "Library",
   announcements: "Announcements", settings: "Settings",
 };
-const GROUPS: { label: string; items: string[] }[] = [
-  { label: "People", items: ["students", "staff", "guardians", "access"] },
-  { label: "Academics", items: ["classes", "attendance", "exams"] },
-  { label: "Operations", items: ["fees", "admissions", "transport", "library", "announcements"] },
-  { label: "Administration", items: ["settings"] },
+const GROUPS: { id: string; label: string; icon: IconName; items: string[] }[] = [
+  { id: "people", label: "People", icon: "team", items: ["students", "staff", "guardians", "access"] },
+  { id: "academics", label: "Academics", icon: "students", items: ["classes", "attendance", "exams"] },
+  { id: "operations", label: "Operations", icon: "briefcase", items: ["fees", "admissions", "transport", "library", "announcements"] },
 ];
 
 export default async function SchoolWorkspaceLayout({ params, children }: { params: Promise<{ id: string }>; children: React.ReactNode }) {
@@ -44,13 +44,15 @@ export default async function SchoolWorkspaceLayout({ params, children }: { para
             title={s.name}
             sub={<span className="flex items-center gap-1.5 font-mono"><Dot tone={s.status === "active" ? "ok" : "warn"} />{s.slug}.{BASE}</span>}
           />
-          <PanelLink href={base} exact label="Overview" />
-          {GROUPS.map((g) => (
-            <div key={g.label}>
-              <NavLabel>{g.label}</NavLabel>
-              {g.items.map((seg) => <PanelLink key={seg} href={`${base}/${seg}`} label={ZONES[seg]} />)}
-            </div>
-          ))}
+          <div className="space-y-0.5">
+            <PanelLink href={base} exact icon="overview" label="Overview" />
+            {GROUPS.map((g) => (
+              <NavGroup key={g.id} id={`school-${g.id}`} label={g.label} icon={g.icon} hrefs={g.items.map((seg) => `${base}/${seg}`)}>
+                {g.items.map((seg) => <PanelLink key={seg} sub href={`${base}/${seg}`} label={ZONES[seg]} />)}
+              </NavGroup>
+            ))}
+            <div className="pt-1"><PanelLink href={`${base}/settings`} icon="settings" label="Settings" /></div>
+          </div>
         </>
       }
     >

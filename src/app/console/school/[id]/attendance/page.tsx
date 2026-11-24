@@ -1,6 +1,6 @@
 import { createAdminClient } from "@/lib/supabase/admin";
 import { loadSchool, currentYear, attendanceAnalytics } from "@/lib/console/tenant";
-import { ZoneHeader } from "@/components/console/table";
+import { ZoneHeader, SessionTag } from "@/components/console/table";
 import { Section } from "@/components/console/ui";
 import { AttendanceTrend } from "@/components/console/charts";
 import { MeterList } from "@/components/console/meter-list";
@@ -34,15 +34,15 @@ export default async function AttendanceZone({ params }: { params: Promise<{ id:
   if (!latest) {
     return (
       <div>
-        <ZoneHeader title="Attendance" sub={year?.name} />
-        <p className="rounded-lg border border-cx-line bg-cx-card px-4 py-10 text-center text-[13px] text-cx-muted">No attendance has been marked this session</p>
+        <ZoneHeader title="Attendance"><SessionTag name={year?.name} /></ZoneHeader>
+        <p className="rounded-lg border border-cx-line bg-cx-card px-5 py-10 text-center text-[13px] text-cx-muted">No attendance has been marked this session</p>
       </div>
     );
   }
 
   return (
     <div>
-      <ZoneHeader title="Attendance" sub={`${year?.name} · last marked ${fmt(latest)}`} />
+      <ZoneHeader title="Attendance"><SessionTag name={year?.name} /></ZoneHeader>
 
       <div className="mb-4 grid gap-4 lg:grid-cols-3">
         <div className="lg:col-span-2">
@@ -65,12 +65,12 @@ export default async function AttendanceZone({ params }: { params: Promise<{ id:
         </Section>
       </div>
 
-      <Section title={`Last marked day · ${fmt(latest)}`} desc={`${marked.toLocaleString("en-IN")} students marked`}>
+      <Section title="Last marked day" desc={`${fmt(latest)}, ${marked.toLocaleString("en-IN")} students marked`}>
         <div className="flex h-3 w-full gap-0.5 overflow-hidden rounded-full">
-          <div className="bg-cx-ok" style={{ width: seg(present) }} title={`Present ${present}`} />
-          <div className="bg-cx-warn" style={{ width: seg(late) }} title={`Late ${late}`} />
-          <div className="bg-cx-bad" style={{ width: seg(absent) }} title={`Absent ${absent}`} />
-          {holiday > 0 && <div className="bg-cx-line-strong" style={{ width: seg(holiday) }} title={`Holiday ${holiday}`} />}
+          <div className="bg-cx-ok" style={{ width: seg(present) }} />
+          <div className="bg-cx-warn" style={{ width: seg(late) }} />
+          <div className="bg-cx-bad" style={{ width: seg(absent) }} />
+          {holiday > 0 && <div className="bg-cx-line-strong" style={{ width: seg(holiday) }} />}
         </div>
         <div className="mt-3 flex flex-wrap gap-5 text-[13px] text-cx-text-2">
           <span className="flex items-center gap-1.5"><span className="h-2.5 w-2.5 rounded-sm bg-cx-ok" />Present <b className="font-semibold tabular-nums text-cx-text">{present.toLocaleString("en-IN")}</b></span>

@@ -45,8 +45,8 @@ export function InstitutionsTable({ rows, initialQuery = "" }: { rows: InstRow[]
     else { setSort(k); setDir(k === "name" ? 1 : -1); }
   };
   const th = (k: SortKey, children: React.ReactNode, right?: boolean) => (
-    <th className={`h-9 px-3 font-medium ${right ? "text-right" : "text-left"}`} aria-sort={sort === k ? (dir === 1 ? "ascending" : "descending") : "none"}>
-      <button onClick={() => toggleSort(k)} className="inline-flex items-center gap-1 text-cx-muted transition-colors hover:text-cx-text">
+    <th className={`h-10 px-3 font-medium ${right ? "text-right" : "text-left"}`} aria-sort={sort === k ? (dir === 1 ? "ascending" : "descending") : "none"}>
+      <button onClick={() => toggleSort(k)} className="inline-flex items-center gap-1 text-cx-text-2 transition-colors hover:text-cx-text">
         {children}
         {sort === k && (dir === 1 ? <Icon name="arrow-up" size={12} /> : <Icon name="arrow-down" size={12} />)}
       </button>
@@ -54,9 +54,9 @@ export function InstitutionsTable({ rows, initialQuery = "" }: { rows: InstRow[]
   );
 
   return (
-    <section className="rounded-lg border border-cx-line bg-cx-card">
-      <div className="flex flex-wrap items-center justify-between gap-3 border-b border-cx-line px-4 py-2.5">
-        <h2 className="text-[14px] font-semibold text-cx-text">
+    <section className="overflow-hidden rounded-[10px] border border-cx-line bg-cx-card">
+      <div className="flex flex-wrap items-center justify-between gap-3 border-b border-cx-line px-5 py-3.5">
+        <h2 className="text-[17px] font-semibold leading-6 text-cx-text">
           Institutions <span className="font-normal tabular-nums text-cx-muted">({shown.length})</span>
         </h2>
         <div className="flex flex-wrap items-center gap-2">
@@ -86,16 +86,16 @@ export function InstitutionsTable({ rows, initialQuery = "" }: { rows: InstRow[]
       </div>
 
       <div className="overflow-x-auto">
-        <table className="w-full text-[13.5px]">
-          <thead className="border-b border-cx-line bg-cx-raised/60 text-[12.5px]">
+        <table className="w-full text-[13.5px] [&_td:first-child]:pl-5 [&_td:last-child]:pr-5 [&_th:first-child]:pl-5 [&_th:last-child]:pr-5">
+          <thead className="border-b border-cx-line bg-cx-raised/60 text-[13px]">
             <tr>
               {th("name", "Name")}
-              <th className="h-9 px-3 text-left font-medium text-cx-muted">Type</th>
-              <th className="h-9 px-3 text-left font-medium text-cx-muted">Address</th>
-              <th className="h-9 px-3 text-left font-medium text-cx-muted">Plan</th>
+              <th className="h-10 px-3 text-left font-medium text-cx-text-2">Type</th>
+              <th className="h-10 px-3 text-left font-medium text-cx-text-2">Address</th>
+              <th className="h-10 px-3 text-left font-medium text-cx-text-2">Plan</th>
               {th("students", "Students", true)}
               {th("staff", "Staff", true)}
-              <th className="h-9 px-3 text-left font-medium text-cx-muted">Status</th>
+              <th className="h-10 px-3 text-left font-medium text-cx-text-2">Status</th>
             </tr>
           </thead>
           <tbody className="divide-y divide-cx-line">
@@ -109,14 +109,14 @@ export function InstitutionsTable({ rows, initialQuery = "" }: { rows: InstRow[]
                 <td className="px-3">
                   <a href={`https://${r.url}`} target="_blank" rel="noreferrer" className="font-mono text-[12.5px] text-cx-text-2 hover:text-cx-link hover:underline">{r.slug}</a>
                 </td>
-                <td className="px-3 capitalize text-cx-text-2">{r.plan ?? "—"}</td>
+                <td className="px-3 capitalize text-cx-text-2">{r.plan ?? "Not set"}</td>
                 <td className="px-3 text-right tabular-nums text-cx-text">{n(r.students)}</td>
                 <td className="px-3 text-right tabular-nums text-cx-text">{n(r.staff)}</td>
                 <td className="px-3"><StatusBadge status={r.status} /></td>
               </tr>
             ))}
             {shown.length === 0 && (
-              <tr><td colSpan={7} className="px-3 py-10 text-center text-[13px] text-cx-muted">No institutions match “{q}”</td></tr>
+              <tr><td colSpan={7} className="px-3 py-10 text-center text-[13px] text-cx-muted">No institutions match {q}</td></tr>
             )}
           </tbody>
         </table>

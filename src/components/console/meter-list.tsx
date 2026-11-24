@@ -8,13 +8,13 @@ export function MeterList({ rows, max, format, marker, markerLabel, labelWidth =
   markerLabel?: string;
   labelWidth?: number;
 }) {
-  if (rows.length === 0) return <p className="px-4 py-6 text-[13px] text-cx-muted">No data yet</p>;
+  if (rows.length === 0) return <p className="px-5 py-6 text-[13px] text-cx-muted">No data yet</p>;
   const pct = (v: number) => `${Math.max(0, Math.min(100, (v / max) * 100))}%`;
   return (
-    <div className="px-4 py-3">
-      <ul className="space-y-1.5">
+    <div className="px-5 py-4">
+      <ul className="space-y-2.5">
         {rows.map((r) => (
-          <li key={r.label} className="grid items-center gap-3 text-[13px]" style={{ gridTemplateColumns: `minmax(0,${labelWidth}px) 1fr 56px` }} title={`${r.label}: ${format(r.value)}`}>
+          <li key={r.label} className="grid items-center gap-3 text-[13px]" style={{ gridTemplateColumns: `minmax(0,${labelWidth}px) 1fr 56px` }}>
             <span className="truncate text-cx-text-2">{r.label}</span>
             <span className="relative h-2 rounded-full bg-cx-raised">
               <span className="absolute inset-y-0 left-0 rounded-full bg-[#0b57d0]" style={{ width: pct(r.value) }} />

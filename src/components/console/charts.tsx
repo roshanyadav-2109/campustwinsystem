@@ -16,7 +16,7 @@ function Tip({ active, payload }: { active?: boolean; payload?: { payload: Point
   const p = payload[0].payload;
   return (
     <div className="rounded-md border border-cx-line bg-cx-card px-3 py-2 shadow-[0_8px_24px_rgba(0,0,0,0.08)]">
-      <p className="text-[12px] text-cx-muted">{short(p.start)} – {short(p.end)}</p>
+      <p className="text-[12px] text-cx-muted">{short(p.start)} to {short(p.end)}</p>
       <p className="mt-0.5 text-[15px] font-semibold tabular-nums text-cx-text">{p.rate.toFixed(1)}%</p>
     </div>
   );

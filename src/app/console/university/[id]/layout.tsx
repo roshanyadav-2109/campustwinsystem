@@ -1,7 +1,7 @@
 import { notFound } from "next/navigation";
 import { createAdminClient } from "@/lib/supabase/admin";
-import { Shell, NavLabel, PanelTitle } from "@/components/console/shell";
-import { PanelLink } from "@/components/console/nav-link";
+import { Shell, PanelTitle } from "@/components/console/shell";
+import { PanelLink, NavGroup } from "@/components/console/nav-link";
 import { Crumbs } from "@/components/console/crumbs";
 import { Dot } from "@/components/console/ui";
 
@@ -15,6 +15,7 @@ export default async function UniversityWorkspaceLayout({ params, children }: { 
   if (!u) notFound();
   const { data: campuses } = await admin.from("school").select("id, name, status").eq("university_id", u.id).order("name");
   const base = `/console/university/${u.id}`;
+  const list = campuses ?? [];
 
   return (
     <Shell
@@ -25,13 +26,15 @@ export default async function UniversityWorkspaceLayout({ params, children }: { 
             title={u.name}
             sub={<span className="flex items-center gap-1.5 font-mono"><Dot tone={u.status === "active" ? "ok" : "warn"} />{u.slug}.{BASE}</span>}
           />
-          <PanelLink href={base} exact label="Overview" />
-          <NavLabel>University</NavLabel>
-          <PanelLink href={`${base}/campuses`} label="Campuses" meta={String(campuses?.length ?? 0)} />
-          <PanelLink href={`${base}/admins`} label="Central admins" />
-          <PanelLink href={`${base}/settings`} label="Settings" />
-          {(campuses?.length ?? 0) > 0 && <NavLabel>Open a campus</NavLabel>}
-          {(campuses ?? []).map((c) => <PanelLink key={c.id} href={`/console/school/${c.id}`} label={c.name} dot={c.status === "active" ? "ok" : "warn"} />)}
+          <div className="space-y-0.5">
+            <PanelLink href={base} exact icon="overview" label="Overview" />
+            <NavGroup id={`uni-${u.id}-campuses`} label="Campuses" icon="campuses" hrefs={[`${base}/campuses`, ...list.map((c) => `/console/school/${c.id}`)]}>
+              <PanelLink sub href={`${base}/campuses`} label="All campuses" meta={String(list.length)} />
+              {list.map((c) => <PanelLink key={c.id} sub href={`/console/school/${c.id}`} label={c.name} dot={c.status === "active" ? "ok" : "warn"} />)}
+            </NavGroup>
+            <PanelLink href={`${base}/admins`} icon="admins" label="Central admins" />
+            <PanelLink href={`${base}/settings`} icon="settings" label="Settings" />
+          </div>
         </>
       }
     >

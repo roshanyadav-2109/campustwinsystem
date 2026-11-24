@@ -27,7 +27,7 @@ export default async function CampusesZone({ params }: { params: Promise<{ id: s
   return (
     <div className="max-w-4xl">
       <ZoneHeader title="Campuses" sub={`${camps.length} campus${camps.length === 1 ? "" : "es"}`} />
-      <ConsoleTable columns={cols} rows={camps} rowKey={(x) => x.id} empty="No campuses yet — add the first below" />
+      <Section title="All campuses" desc={`${camps.length} ${camps.length === 1 ? "campus" : "campuses"}`} flush><ConsoleTable bare columns={cols} rows={camps} rowKey={(x) => x.id} empty="No campuses yet. Add the first one below" /></Section>
       <div className="mt-4">
         <Section title="Add a campus" desc="Creates a new tenant under this university with its own subdomain.">
           <form action={addCampus} className="flex flex-wrap items-end gap-2">
