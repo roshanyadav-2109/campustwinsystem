@@ -2,34 +2,24 @@
 import { revalidatePath } from "next/cache";
 import { createClient } from "@/lib/supabase/server";
 import { getSession, getCurrentYear } from "@/lib/session";
-import { cloudinaryConfig, signParams, isOwnCloudinaryImage } from "@/lib/cloudinary";
+import { tenantPrefixForSchool, mediaKey, presignPut, publicUrl, urlUnderPrefix } from "@/lib/r2";
 
-// Images go straight from the poster's browser to Cloudinary, so a large photo
-// never passes through our server. This hands out the one-time signature that
-// upload needs — only to staff, who are the only ones who can post.
-const UPLOAD_FOLDER = "announcements";
-const ALLOWED_FORMATS = "jpg,jpeg,png,webp,gif,heic";
-
+// Images go straight from the poster's browser to R2 (so a large photo never
+// passes through our server), landing under this institution's own topological
+// prefix (schools/<slug>/announcements or universities/<uni>/campuses/<campus>/…),
+// so no tenant's files mix. Only staff can post.
 export type UploadTicket =
-  | { ok: true; cloudName: string; apiKey: string; timestamp: number; signature: string; folder: string; allowedFormats: string }
+  | { ok: true; uploadUrl: string; publicUrl: string }
   | { ok: false; error: string };
 
-export async function signAnnouncementUpload(): Promise<UploadTicket> {
+export async function signAnnouncementUpload(contentType: string): Promise<UploadTicket> {
   const session = await getSession();
   if (!session?.staffId) return { ok: false, error: "Only staff can add images." };
-  const cfg = cloudinaryConfig();
-  if (!cfg) return { ok: false, error: "Image uploads are not set up yet." };
-  const timestamp = Math.floor(Date.now() / 1000);
-  const params = { allowed_formats: ALLOWED_FORMATS, folder: UPLOAD_FOLDER, timestamp };
-  return {
-    ok: true,
-    cloudName: cfg.cloudName,
-    apiKey: cfg.apiKey,
-    timestamp,
-    signature: signParams(params, cfg.apiSecret),
-    folder: UPLOAD_FOLDER,
-    allowedFormats: ALLOWED_FORMATS,
-  };
+  if (!contentType.startsWith("image/")) return { ok: false, error: "Only images can be attached." };
+  const prefix = await tenantPrefixForSchool(session.schoolId);
+  const ext = (contentType.split("/")[1] || "jpg").replace("jpeg", "jpg").replace("+xml", "").replace(/[^a-z0-9]/g, "") || "jpg";
+  const key = mediaKey(prefix, "announcements", `${crypto.randomUUID()}.${ext}`);
+  return { ok: true, uploadUrl: await presignPut(key), publicUrl: publicUrl(key) };
 }
 
 // An announcement goes either to the whole school (principal/office only) or to
@@ -47,11 +37,12 @@ export async function createAnnouncement(input: {
   if (!session?.staffId) return { ok: false, error: "Not permitted" };
   const year = await getCurrentYear();
 
-  // Only an image from the school's own Cloudinary account is kept.
+  // Only an image that was just uploaded under THIS institution's own prefix is
+  // kept — a tenant can't attach another tenant's file.
   let imageUrl: string | null = null;
   if (input.imageUrl) {
-    const cfg = cloudinaryConfig();
-    if (!cfg || !isOwnCloudinaryImage(input.imageUrl, cfg.cloudName)) return { ok: false, error: "That image could not be attached." };
+    const prefix = await tenantPrefixForSchool(session.schoolId);
+    if (!urlUnderPrefix(input.imageUrl, prefix)) return { ok: false, error: "That image could not be attached." };
     imageUrl = input.imageUrl;
   }
 

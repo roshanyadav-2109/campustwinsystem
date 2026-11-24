@@ -63,19 +63,12 @@ export function AnnouncementForm({ sections, allowSchool }: { sections: SectionO
 
   // Straight from this browser to Cloudinary with a one-time server signature.
   async function uploadImage(f: File): Promise<string> {
-    const ticket = await signAnnouncementUpload();
+    const ticket = await signAnnouncementUpload(f.type);
     if (!ticket.ok) throw new Error(ticket.error);
-    const fd = new FormData();
-    fd.append("file", f);
-    fd.append("api_key", ticket.apiKey);
-    fd.append("timestamp", String(ticket.timestamp));
-    fd.append("signature", ticket.signature);
-    fd.append("folder", ticket.folder);
-    fd.append("allowed_formats", ticket.allowedFormats);
-    const res = await fetch(`https://api.cloudinary.com/v1_1/${ticket.cloudName}/image/upload`, { method: "POST", body: fd });
-    const json = await res.json().catch(() => null);
-    if (!res.ok || !json?.secure_url) throw new Error(t("announce.imageUploadFailed"));
-    return json.secure_url as string;
+    // Direct browser -> R2 upload via the short-lived presigned URL.
+    const res = await fetch(ticket.uploadUrl, { method: "PUT", body: f, headers: { "content-type": f.type } });
+    if (!res.ok) throw new Error(t("announce.imageUploadFailed"));
+    return ticket.publicUrl;
   }
 
   function submit() {
