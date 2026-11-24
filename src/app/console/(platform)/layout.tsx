@@ -1,29 +1,26 @@
 import { Shell, NavLabel } from "@/components/console/shell";
 import { ConsoleNavLink } from "@/components/console/nav-link";
-
-function I({ d }: { d: string }) {
-  return <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d={d} /></svg>;
-}
-const grid = "M3 3h7v7H3zM14 3h7v7h-7zM3 14h7v7H3zM14 14h7v7h-7z";
-const plus = "M12 5v14M5 12h14";
-const team = "M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2M9 11a4 4 0 1 0 0-8 4 4 0 0 0 0 8M22 21v-2a4 4 0 0 0-3-3.87M16 3.13a4 4 0 0 1 0 7.75";
+import { Crumbs } from "@/components/console/crumbs";
+import { Icon } from "@/components/console/icons";
 
 export default function PlatformLayout({ children }: { children: React.ReactNode }) {
   const brand = (
-    <div className="flex items-center gap-2 px-3.5 py-3">
-      <span className="flex h-7 w-7 items-center justify-center rounded-md bg-[#13233c] text-white"><I d={grid} /></span>
-      <div><p className="text-[13px] font-semibold leading-tight text-ink-900">Platform</p><p className="text-[10.5px] text-ink-400">All institutions</p></div>
+    <div className="px-3 py-3">
+      <p className="text-[14px] font-semibold leading-5 text-cx-text">Platform</p>
+      <p className="text-[12px] text-cx-muted">Every institution on CampusTwin</p>
     </div>
   );
   return (
     <Shell
       brand={brand}
+      crumbs={<Crumbs trail={[{ label: "Console", href: "/console" }]} base="/console" zones={{ new: "New institution", owners: "Team" }} />}
       nav={
         <>
-          <NavLabel>Manage</NavLabel>
-          <ConsoleNavLink href="/console" exact icon={<I d={grid} />} label="Overview" />
-          <ConsoleNavLink href="/console/new" icon={<I d={plus} />} label="New institution" />
-          <ConsoleNavLink href="/console/owners" icon={<I d={team} />} label="Team" />
+          <NavLabel>Institutions</NavLabel>
+          <ConsoleNavLink href="/console" exact icon={<Icon name="overview" size={18} />} label="Overview" />
+          <ConsoleNavLink href="/console/new" icon={<Icon name="new" size={18} />} label="New institution" />
+          <NavLabel>Company</NavLabel>
+          <ConsoleNavLink href="/console/owners" icon={<Icon name="team" size={18} />} label="Team" />
         </>
       }
     >

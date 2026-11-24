@@ -1,7 +1,7 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { createAdminClient } from "@/lib/supabase/admin";
-import { ConsoleTable, Kpi, ZoneHeader, type Col } from "@/components/console/table";
+import { ConsoleTable, Kpi, ZoneHeader, type Col, kpiStrip } from "@/components/console/table";
 import { StatusBadge, TypeBadge } from "@/components/console/ui";
 
 const BASE = process.env.NEXT_PUBLIC_BASE_DOMAIN || "campustwin.org";
@@ -23,12 +23,12 @@ export default async function UniversityOverview({ params }: { params: Promise<{
   const staff = camps.reduce((n, x) => n + c(x.staff), 0);
 
   const cols: Col<Campus>[] = [
-    { key: "name", label: "Campus", render: (x) => <Link href={`/console/school/${x.id}`} className="font-medium text-ink-900 hover:text-[#0F6CBD]">{x.name}</Link> },
-    { key: "sub", label: "Subdomain", render: (x) => <a href={`https://${x.slug}.${BASE}`} target="_blank" rel="noreferrer" className="text-[#0F6CBD] hover:underline">{x.slug}.{BASE}</a> },
-    { key: "students", label: "Students", align: "right", render: (x) => c(x.students).toLocaleString() },
-    { key: "staff", label: "Staff", align: "right", render: (x) => c(x.staff).toLocaleString() },
+    { key: "name", label: "Campus", render: (x) => <Link href={`/console/school/${x.id}`} className="font-medium text-cx-text hover:text-cx-link">{x.name}</Link> },
+    { key: "sub", label: "Subdomain", render: (x) => <a href={`https://${x.slug}.${BASE}`} target="_blank" rel="noreferrer" className="text-cx-link hover:underline">{x.slug}.{BASE}</a> },
+    { key: "students", label: "Students", align: "right", render: (x) => c(x.students).toLocaleString("en-IN") },
+    { key: "staff", label: "Staff", align: "right", render: (x) => c(x.staff).toLocaleString("en-IN") },
     { key: "status", label: "Status", render: (x) => <StatusBadge status={x.status} /> },
-    { key: "go", label: "", align: "right", render: (x) => <Link href={`/console/school/${x.id}`} className="rounded-md border border-hair px-2.5 py-1 text-[12px] font-medium text-ink-600 hover:bg-panel">Manage</Link> },
+    { key: "go", label: "", align: "right", render: (x) => <Link href={`/console/school/${x.id}`} className="rounded-md border border-cx-line px-2.5 py-1 text-[12px] font-medium text-cx-text-2 hover:bg-cx-raised">Manage</Link> },
   ];
 
   return (
@@ -37,14 +37,14 @@ export default async function UniversityOverview({ params }: { params: Promise<{
         <TypeBadge kind="university" />
         <StatusBadge status={u.status ?? "active"} />
       </ZoneHeader>
-      <div className="mb-5 grid grid-cols-2 gap-2.5 sm:grid-cols-4">
+      <div className={kpiStrip}>
         <Kpi label="Campuses" value={camps.length} href={`/console/university/${uid}/campuses`} />
         <Kpi label="Students" value={students} sub="all campuses" />
         <Kpi label="Staff" value={staff} sub="all campuses" />
         <Kpi label="Central admins" value={admins ?? 0} href={`/console/university/${uid}/admins`} />
       </div>
-      <p className="mb-2 text-[12px] font-semibold uppercase tracking-wide text-ink-400">Campuses</p>
-      <ConsoleTable columns={cols} rows={camps} rowKey={(x) => x.id} empty="No campuses yet." />
+      <p className="mb-2 text-[14px] font-semibold text-cx-text">Campuses</p>
+      <ConsoleTable columns={cols} rows={camps} rowKey={(x) => x.id} empty="No campuses yet" />
     </div>
   );
 }

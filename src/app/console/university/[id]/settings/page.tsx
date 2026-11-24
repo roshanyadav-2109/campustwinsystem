@@ -22,15 +22,15 @@ export default async function UniversitySettingsZone({ params }: { params: Promi
         </form>
       </ZoneHeader>
 
-      <div className="space-y-5">
-        <Section title="Branding" desc="Shown on the university landing page.">
+      <div className="space-y-4">
+        <Section title="Branding" desc="Shown on the university landing page">
           <form action={updateBranding} className="grid gap-4 sm:grid-cols-2">
             <input type="hidden" name="id" value={u.id} /><input type="hidden" name="kind" value="university" />
             <div><label className={labelCls}>Name</label><input name="name" defaultValue={u.name} className={inputCls} /></div>
             <div>
               <label className={labelCls}>Primary colour</label>
               <div className="flex items-center gap-2">
-                <span className="h-9 w-9 shrink-0 rounded-md border border-hair" style={{ background: u.primary_color ?? "#0F6CBD" }} />
+                <span className="h-9 w-9 shrink-0 rounded-md border border-cx-line" style={{ background: u.primary_color ?? "#0F6CBD" }} />
                 <input name="primary_color" defaultValue={u.primary_color ?? "#0F6CBD"} className={inputCls} />
               </div>
             </div>
@@ -39,7 +39,7 @@ export default async function UniversitySettingsZone({ params }: { params: Promi
           </form>
         </Section>
 
-        <Section title="Plan" desc="Billing tier for the whole university.">
+        <Section title="Plan" desc="Billing tier for every campus">
           <form action={setPlan} className="flex flex-wrap items-end gap-2">
             <input type="hidden" name="id" value={u.id} /><input type="hidden" name="kind" value="university" />
             <div className="min-w-[200px] flex-1"><label className={labelCls}>Plan name</label><input name="plan" defaultValue={u.plan ?? "standard"} className={inputCls} /></div>

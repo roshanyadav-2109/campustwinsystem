@@ -1,7 +1,9 @@
 import Link from "next/link";
+import { Icon } from "./icons";
+import { Dot } from "./ui";
 
-// Server-rendered, data-dense table + the bits around it. No client JS: search
-// and paging are plain GET forms and links, so large tenants stay fast.
+// Server-rendered, data-dense table + the bits around it. Search and paging are
+// plain GET forms and links, so large tenants stay fast and work without JS.
 
 export type Col<T> = {
   key: string;
@@ -11,36 +13,37 @@ export type Col<T> = {
   render: (row: T) => React.ReactNode;
 };
 
-export function ConsoleTable<T>({ columns, rows, rowKey, empty = "Nothing here yet." }: {
+export function ConsoleTable<T>({ columns, rows, rowKey, empty = "Nothing here yet" }: {
   columns: Col<T>[];
   rows: T[];
   rowKey: (row: T) => string | number;
   empty?: string;
 }) {
+  const align = (a?: string) => (a === "right" ? "text-right" : a === "center" ? "text-center" : "text-left");
   return (
-    <div className="overflow-x-auto rounded-lg border border-hair bg-white">
-      <table className="w-full text-[13px]">
-        <thead className="border-b border-hair bg-[#FAFBFC] text-[11px] uppercase tracking-wide text-ink-500">
+    <div className="overflow-x-auto rounded-lg border border-cx-line bg-cx-card">
+      <table className="w-full text-[13.5px]">
+        <thead className="border-b border-cx-line bg-cx-raised/60">
           <tr>
             {columns.map((col) => (
-              <th key={col.key} style={{ width: col.width }} className={`px-3.5 py-2 font-medium ${col.align === "right" ? "text-right" : col.align === "center" ? "text-center" : "text-left"}`}>
+              <th key={col.key} style={{ width: col.width }} className={`h-9 whitespace-nowrap px-3 text-[12.5px] font-medium text-cx-muted ${align(col.align)}`}>
                 {col.label}
               </th>
             ))}
           </tr>
         </thead>
-        <tbody className="divide-y divide-hair">
+        <tbody className="divide-y divide-cx-line">
           {rows.map((row) => (
-            <tr key={rowKey(row)} className="hover:bg-[#FAFBFC]">
+            <tr key={rowKey(row)} className="transition-colors hover:bg-cx-raised/50">
               {columns.map((col) => (
-                <td key={col.key} className={`px-3.5 py-2 ${col.align === "right" ? "text-right tabular-nums" : col.align === "center" ? "text-center" : ""}`}>
+                <td key={col.key} className={`h-10 px-3 text-cx-text-2 ${align(col.align)} ${col.align === "right" ? "tabular-nums" : ""}`}>
                   {col.render(row)}
                 </td>
               ))}
             </tr>
           ))}
           {rows.length === 0 && (
-            <tr><td colSpan={columns.length} className="px-3.5 py-12 text-center text-[13px] text-ink-500">{empty}</td></tr>
+            <tr><td colSpan={columns.length} className="px-3 py-10 text-center text-[13px] text-cx-muted">{empty}</td></tr>
           )}
         </tbody>
       </table>
@@ -48,7 +51,7 @@ export function ConsoleTable<T>({ columns, rows, rowKey, empty = "Nothing here y
   );
 }
 
-export function SearchForm({ action, defaultValue, placeholder = "Search…", hidden = {}, children }: {
+export function SearchForm({ action, defaultValue, placeholder = "Search", hidden = {}, children }: {
   action: string;
   defaultValue?: string;
   placeholder?: string;
@@ -58,12 +61,11 @@ export function SearchForm({ action, defaultValue, placeholder = "Search…", hi
   return (
     <form action={action} method="get" className="flex flex-wrap items-center gap-2">
       {Object.entries(hidden).map(([k, v]) => (v ? <input key={k} type="hidden" name={k} value={v} /> : null))}
-      <div className="relative min-w-[200px] flex-1">
-        <svg className="pointer-events-none absolute left-2.5 top-1/2 -translate-y-1/2 text-ink-400" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><circle cx="11" cy="11" r="7" /><path d="m21 21-4.3-4.3" /></svg>
-        <input name="q" defaultValue={defaultValue} placeholder={placeholder} className="w-full rounded-md border border-hair bg-white py-1.5 pl-8 pr-3 text-[13px] text-ink-900 outline-none placeholder:text-ink-400 focus:border-[#0F6CBD] focus:ring-2 focus:ring-[#0F6CBD]/15" />
+      <div className="relative min-w-[220px] max-w-md flex-1">
+        <Icon name="search" size={16} className="pointer-events-none absolute left-2.5 top-1/2 -translate-y-1/2 text-cx-muted" />
+        <input name="q" defaultValue={defaultValue} placeholder={placeholder} className="h-8 w-full rounded-md border border-cx-line-strong bg-cx-card pl-8 pr-3 text-[13.5px] text-cx-text outline-none transition-colors placeholder:text-cx-faint focus:border-cx-text focus:ring-1 focus:ring-cx-text" />
       </div>
       {children}
-      <button className="rounded-md border border-hair bg-white px-3 py-1.5 text-[12.5px] font-medium text-ink-700 hover:bg-panel">Search</button>
     </form>
   );
 }
@@ -73,65 +75,78 @@ export function Pager({ page, pageSize, total, hrefFor }: { page: number; pageSi
   if (total === 0) return null;
   const from = (page - 1) * pageSize + 1;
   const to = Math.min(total, page * pageSize);
+  const btn = "flex h-7 w-7 items-center justify-center rounded-md border border-cx-line-strong bg-cx-card transition-colors";
   return (
-    <div className="mt-3 flex items-center justify-between text-[12.5px] text-ink-500">
+    <div className="mt-2 flex items-center justify-between text-[12.5px] text-cx-muted">
       <span className="tabular-nums">{from.toLocaleString()}–{to.toLocaleString()} of {total.toLocaleString()}</span>
-      <div className="flex items-center gap-1">
-        {page > 1 ? <Link href={hrefFor(page - 1)} className="rounded-md border border-hair px-2.5 py-1 font-medium text-ink-700 hover:bg-panel">Prev</Link> : <span className="rounded-md border border-hair px-2.5 py-1 text-ink-300">Prev</span>}
-        <span className="px-2 tabular-nums">Page {page} / {pages}</span>
-        {page < pages ? <Link href={hrefFor(page + 1)} className="rounded-md border border-hair px-2.5 py-1 font-medium text-ink-700 hover:bg-panel">Next</Link> : <span className="rounded-md border border-hair px-2.5 py-1 text-ink-300">Next</span>}
+      <div className="flex items-center gap-2">
+        <span className="tabular-nums">Page {page} of {pages}</span>
+        {page > 1
+          ? <Link aria-label="Previous page" href={hrefFor(page - 1)} className={`${btn} text-cx-text hover:bg-cx-raised`}><Icon name="chevron-left" size={16} /></Link>
+          : <span className={`${btn} text-cx-faint`}><Icon name="chevron-left" size={16} /></span>}
+        {page < pages
+          ? <Link aria-label="Next page" href={hrefFor(page + 1)} className={`${btn} text-cx-text hover:bg-cx-raised`}><Icon name="chevron-right" size={16} /></Link>
+          : <span className={`${btn} text-cx-faint`}><Icon name="chevron-right" size={16} /></span>}
       </div>
     </div>
   );
 }
 
-export function ZoneHeader({ title, sub, icon, badges, children }: { title: string; sub?: string; icon?: React.ReactNode; badges?: React.ReactNode; children?: React.ReactNode }) {
+// Page title row. Meta (type, status, address) sits on one quiet line under it.
+export function ZoneHeader({ title, sub, badges, children }: { title: string; sub?: string; icon?: React.ReactNode; badges?: React.ReactNode; children?: React.ReactNode }) {
   return (
-    <div className="mb-5 flex flex-wrap items-start justify-between gap-3 border-b border-hair pb-4">
-      <div className="flex min-w-0 items-start gap-3">
-        {icon && <span className="mt-0.5 flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-[#13233c] text-white">{icon}</span>}
-        <div className="min-w-0">
-          <div className="flex items-center gap-2.5"><h1 className="truncate text-[23px] font-semibold tracking-tight text-ink-900">{title}</h1>{badges}</div>
-          {sub && <p className="mt-0.5 text-[12.5px] text-ink-500">{sub}</p>}
-        </div>
+    <div className="mb-4 flex flex-wrap items-end justify-between gap-3">
+      <div className="min-w-0">
+        <h1 className="truncate text-[20px] font-semibold leading-7 text-cx-text">{title}</h1>
+        {(badges || sub) && (
+          <div className="mt-0.5 flex flex-wrap items-center gap-x-3 gap-y-0.5 text-[13px] text-cx-muted">
+            {badges}
+            {sub && <span>{sub}</span>}
+          </div>
+        )}
       </div>
       {children && <div className="flex shrink-0 items-center gap-2">{children}</div>}
     </div>
   );
 }
 
-export function Avatar({ src, name, size = 30 }: { src?: string | null; name: string; size?: number }) {
+export function Avatar({ src, name, size = 28 }: { src?: string | null; name: string; size?: number }) {
   const initials = name.split(/\s+/).filter(Boolean).slice(0, 2).map((w) => w[0]).join("").toUpperCase() || "?";
   if (src) {
     // eslint-disable-next-line @next/next/no-img-element -- tenant CDN photo, dynamic
-    return <img src={src} alt={name} width={size} height={size} className="shrink-0 rounded-md object-cover ring-1 ring-hair" style={{ width: size, height: size }} />;
+    return <img src={src} alt="" width={size} height={size} className="shrink-0 rounded-md object-cover" style={{ width: size, height: size }} />;
   }
   return (
-    <span className="flex shrink-0 items-center justify-center rounded-md bg-panel text-[10.5px] font-semibold uppercase text-ink-500 ring-1 ring-hair" style={{ width: size, height: size }}>
+    <span aria-hidden className="flex shrink-0 items-center justify-center rounded-md bg-cx-raised text-[11px] font-medium text-cx-muted" style={{ width: size, height: size }}>
       {initials}
     </span>
   );
 }
 
+// One joined summary strip of figures (AWS "Overview" container). Each cell is a number.
+export const kpiStrip =
+  "mb-4 grid gap-px overflow-hidden rounded-lg border border-cx-line bg-cx-line [grid-template-columns:repeat(auto-fit,minmax(150px,1fr))]";
+
 export function Kpi({ label, value, sub, href }: { label: string; value: string | number; sub?: string; href?: string }) {
-  const inner = (
-    <div className={`rounded-lg border border-hair bg-white p-3.5 ${href ? "transition-colors hover:border-[#0F6CBD]/40 hover:bg-[#0F6CBD]/[0.02]" : ""}`}>
-      <p className="text-[11.5px] font-medium text-ink-500">{label}</p>
-      <p className="mt-1 text-[22px] font-semibold tracking-tight tabular-nums text-ink-900">{typeof value === "number" ? value.toLocaleString() : value}</p>
-      {sub && <p className="mt-0.5 text-[11px] text-ink-400">{sub}</p>}
-    </div>
+  const body = (
+    <>
+      <p className="text-[12.5px] text-cx-muted">{label}</p>
+      <p className="mt-1 text-[24px] font-semibold leading-8 tabular-nums text-cx-text">{typeof value === "number" ? value.toLocaleString("en-IN") : value}</p>
+      {sub && <p className="text-[12px] text-cx-faint">{sub}</p>}
+    </>
   );
-  return href ? <Link href={href}>{inner}</Link> : inner;
+  return href
+    ? <Link href={href} className="block bg-cx-card px-4 py-3 transition-colors hover:bg-cx-raised/60">{body}</Link>
+    : <div className="bg-cx-card px-4 py-3">{body}</div>;
 }
 
+// Status gets a dot; categories (role, scope, stage) are plain text — no tinted tags.
 export function Pill({ children, tone = "slate" }: { children: React.ReactNode; tone?: "slate" | "green" | "amber" | "sky" | "violet" | "rose" }) {
-  const tones: Record<string, string> = {
-    slate: "bg-slate-100 text-slate-600 ring-slate-500/20",
-    green: "bg-emerald-50 text-emerald-700 ring-emerald-600/20",
-    amber: "bg-amber-50 text-amber-700 ring-amber-600/20",
-    sky: "bg-sky-50 text-sky-700 ring-sky-600/20",
-    violet: "bg-violet-50 text-violet-700 ring-violet-600/20",
-    rose: "bg-rose-50 text-rose-700 ring-rose-600/20",
-  };
-  return <span className={`inline-flex rounded px-1.5 py-0.5 text-[11px] font-medium capitalize ring-1 ${tones[tone]}`}>{children}</span>;
+  const dot = tone === "green" ? "ok" : tone === "amber" ? "warn" : tone === "rose" ? "bad" : null;
+  return (
+    <span className="inline-flex items-center gap-1.5 whitespace-nowrap text-[13px] capitalize text-cx-text-2">
+      {dot && <Dot tone={dot} />}
+      {children}
+    </span>
+  );
 }

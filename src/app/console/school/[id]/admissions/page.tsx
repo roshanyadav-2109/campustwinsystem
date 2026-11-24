@@ -1,6 +1,6 @@
 import { createAdminClient } from "@/lib/supabase/admin";
 import { loadSchool, modulesOf } from "@/lib/console/tenant";
-import { Kpi, ZoneHeader } from "@/components/console/table";
+import { Kpi, ZoneHeader, kpiStrip } from "@/components/console/table";
 import { ModuleNotice } from "@/components/console/module-notice";
 
 export default async function AdmissionsZone({ params }: { params: Promise<{ id: string }> }) {
@@ -18,13 +18,13 @@ export default async function AdmissionsZone({ params }: { params: Promise<{ id:
     <div>
       <ZoneHeader title="Admissions" />
       {!on && <ModuleNotice module="admissions" schoolId={s.id} />}
-      <div className="mb-5 grid grid-cols-3 gap-2.5">
+      <div className={kpiStrip}>
         <Kpi label="Enquiries" value={total ?? 0} />
         <Kpi label="Open" value={open ?? 0} />
         <Kpi label="Follow-ups" value={followups ?? 0} />
       </div>
       {(total ?? 0) === 0 && (
-        <p className="rounded-lg border border-dashed border-hair px-4 py-10 text-center text-[13px] text-ink-500">
+        <p className="rounded-lg border border-dashed border-cx-line px-4 py-10 text-center text-[13px] text-cx-muted">
           No admission enquiries yet. The pipeline is managed by the school office inside the portal.
         </p>
       )}

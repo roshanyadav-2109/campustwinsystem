@@ -1,6 +1,6 @@
 import { createAdminClient } from "@/lib/supabase/admin";
 import { loadSchool, currentYear } from "@/lib/console/tenant";
-import { Kpi, ZoneHeader } from "@/components/console/table";
+import { Kpi, ZoneHeader, kpiStrip } from "@/components/console/table";
 import { Section } from "@/components/console/ui";
 
 async function dayCount(admin: ReturnType<typeof createAdminClient>, schoolId: number, date: string, status?: string) {
@@ -35,30 +35,30 @@ export default async function AttendanceZone({ params }: { params: Promise<{ id:
   return (
     <div>
       <ZoneHeader title="Attendance" sub={year ? year.name : undefined} />
-      <div className="mb-5 grid grid-cols-2 gap-2.5 sm:grid-cols-4">
+      <div className={kpiStrip}>
         <Kpi label="Records (all time)" value={total ?? 0} />
-        <Kpi label="Last marked" value={latest ? new Date(latest).toLocaleDateString() : "—"} />
+        <Kpi label="Last marked" value={latest ? new Date(latest).toLocaleDateString("en-IN", { day: "numeric", month: "short", year: "numeric" }) : "—"} />
         <Kpi label="Marked that day" value={marked} />
         <Kpi label="Attendance rate" value={`${pct}%`} sub="present + late" />
       </div>
 
       {latest ? (
-        <Section title={`Breakdown — ${new Date(latest).toLocaleDateString()}`}>
-          <div className="flex h-3 w-full overflow-hidden rounded-full bg-panel">
-            <div className="bg-emerald-500" style={{ width: seg(present) }} title={`Present ${present}`} />
-            <div className="bg-amber-400" style={{ width: seg(late) }} title={`Late ${late}`} />
-            <div className="bg-rose-400" style={{ width: seg(absent) }} title={`Absent ${absent}`} />
-            <div className="bg-slate-300" style={{ width: seg(holiday) }} title={`Holiday ${holiday}`} />
+        <Section title={`Breakdown — ${new Date(latest).toLocaleDateString("en-IN", { day: "numeric", month: "short", year: "numeric" })}`}>
+          <div className="flex h-3 w-full overflow-hidden rounded-full bg-cx-raised">
+            <div className="bg-cx-ok" style={{ width: seg(present) }} title={`Present ${present}`} />
+            <div className="bg-cx-warn" style={{ width: seg(late) }} title={`Late ${late}`} />
+            <div className="bg-cx-bad" style={{ width: seg(absent) }} title={`Absent ${absent}`} />
+            <div className="bg-cx-line-strong" style={{ width: seg(holiday) }} title={`Holiday ${holiday}`} />
           </div>
           <div className="mt-3 flex flex-wrap gap-4 text-[12.5px]">
-            <span className="flex items-center gap-1.5"><span className="h-2.5 w-2.5 rounded-sm bg-emerald-500" />Present <b className="tabular-nums">{present.toLocaleString()}</b></span>
-            <span className="flex items-center gap-1.5"><span className="h-2.5 w-2.5 rounded-sm bg-amber-400" />Late <b className="tabular-nums">{late.toLocaleString()}</b></span>
-            <span className="flex items-center gap-1.5"><span className="h-2.5 w-2.5 rounded-sm bg-rose-400" />Absent <b className="tabular-nums">{absent.toLocaleString()}</b></span>
-            <span className="flex items-center gap-1.5"><span className="h-2.5 w-2.5 rounded-sm bg-slate-300" />Holiday <b className="tabular-nums">{holiday.toLocaleString()}</b></span>
+            <span className="flex items-center gap-1.5"><span className="h-2.5 w-2.5 rounded-sm bg-cx-ok" />Present <b className="tabular-nums">{present.toLocaleString("en-IN")}</b></span>
+            <span className="flex items-center gap-1.5"><span className="h-2.5 w-2.5 rounded-sm bg-cx-warn" />Late <b className="tabular-nums">{late.toLocaleString("en-IN")}</b></span>
+            <span className="flex items-center gap-1.5"><span className="h-2.5 w-2.5 rounded-sm bg-cx-bad" />Absent <b className="tabular-nums">{absent.toLocaleString("en-IN")}</b></span>
+            <span className="flex items-center gap-1.5"><span className="h-2.5 w-2.5 rounded-sm bg-cx-line-strong" />Holiday <b className="tabular-nums">{holiday.toLocaleString("en-IN")}</b></span>
           </div>
         </Section>
       ) : (
-        <p className="rounded-lg border border-dashed border-hair px-4 py-10 text-center text-[13px] text-ink-500">No attendance has been marked yet.</p>
+        <p className="rounded-lg border border-dashed border-cx-line px-4 py-10 text-center text-[13px] text-cx-muted">No attendance has been marked yet.</p>
       )}
     </div>
   );

@@ -1,19 +1,14 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { createAdminClient } from "@/lib/supabase/admin";
-import { Shell } from "@/components/console/shell";
+import { Shell, NavLabel } from "@/components/console/shell";
 import { ConsoleNavLink } from "@/components/console/nav-link";
+import { Crumbs } from "@/components/console/crumbs";
+import { Icon } from "@/components/console/icons";
+import { Dot } from "@/components/console/ui";
 
 const BASE = process.env.NEXT_PUBLIC_BASE_DOMAIN || "campustwin.org";
-function I({ d }: { d: string }) {
-  return <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><path d={d} /></svg>;
-}
-const ic = {
-  overview: "M3 3h7v7H3zM14 3h7v7h-7zM3 14h7v7H3zM14 14h7v7h-7z",
-  campuses: "M3 21h18M5 21V7l8-4v18M19 21V11l-6-3M9 9h0M9 13h0M9 17h0",
-  admins: "M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2M9 11a4 4 0 1 0 0-8 4 4 0 0 0 0 8M22 21v-2a4 4 0 0 0-3-3.87",
-  settings: "M12 15a3 3 0 1 0 0-6 3 3 0 0 0 0 6M19.4 15a1.6 1.6 0 0 0 .3 1.8M4.6 9A1.6 1.6 0 0 0 4.3 7.2",
-};
+const ZONES = { campuses: "Campuses", admins: "Central admins", settings: "Settings" };
 
 export default async function UniversityWorkspaceLayout({ params, children }: { params: Promise<{ id: string }>; children: React.ReactNode }) {
   const { id } = await params;
@@ -21,30 +16,31 @@ export default async function UniversityWorkspaceLayout({ params, children }: { 
   const { data: u } = await admin.from("university").select("id, name, slug, status").eq("id", Number(id)).maybeSingle();
   if (!u) notFound();
   const base = `/console/university/${u.id}`;
-  const on = u.status === "active";
 
   const brand = (
-    <div className="px-3 py-2.5">
-      <Link href="/console" className="text-[11px] text-ink-500 hover:text-[#0F6CBD]">&larr; All institutions</Link>
-      <div className="mt-1.5 flex items-center gap-2">
-        <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-md bg-violet-100 text-[11px] font-bold text-violet-700">{u.name.slice(0, 2).toUpperCase()}</span>
-        <div className="min-w-0">
-          <p className="truncate text-[13px] font-semibold leading-tight text-ink-900" title={u.name}>{u.name}</p>
-          <p className="flex items-center gap-1 text-[10.5px] text-ink-400"><span className={`h-1.5 w-1.5 rounded-full ${on ? "bg-emerald-500" : "bg-amber-500"}`} />{u.slug}.{BASE}</p>
-        </div>
-      </div>
+    <div className="px-3 py-3">
+      <Link href="/console" className="inline-flex items-center gap-1 text-[12px] text-cx-muted transition-colors hover:text-cx-text">
+        <Icon name="chevron-left" size={12} />All institutions
+      </Link>
+      <p className="mt-1.5 line-clamp-2 text-[14px] font-semibold leading-5 text-cx-text" title={u.name}>{u.name}</p>
+      <p className="mt-0.5 flex items-center gap-1.5 font-mono text-[11.5px] text-cx-muted">
+        <Dot tone={u.status === "active" ? "ok" : "warn"} />{u.slug}.{BASE}
+      </p>
     </div>
   );
 
   return (
     <Shell
       brand={brand}
+      crumbs={<Crumbs trail={[{ label: "Console", href: "/console" }, { label: u.name, href: base }]} base={base} zones={ZONES} />}
       nav={
         <>
-          <ConsoleNavLink href={base} exact icon={<I d={ic.overview} />} label="Overview" />
-          <ConsoleNavLink href={`${base}/campuses`} icon={<I d={ic.campuses} />} label="Campuses" />
-          <ConsoleNavLink href={`${base}/admins`} icon={<I d={ic.admins} />} label="Central admins" />
-          <ConsoleNavLink href={`${base}/settings`} icon={<I d={ic.settings} />} label="Settings" />
+          <ConsoleNavLink href={base} exact icon={<Icon name="overview" size={18} />} label="Overview" />
+          <NavLabel>University</NavLabel>
+          <ConsoleNavLink href={`${base}/campuses`} icon={<Icon name="campuses" size={18} />} label="Campuses" />
+          <ConsoleNavLink href={`${base}/admins`} icon={<Icon name="admins" size={18} />} label="Central admins" />
+          <NavLabel>Administration</NavLabel>
+          <ConsoleNavLink href={`${base}/settings`} icon={<Icon name="settings" size={18} />} label="Settings" />
         </>
       }
     >

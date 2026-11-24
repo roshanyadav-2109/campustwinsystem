@@ -7,7 +7,7 @@ export default function NewInstitutionPage() {
   return (
     <div className="max-w-3xl">
       <PageHeader title="New institution" />
-      <div className="space-y-5">
+      <div className="space-y-4">
         <Section title="A single school or college" desc={`Its portal will live at slug.${BASE}.`}>
           <form action={createSchool} className="grid gap-4 sm:grid-cols-2">
             <div><label className={labelCls}>Name</label><input name="name" required className={inputCls} placeholder="Greenwood High School" /></div>
@@ -24,7 +24,7 @@ export default function NewInstitutionPage() {
               <div><label className={labelCls}>University slug</label><input name="slug" className={inputCls} placeholder="srm" /></div>
             </div>
             <div>
-              <label className={labelCls}>Campuses — one per line, as <code className="rounded bg-panel px-1 py-0.5 text-[11px]">Name:slug</code></label>
+              <label className={labelCls}>Campuses — one per line, as <code className="rounded bg-cx-raised px-1 py-0.5 text-[11px]">Name:slug</code></label>
               <textarea name="campuses" rows={4} className={inputCls} placeholder={"SRM KTR:srmktr\nSRM Ramapuram:srmrmp\nSRM Vadapalani:srmvdp"} />
             </div>
             <div><button className={btnPrimary}>Create university + campuses</button></div>

@@ -22,18 +22,18 @@ export default async function GuardiansZone({ params, searchParams }: { params: 
 
   const cols: Col<Row>[] = [
     { key: "name", label: "Guardian", render: (r) => (
-      <div className="flex items-center gap-2.5"><Avatar name={r.full_name} /><span className="truncate font-medium text-ink-900">{r.full_name}</span></div>
+      <div className="flex items-center gap-2.5"><Avatar name={r.full_name} /><span className="truncate font-medium text-cx-text">{r.full_name}</span></div>
     ) },
-    { key: "relation", label: "Relation", render: (r) => r.relation ? <Pill>{r.relation}</Pill> : <span className="text-ink-400">—</span> },
-    { key: "phone", label: "Phone", render: (r) => <span className="text-ink-600">{r.phone ?? "—"}</span> },
-    { key: "email", label: "Email", render: (r) => <span className="text-ink-600">{r.email ?? "—"}</span> },
+    { key: "relation", label: "Relation", render: (r) => r.relation ? <Pill>{r.relation}</Pill> : <span className="text-cx-muted">—</span> },
+    { key: "phone", label: "Phone", render: (r) => <span className="text-cx-text-2">{r.phone ?? "—"}</span> },
+    { key: "email", label: "Email", render: (r) => <span className="text-cx-text-2">{r.email ?? "—"}</span> },
   ];
 
   return (
     <div>
-      <ZoneHeader title="Guardians" sub={`${(count ?? 0).toLocaleString()} parents / guardians`} />
-      <div className="mb-3"><SearchForm action={base} defaultValue={q} placeholder="Search by name, phone or email…" /></div>
-      <ConsoleTable columns={cols} rows={rows} rowKey={(r) => r.id} empty={q ? `No guardians match “${q}”.` : "No guardians."} />
+      <ZoneHeader title="Guardians" sub={`${(count ?? 0).toLocaleString("en-IN")} parents / guardians`} />
+      <div className="mb-3"><SearchForm action={base} defaultValue={q} placeholder="Search by name, phone or email" /></div>
+      <ConsoleTable columns={cols} rows={rows} rowKey={(r) => r.id} empty={q ? `No guardians match “${q}”` : "No guardians."} />
       <Pager page={page} pageSize={SIZE} total={count ?? 0} hrefFor={(p) => `${base}?${new URLSearchParams({ ...(q ? { q } : {}), page: String(p) })}`} />
     </div>
   );

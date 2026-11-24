@@ -8,7 +8,7 @@ export default async function ConsoleLayout({ children }: { children: React.Reac
   const owner = await getOwnerEmail();
   if (!owner) redirect("/login?next=/console");
   return (
-    <div className="flex min-h-dvh flex-col bg-paper text-ink-900">
+    <div className="flex min-h-dvh flex-col bg-cx-bg text-cx-text">
       <TopBar owner={owner} />
       <div className="flex-1">{children}</div>
       <ConsoleFooter />

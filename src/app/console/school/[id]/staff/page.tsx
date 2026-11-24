@@ -24,19 +24,19 @@ export default async function StaffZone({ params, searchParams }: { params: Prom
     { key: "name", label: "Staff member", render: (r) => (
       <div className="flex items-center gap-2.5">
         <Avatar src={r.photo_path} name={r.full_name} />
-        <div className="min-w-0"><div className="truncate font-medium text-ink-900">{r.full_name}</div><div className="text-[11.5px] text-ink-400">{r.employee_code ?? "—"}</div></div>
+        <div className="min-w-0"><div className="truncate font-medium text-cx-text">{r.full_name}</div><div className="text-[11.5px] text-cx-muted">{r.employee_code ?? "—"}</div></div>
       </div>
     ) },
     { key: "role", label: "Role", render: (r) => <Pill tone="violet">{r.role.replace(/_/g, " ")}</Pill> },
-    { key: "email", label: "Email", render: (r) => <span className="text-ink-600">{r.email ?? "—"}</span> },
-    { key: "phone", label: "Phone", render: (r) => <span className="text-ink-600">{r.phone ?? "—"}</span> },
+    { key: "email", label: "Email", render: (r) => <span className="text-cx-text-2">{r.email ?? "—"}</span> },
+    { key: "phone", label: "Phone", render: (r) => <span className="text-cx-text-2">{r.phone ?? "—"}</span> },
   ];
 
   return (
     <div>
-      <ZoneHeader title="Staff" sub={`${(count ?? 0).toLocaleString()} staff members`} />
-      <div className="mb-3"><SearchForm action={base} defaultValue={q} placeholder="Search by name, code or email…" /></div>
-      <ConsoleTable columns={cols} rows={rows} rowKey={(r) => r.id} empty={q ? `No staff match “${q}”.` : "No staff."} />
+      <ZoneHeader title="Staff" sub={`${(count ?? 0).toLocaleString("en-IN")} staff members`} />
+      <div className="mb-3"><SearchForm action={base} defaultValue={q} placeholder="Search by name, employee code or email" /></div>
+      <ConsoleTable columns={cols} rows={rows} rowKey={(r) => r.id} empty={q ? `No staff match “${q}”` : "No staff."} />
       <Pager page={page} pageSize={SIZE} total={count ?? 0} hrefFor={(p) => `${base}?${new URLSearchParams({ ...(q ? { q } : {}), page: String(p) })}`} />
     </div>
   );

@@ -17,16 +17,16 @@ export default async function AdminsZone({ params }: { params: Promise<{ id: str
     <div className="max-w-2xl">
       <ZoneHeader title="Central admins" sub="They see and manage every campus, with a campus switcher." />
       <Section title="Current central admins">
-        <ul className="space-y-1.5 text-[13px] text-ink-700">
-          {rows.map((a) => <li key={a.id} className="flex items-center gap-2"><span className="h-1.5 w-1.5 rounded-full bg-[#0F6CBD]" />{a.full_name}</li>)}
-          {rows.length === 0 && <li className="text-ink-500">None assigned yet.</li>}
+        <ul className="space-y-1.5 text-[13px] text-cx-text-2">
+          {rows.map((a) => <li key={a.id} className="flex items-center gap-2"><span className="h-1.5 w-1.5 rounded-full bg-cx-text" />{a.full_name}</li>)}
+          {rows.length === 0 && <li className="text-cx-muted">None assigned yet</li>}
         </ul>
         <form action={assignCentralAdmin} className="mt-4 flex flex-wrap items-end gap-2">
           <input type="hidden" name="universityId" value={uid} />
           <div className="min-w-[220px] flex-1"><label className={labelCls}>Assign by account email</label><input name="email" type="email" className={inputCls} placeholder="admin@srm.edu" /></div>
           <button className={btnPrimary}>Assign</button>
         </form>
-        <p className="mt-2 text-[12px] text-ink-500">The person must already have a login on one of this university&apos;s campuses.</p>
+        <p className="mt-2 text-[12px] text-cx-muted">The person must already have a login on one of this university&apos;s campuses.</p>
       </Section>
     </div>
   );

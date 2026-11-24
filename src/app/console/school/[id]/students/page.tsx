@@ -32,21 +32,21 @@ export default async function StudentsZone({ params, searchParams }: { params: P
     { key: "name", label: "Student", render: (r) => (
       <div className="flex items-center gap-2.5">
         <Avatar src={r.photo_path} name={r.full_name} />
-        <div className="min-w-0"><div className="truncate font-medium text-ink-900">{r.full_name}</div><div className="text-[11.5px] text-ink-400">{r.admission_no}</div></div>
+        <div className="min-w-0"><div className="truncate font-medium text-cx-text">{r.full_name}</div><div className="text-[11.5px] text-cx-muted">{r.admission_no}</div></div>
       </div>
     ) },
-    { key: "class", label: "Class", render: (r) => { const e = enrByStudent.get(r.id); return e ? sectionLabel.get(e.section_id) ?? "—" : <span className="text-ink-400">—</span>; } },
-    { key: "roll", label: "Roll", align: "right", render: (r) => enrByStudent.get(r.id)?.roll_no ?? <span className="text-ink-400">—</span> },
-    { key: "gender", label: "Gender", render: (r) => <span className="capitalize text-ink-600">{r.gender ?? "—"}</span> },
-    { key: "phone", label: "Phone", render: (r) => <span className="text-ink-600">{r.phone ?? "—"}</span> },
+    { key: "class", label: "Class", render: (r) => { const e = enrByStudent.get(r.id); return e ? sectionLabel.get(e.section_id) ?? "—" : <span className="text-cx-muted">—</span>; } },
+    { key: "roll", label: "Roll", align: "right", render: (r) => enrByStudent.get(r.id)?.roll_no ?? <span className="text-cx-muted">—</span> },
+    { key: "gender", label: "Gender", render: (r) => <span className="capitalize text-cx-text-2">{r.gender ?? "—"}</span> },
+    { key: "phone", label: "Phone", render: (r) => <span className="text-cx-text-2">{r.phone ?? "—"}</span> },
     { key: "status", label: "Status", render: (r) => <Pill tone={r.status === "active" ? "green" : "slate"}>{r.status}</Pill> },
   ];
 
   return (
     <div>
-      <ZoneHeader title="Students" sub={`${(count ?? 0).toLocaleString()} enrolled${year ? ` · ${year.name}` : ""}`} />
-      <div className="mb-3"><SearchForm action={base} defaultValue={q} placeholder="Search by name or admission no…" /></div>
-      <ConsoleTable columns={cols} rows={rows} rowKey={(r) => r.id} empty={q ? `No students match “${q}”.` : "No students."} />
+      <ZoneHeader title="Students" sub={`${(count ?? 0).toLocaleString("en-IN")} enrolled${year ? ` · ${year.name}` : ""}`} />
+      <div className="mb-3"><SearchForm action={base} defaultValue={q} placeholder="Search by name or admission number" /></div>
+      <ConsoleTable columns={cols} rows={rows} rowKey={(r) => r.id} empty={q ? `No students match “${q}”` : "No students."} />
       <Pager page={page} pageSize={SIZE} total={count ?? 0} hrefFor={(p) => `${base}?${new URLSearchParams({ ...(q ? { q } : {}), page: String(p) })}`} />
     </div>
   );

@@ -18,6 +18,24 @@
   --color-ink-500: #616161;
   --color-muted: #707070;
 
+  /* Platform console — graphite ramp, one link colour, brand red in the mark only */
+  --color-cx-bar: #0a0a0a;
+  --color-cx-bg: #f6f6f7;
+  --color-cx-card: #ffffff;
+  --color-cx-raised: #f1f1f2;
+  --color-cx-active: #e8e8ea;
+  --color-cx-line: #e4e4e7;
+  --color-cx-line-strong: #d4d4d8;
+  --color-cx-text: #18181b;
+  --color-cx-text-2: #52525b;
+  --color-cx-muted: #71717a;
+  --color-cx-faint: #a1a1aa;
+  --color-cx-link: #0b57d0;
+  --color-cx-brand: #c8102e;
+  --color-cx-ok: #16a34a;
+  --color-cx-warn: #d97706;
+  --color-cx-bad: #dc2626;
+
   /* Warm neutrals */
   --color-paper: #ffffff;
   --color-surface: #ffffff;
@@ -72,6 +90,12 @@
   }
   main table thead th {
     background: #fafafa;
+  }
+  /* The platform console draws its own row rules; no grid lines on its tables. */
+  main.cx-main table,
+  main.cx-main table th,
+  main.cx-main table td {
+    border: 0;
   }
   body {
     background: var(--color-paper);

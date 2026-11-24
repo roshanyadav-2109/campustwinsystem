@@ -3,73 +3,65 @@ import { notFound } from "next/navigation";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { Shell, NavLabel } from "@/components/console/shell";
 import { ConsoleNavLink } from "@/components/console/nav-link";
+import { Crumbs } from "@/components/console/crumbs";
+import { Icon, type IconName } from "@/components/console/icons";
+import { Dot } from "@/components/console/ui";
 
 const BASE = process.env.NEXT_PUBLIC_BASE_DOMAIN || "campustwin.org";
 
-function I({ d }: { d: string }) {
-  return <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><path d={d} /></svg>;
-}
-const ic = {
-  overview: "M3 3h7v7H3zM14 3h7v7h-7zM3 14h7v7H3zM14 14h7v7h-7z",
-  students: "M22 10 12 5 2 10l10 5 10-5zM6 12v5c0 1 2.7 2.5 6 2.5s6-1.5 6-2.5v-5",
-  staff: "M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2M9 11a4 4 0 1 0 0-8 4 4 0 0 0 0 8M19 8v6M22 11h-6",
-  guardians: "M17 21v-2a4 4 0 0 0-3-3.87M7 21v-2a4 4 0 0 1 3-3.87M12 11a4 4 0 1 0 0-8 4 4 0 0 0 0 8",
-  access: "M15 7a4 4 0 1 1-4 4M11 11 3 19l2 2M8 16l2 2",
-  classes: "M12 2 2 7l10 5 10-5zM2 17l10 5 10-5M2 12l10 5 10-5",
-  attendance: "M8 2v4M16 2v4M3 10h18M5 4h14a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2M9 16l2 2 4-4",
-  exams: "M9 2h6a1 1 0 0 1 1 1v1h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2V3a1 1 0 0 1 1-1zM9 12l2 2 4-4",
-  fees: "M3 10h18M3 6h18a1 1 0 0 1 1 1v10a1 1 0 0 1-1 1H3a1 1 0 0 1-1-1V7a1 1 0 0 1 1-1M7 15h3",
-  admissions: "M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2M9 11a4 4 0 1 0 0-8 4 4 0 0 0 0 8M19 8v6M22 11h-6",
-  transport: "M8 6h11a2 2 0 0 1 2 2v7H3V8a2 2 0 0 1 2-2zM3 15h18M7 19a2 2 0 1 0 0-4 2 2 0 0 0 0 4M17 19a2 2 0 1 0 0-4 2 2 0 0 0 0 4",
-  library: "M4 19.5A2.5 2.5 0 0 1 6.5 17H20M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z",
-  announcements: "M3 11v2a1 1 0 0 0 1 1h3l4 4V6L7 10H4a1 1 0 0 0-1 1M15.5 8.5a4 4 0 0 1 0 7",
-  settings: "M12 15a3 3 0 1 0 0-6 3 3 0 0 0 0 6M19.4 15a1.6 1.6 0 0 0 .3 1.8l.1.1a2 2 0 1 1-2.8 2.8l-.1-.1a1.6 1.6 0 0 0-2.7 1.1V21a2 2 0 1 1-4 0v-.1A1.6 1.6 0 0 0 7 19.4a1.6 1.6 0 0 0-1.8.3l-.1.1a2 2 0 1 1-2.8-2.8l.1-.1a1.6 1.6 0 0 0-1.1-2.7H1a2 2 0 1 1 0-4h.1A1.6 1.6 0 0 0 2.6 7a1.6 1.6 0 0 0-.3-1.8l-.1-.1a2 2 0 1 1 2.8-2.8l.1.1a1.6 1.6 0 0 0 1.8.3H7a1.6 1.6 0 0 0 1-1.5V1a2 2 0 1 1 4 0v.1a1.6 1.6 0 0 0 2.7 1.1 1.6 1.6 0 0 0 1.8-.3l.1-.1a2 2 0 1 1 2.8 2.8l-.1.1a1.6 1.6 0 0 0-.3 1.8V7a1.6 1.6 0 0 0 1.5 1H23a2 2 0 1 1 0 4h-.1a1.6 1.6 0 0 0-1.5 1z",
+const ZONES: Record<string, string> = {
+  students: "Students", staff: "Staff", guardians: "Guardians", access: "Login access",
+  classes: "Classes and sections", attendance: "Attendance", exams: "Exams and marks",
+  fees: "Fees", admissions: "Admissions", transport: "Transport", library: "Library",
+  announcements: "Announcements", settings: "Settings",
 };
+const GROUPS: { label: string; items: [string, IconName][] }[] = [
+  { label: "People", items: [["students", "students"], ["staff", "staff"], ["guardians", "guardians"], ["access", "access"]] },
+  { label: "Academics", items: [["classes", "classes"], ["attendance", "attendance"], ["exams", "exams"]] },
+  { label: "Operations", items: [["fees", "fees"], ["admissions", "admissions"], ["transport", "transport"], ["library", "library"], ["announcements", "announcements"]] },
+  { label: "Administration", items: [["settings", "settings"]] },
+];
 
 export default async function SchoolWorkspaceLayout({ params, children }: { params: Promise<{ id: string }>; children: React.ReactNode }) {
   const { id } = await params;
   const admin = createAdminClient();
   const { data: s } = await admin.from("school").select("id, name, slug, status, university_id").eq("id", Number(id)).maybeSingle();
   if (!s) notFound();
+  const { data: uni } = s.university_id
+    ? await admin.from("university").select("id, name").eq("id", s.university_id).maybeSingle()
+    : { data: null };
   const base = `/console/school/${s.id}`;
-  const on = s.status === "active";
+  const back = uni ? { href: `/console/university/${uni.id}`, label: uni.name } : { href: "/console", label: "All institutions" };
 
   const brand = (
-    <div className="px-3 py-2.5">
-      <Link href={s.university_id ? `/console/university/${s.university_id}` : "/console"} className="text-[11px] text-ink-500 hover:text-[#0F6CBD]">&larr; {s.university_id ? "University" : "All institutions"}</Link>
-      <div className="mt-1.5 flex items-center gap-2">
-        <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-md bg-[#0F6CBD]/10 text-[11px] font-bold text-[#0F6CBD]">{s.name.slice(0, 2).toUpperCase()}</span>
-        <div className="min-w-0">
-          <p className="truncate text-[13px] font-semibold leading-tight text-ink-900" title={s.name}>{s.name}</p>
-          <p className="flex items-center gap-1 text-[10.5px] text-ink-400"><span className={`h-1.5 w-1.5 rounded-full ${on ? "bg-emerald-500" : "bg-amber-500"}`} />{s.slug}.{BASE}</p>
-        </div>
-      </div>
+    <div className="px-3 py-3">
+      <Link href={back.href} className="inline-flex items-center gap-1 text-[12px] text-cx-muted transition-colors hover:text-cx-text">
+        <Icon name="chevron-left" size={12} />{back.label}
+      </Link>
+      <p className="mt-1.5 line-clamp-2 text-[14px] font-semibold leading-5 text-cx-text" title={s.name}>{s.name}</p>
+      <p className="mt-0.5 flex items-center gap-1.5 font-mono text-[11.5px] text-cx-muted">
+        <Dot tone={s.status === "active" ? "ok" : "warn"} />{s.slug}.{BASE}
+      </p>
     </div>
   );
+
+  const trail = [{ label: "Console", href: "/console" }, ...(uni ? [{ label: uni.name, href: `/console/university/${uni.id}` }] : []), { label: s.name, href: base }];
 
   return (
     <Shell
       brand={brand}
+      crumbs={<Crumbs trail={trail} base={base} zones={ZONES} />}
       nav={
         <>
-          <ConsoleNavLink href={base} exact icon={<I d={ic.overview} />} label="Overview" />
-          <NavLabel>People</NavLabel>
-          <ConsoleNavLink href={`${base}/students`} icon={<I d={ic.students} />} label="Students" />
-          <ConsoleNavLink href={`${base}/staff`} icon={<I d={ic.staff} />} label="Staff" />
-          <ConsoleNavLink href={`${base}/guardians`} icon={<I d={ic.guardians} />} label="Guardians" />
-          <ConsoleNavLink href={`${base}/access`} icon={<I d={ic.access} />} label="Login access" />
-          <NavLabel>Academics</NavLabel>
-          <ConsoleNavLink href={`${base}/classes`} icon={<I d={ic.classes} />} label="Classes & sections" />
-          <ConsoleNavLink href={`${base}/attendance`} icon={<I d={ic.attendance} />} label="Attendance" />
-          <ConsoleNavLink href={`${base}/exams`} icon={<I d={ic.exams} />} label="Exams & marks" />
-          <NavLabel>Operations</NavLabel>
-          <ConsoleNavLink href={`${base}/fees`} icon={<I d={ic.fees} />} label="Fees" />
-          <ConsoleNavLink href={`${base}/admissions`} icon={<I d={ic.admissions} />} label="Admissions" />
-          <ConsoleNavLink href={`${base}/transport`} icon={<I d={ic.transport} />} label="Transport" />
-          <ConsoleNavLink href={`${base}/library`} icon={<I d={ic.library} />} label="Library" />
-          <ConsoleNavLink href={`${base}/announcements`} icon={<I d={ic.announcements} />} label="Announcements" />
-          <NavLabel>Administration</NavLabel>
-          <ConsoleNavLink href={`${base}/settings`} icon={<I d={ic.settings} />} label="Settings" />
+          <ConsoleNavLink href={base} exact icon={<Icon name="overview" size={18} />} label="Overview" />
+          {GROUPS.map((g) => (
+            <div key={g.label}>
+              <NavLabel>{g.label}</NavLabel>
+              {g.items.map(([seg, icon]) => (
+                <ConsoleNavLink key={seg} href={`${base}/${seg}`} icon={<Icon name={icon} size={18} />} label={ZONES[seg]} />
+              ))}
+            </div>
+          ))}
         </>
       }
     >

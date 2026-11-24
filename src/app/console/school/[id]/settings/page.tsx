@@ -28,8 +28,8 @@ export default async function SettingsZone({ params }: { params: Promise<{ id: s
         </form>
       </ZoneHeader>
 
-      <div className="space-y-5">
-        <Section title="Branding" desc="Shown on this institution's login and dashboard.">
+      <div className="space-y-4">
+        <Section title="Branding" desc="Shown on this institution's sign-in page and dashboard">
           <form action={updateBranding} className="grid gap-4 sm:grid-cols-2">
             <input type="hidden" name="id" value={s.id} /><input type="hidden" name="kind" value="school" />
             <div><label className={labelCls}>Name</label><input name="name" defaultValue={s.name} className={inputCls} /></div>
@@ -37,7 +37,7 @@ export default async function SettingsZone({ params }: { params: Promise<{ id: s
             <div>
               <label className={labelCls}>Primary colour</label>
               <div className="flex items-center gap-2">
-                <span className="h-9 w-9 shrink-0 rounded-md border border-hair" style={{ background: s.primary_color ?? "#0F6CBD" }} />
+                <span className="h-9 w-9 shrink-0 rounded-md border border-cx-line" style={{ background: s.primary_color ?? "#0F6CBD" }} />
                 <input name="primary_color" defaultValue={s.primary_color ?? "#0F6CBD"} className={inputCls} />
               </div>
             </div>
@@ -46,16 +46,16 @@ export default async function SettingsZone({ params }: { params: Promise<{ id: s
           </form>
         </Section>
 
-        <Section title="Modules" desc="Turn paid features on or off for this institution.">
+        <Section title="Modules" desc="Paid features this institution can use">
           <div className="grid gap-2 sm:grid-cols-2">
             {MODULES.map((m) => {
               const on = !!mods[m.key];
               return (
-                <form key={m.key} action={toggleModule} className={`flex items-center justify-between gap-3 rounded-lg border px-3.5 py-2.5 ${on ? "border-[#0F6CBD]/30 bg-[#0F6CBD]/[0.03]" : "border-hair bg-white"}`}>
+                <form key={m.key} action={toggleModule} className={`flex items-center justify-between gap-3 rounded-lg border px-3.5 py-2.5 ${on ? "border-cx-line-strong bg-cx-card" : "border-cx-line bg-white"}`}>
                   <input type="hidden" name="id" value={s.id} /><input type="hidden" name="key" value={m.key} />
-                  <div className="min-w-0"><p className="text-[13px] font-medium text-ink-900">{m.label}</p><p className="truncate text-[11.5px] text-ink-500">{m.desc}</p></div>
-                  <button aria-label={`${on ? "Disable" : "Enable"} ${m.label}`} className={`relative h-5 w-9 shrink-0 rounded-full transition-colors ${on ? "bg-[#0F6CBD]" : "bg-slate-300"}`}>
-                    <span className={`absolute top-0.5 h-4 w-4 rounded-full bg-white shadow transition-all ${on ? "left-[18px]" : "left-0.5"}`} />
+                  <div className="min-w-0"><p className="text-[13px] font-medium text-cx-text">{m.label}</p><p className="truncate text-[11.5px] text-cx-muted">{m.desc}</p></div>
+                  <button aria-label={`${on ? "Disable" : "Enable"} ${m.label}`} className={`relative h-5 w-9 shrink-0 rounded-full transition-colors ${on ? "bg-cx-text" : "bg-cx-line-strong"}`}>
+                    <span className={`absolute left-0.5 top-0.5 h-4 w-4 rounded-full bg-white shadow-sm transition-transform ${on ? "translate-x-4" : ""}`} />
                   </button>
                 </form>
               );
@@ -63,7 +63,7 @@ export default async function SettingsZone({ params }: { params: Promise<{ id: s
           </div>
         </Section>
 
-        <Section title="Plan" desc="Billing tier for this institution.">
+        <Section title="Plan" desc="Billing tier">
           <form action={setPlan} className="flex flex-wrap items-end gap-2">
             <input type="hidden" name="id" value={s.id} /><input type="hidden" name="kind" value="school" />
             <div className="min-w-[200px] flex-1"><label className={labelCls}>Plan name</label><input name="plan" defaultValue={s.plan ?? "standard"} className={inputCls} /></div>
