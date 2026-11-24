@@ -3,6 +3,7 @@ import { createClient } from "@/lib/supabase/server";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { safeNext } from "@/lib/safe-next";
 import { cookieDomainForHost } from "@/lib/supabase/cookie-domain";
+import { isOwnerEmail } from "@/lib/owner";
 
 const BASE = process.env.NEXT_PUBLIC_BASE_DOMAIN || "campustwin.org";
 
@@ -70,6 +71,18 @@ export async function GET(request: NextRequest) {
   const claims = readClaims(tokens.id_token);
   const email = claims?.email?.trim().toLowerCase();
   if (!email || !claims?.email_verified || claims.aud !== process.env.GOOGLE_CLIENT_ID) return fail("google_failed");
+
+  // Platform owner (company console): no school record required. If the email is
+  // on the owner allowlist, open a session and send them to the console.
+  if (await isOwnerEmail(email)) {
+    const supabase = await createClient();
+    const { error } = await supabase.auth.signInWithIdToken({ provider: "google", token: tokens.id_token, nonce: saved.nonce });
+    if (error) return fail("google_failed");
+    const nx = safeNext(saved.next);
+    const res = NextResponse.redirect(new URL(nx === "/" ? "/console" : nx, returnOrigin(saved, request.nextUrl.origin)));
+    res.cookies.delete(clearOauth);
+    return res;
+  }
 
   const admin = createAdminClient();
   const record = await findRecord(admin, email);

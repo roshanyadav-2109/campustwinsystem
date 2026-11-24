@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
+import { headers } from "next/headers";
 import { redirect } from "next/navigation";
-import { getUniversityLanding, getBrand } from "@/lib/brand-server";
+import { getUniversityLanding, getBrand, slugFromHost } from "@/lib/brand-server";
 import { SchoolEmblem } from "@/components/brand";
 
 const BASE = process.env.NEXT_PUBLIC_BASE_DOMAIN || "campustwin.org";
@@ -16,6 +17,9 @@ export async function generateMetadata(): Promise<Metadata> {
 //  - a school host (kviit.campustwin.org)    -> the school's app (/dashboard)
 //  - the apex (campustwin.org) / unknown     -> the CampusTwin placeholder
 export default async function Home() {
+  // The company console lives on its own subdomain.
+  if (slugFromHost((await headers()).get("host")) === "console") redirect("/console");
+
   const uni = await getUniversityLanding();
   if (uni) {
     return (

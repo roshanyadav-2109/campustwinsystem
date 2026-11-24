@@ -2304,6 +2304,24 @@ export type Database = {
           },
         ]
       }
+      platform_owner: {
+        Row: {
+          created_at: string | null
+          email: string
+          note: string | null
+        }
+        Insert: {
+          created_at?: string | null
+          email: string
+          note?: string | null
+        }
+        Update: {
+          created_at?: string | null
+          email?: string
+          note?: string | null
+        }
+        Relationships: []
+      }
       profile: {
         Row: {
           active_campus_id: number | null
