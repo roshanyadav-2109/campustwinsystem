@@ -44,14 +44,15 @@ export async function GET(request: NextRequest) {
   let saved: Saved | null = null;
   try { saved = JSON.parse(request.cookies.get("g_oauth")?.value ?? "null"); } catch { saved = null; }
 
-  const fail = (code: string) => {
+  const fail = (code: string, detail?: string) => {
+    if (detail) console.error("[gcb]", code, detail);
     const res = NextResponse.redirect(new URL(`/login?error=${code}`, returnOrigin(saved, request.nextUrl.origin)));
     res.cookies.delete(clearOauth);
     return res;
   };
   const params = request.nextUrl.searchParams;
   const code = params.get("code");
-  if (!saved || !code || params.get("state") !== saved.state) return fail("google_failed");
+  if (!saved || !code || params.get("state") !== saved.state) return fail("google_failed", "state/code mismatch");
 
   // Code -> ID token, straight from Google over TLS.
   const tokenRes = await fetch("https://oauth2.googleapis.com/token", {
@@ -65,19 +66,24 @@ export async function GET(request: NextRequest) {
       grant_type: "authorization_code",
     }),
   });
-  const tokens = (await tokenRes.json().catch(() => ({}))) as { id_token?: string };
-  if (!tokenRes.ok || !tokens.id_token) return fail("google_failed");
+  const tokens = (await tokenRes.json().catch(() => ({}))) as { id_token?: string; error?: string; error_description?: string };
+  if (!tokenRes.ok || !tokens.id_token) return fail("google_failed", `token ${tokenRes.status} ${tokens.error ?? ""} ${(tokens.error_description ?? "").slice(0, 60)}`);
 
   const claims = readClaims(tokens.id_token);
   const email = claims?.email?.trim().toLowerCase();
-  if (!email || !claims?.email_verified || claims.aud !== process.env.GOOGLE_CLIENT_ID) return fail("google_failed");
+  if (!email || !claims?.email_verified || claims.aud !== process.env.GOOGLE_CLIENT_ID) return fail("google_failed", `claims v=${claims?.email_verified} audMatch=${claims?.aud === process.env.GOOGLE_CLIENT_ID}`);
 
   // Platform owner (company console): no school record required. If the email is
   // on the owner allowlist, open a session and send them to the console.
   if (await isOwnerEmail(email)) {
+    const admin = createAdminClient();
+    // Self-signup is disabled on this project, so signInWithIdToken would 422 for
+    // a brand-new owner. Provision the auth user via admin first (ignore "already
+    // exists"); then the sign-in matches an existing user instead of signing up.
+    await admin.auth.admin.createUser({ email, email_confirm: true, user_metadata: { platform_owner: true } });
     const supabase = await createClient();
     const { error } = await supabase.auth.signInWithIdToken({ provider: "google", token: tokens.id_token, nonce: saved.nonce });
-    if (error) return fail("google_failed");
+    if (error) return fail("google_failed", `ownersignin ${error.status ?? ""} ${(error.message ?? "").slice(0, 80)}`);
     const nx = safeNext(saved.next);
     const res = NextResponse.redirect(new URL(nx === "/" ? "/console" : nx, returnOrigin(saved, request.nextUrl.origin)));
     res.cookies.delete(clearOauth);

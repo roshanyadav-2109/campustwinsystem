@@ -1,55 +1,24 @@
 import Link from "next/link";
 import { createAdminClient } from "@/lib/supabase/admin";
-import { setSchoolStatus, setUniversityStatus, toggleModule } from "./actions";
+import { InstitutionsTable, type InstRow } from "@/components/console/institutions-table";
+import { btnPrimary } from "@/components/console/ui";
 
 const BASE = process.env.NEXT_PUBLIC_BASE_DOMAIN || "campustwin.org";
-const GATEABLE = ["fees", "library", "homework", "admissions", "hr", "transport"] as const;
 
 type SchoolRow = {
-  id: number; name: string; slug: string; place: string | null; plan: string | null;
-  status: string; modules: Record<string, boolean> | null; university_id: number | null;
-  students: { count: number }[]; staff: { count: number }[];
+  id: number; name: string; slug: string; plan: string | null; status: string;
+  university_id: number | null; students: { count: number }[]; staff: { count: number }[];
 };
 type Uni = { id: number; name: string; slug: string; plan: string | null; status: string };
 
-function count(a: { count: number }[] | null) { return a?.[0]?.count ?? 0; }
+const c = (a: { count: number }[] | null) => a?.[0]?.count ?? 0;
 
-function StatusBadge({ status }: { status: string }) {
-  const on = status === "active";
-  return <span className={`rounded-full px-2 py-0.5 text-[11px] font-medium ${on ? "bg-emerald-100 text-emerald-700" : "bg-amber-100 text-amber-700"}`}>{status}</span>;
-}
-
-function SchoolCard({ s }: { s: SchoolRow }) {
-  const mods = s.modules ?? {};
+function Metric({ label, value, sub, accent }: { label: string; value: string; sub?: string; accent?: boolean }) {
   return (
-    <div className="rounded-lg border border-hair bg-surface p-4">
-      <div className="flex flex-wrap items-center justify-between gap-2">
-        <div className="min-w-0">
-          <div className="flex items-center gap-2">
-            <span className="text-[15px] font-semibold text-ink-900">{s.name}</span>
-            <StatusBadge status={s.status} />
-          </div>
-          <a href={`https://${s.slug}.${BASE}`} target="_blank" rel="noreferrer" className="text-[12px] text-[#0F6CBD] hover:underline">{s.slug}.{BASE}</a>
-          <span className="ml-3 text-[12px] text-ink-500">{count(s.students).toLocaleString()} students · {count(s.staff).toLocaleString()} staff{s.plan ? ` · ${s.plan}` : ""}</span>
-        </div>
-        <div className="flex items-center gap-2">
-          <Link href={`/console/school/${s.id}`} className="rounded-md border border-hair px-2.5 py-1 text-[12px] text-ink-700 hover:bg-panel">Edit</Link>
-          <form action={setSchoolStatus}>
-            <input type="hidden" name="id" value={s.id} />
-            <input type="hidden" name="status" value={s.status === "active" ? "suspended" : "active"} />
-            <button className="rounded-md border border-hair px-2.5 py-1 text-[12px] text-ink-700 hover:bg-panel">{s.status === "active" ? "Suspend" : "Activate"}</button>
-          </form>
-        </div>
-      </div>
-      <div className="mt-3 flex flex-wrap gap-1.5">
-        {GATEABLE.map((k) => (
-          <form key={k} action={toggleModule}>
-            <input type="hidden" name="id" value={s.id} />
-            <input type="hidden" name="key" value={k} />
-            <button className={`rounded-full px-2.5 py-0.5 text-[11px] font-medium transition-colors ${mods[k] ? "bg-[#0F6CBD] text-white" : "bg-panel text-ink-500 hover:text-ink-900"}`}>{k}</button>
-          </form>
-        ))}
-      </div>
+    <div className="rounded-xl border border-hair bg-white p-4 shadow-[0_1px_2px_rgba(16,24,40,0.04)]">
+      <p className="text-[12px] font-medium text-ink-500">{label}</p>
+      <p className={`mt-1.5 text-[26px] font-semibold tracking-tight tabular-nums ${accent ? "text-amber-600" : "text-ink-900"}`}>{value}</p>
+      {sub && <p className="mt-0.5 text-[11.5px] text-ink-400">{sub}</p>}
     </div>
   );
 }
@@ -58,52 +27,51 @@ export default async function ConsolePage() {
   const admin = createAdminClient();
   const [{ data: unis }, { data: schools }] = await Promise.all([
     admin.from("university").select("id, name, slug, plan, status").order("name"),
-    admin.from("school").select("id, name, slug, place, plan, status, modules, university_id, students:student(count), staff:staff(count)").order("id"),
+    admin.from("school").select("id, name, slug, plan, status, university_id, students:student(count), staff:staff(count)").order("name"),
   ]);
   const allSchools = (schools ?? []) as unknown as SchoolRow[];
-  const standalone = allSchools.filter((s) => !s.university_id);
-  const byUni = (uid: number) => allSchools.filter((s) => s.university_id === uid);
   const universities = (unis ?? []) as Uni[];
+  const uniName = new Map(universities.map((u) => [u.id, u.name]));
 
-  const totalStudents = allSchools.reduce((n, s) => n + count(s.students), 0);
+  const campuses = allSchools.filter((s) => s.university_id);
+  const standalone = allSchools.filter((s) => !s.university_id);
+  const totalStudents = allSchools.reduce((n, s) => n + c(s.students), 0);
+  const totalStaff = allSchools.reduce((n, s) => n + c(s.staff), 0);
+  const suspended = universities.filter((u) => u.status !== "active").length + allSchools.filter((s) => s.status !== "active").length;
+
+  const uniAgg = (uid: number) => campuses.filter((s) => s.university_id === uid).reduce(
+    (acc, s) => ({ students: acc.students + c(s.students), staff: acc.staff + c(s.staff) }), { students: 0, staff: 0 },
+  );
+
+  const rows: InstRow[] = [
+    ...universities.map<InstRow>((u) => {
+      const agg = uniAgg(u.id);
+      return { id: u.id, kind: "university", name: u.name, slug: `${u.slug}.${BASE}`, url: `${u.slug}.${BASE}`, parent: `${campuses.filter((s) => s.university_id === u.id).length} campuses`, plan: u.plan, status: u.status, students: agg.students, staff: agg.staff, href: `/console/university/${u.id}` };
+    }),
+    ...campuses.map<InstRow>((s) => ({ id: s.id, kind: "campus", name: s.name, slug: `${s.slug}.${BASE}`, url: `${s.slug}.${BASE}`, parent: uniName.get(s.university_id!) ?? null, plan: s.plan, status: s.status, students: c(s.students), staff: c(s.staff), href: `/console/school/${s.id}` })),
+    ...standalone.map<InstRow>((s) => ({ id: s.id, kind: "school", name: s.name, slug: `${s.slug}.${BASE}`, url: `${s.slug}.${BASE}`, parent: null, plan: s.plan, status: s.status, students: c(s.students), staff: c(s.staff), href: `/console/school/${s.id}` })),
+  ];
 
   return (
     <div>
-      <div className="mb-6 flex items-end justify-between">
+      <div className="mb-6 flex flex-wrap items-end justify-between gap-3">
         <div>
-          <h1 className="t-h1 text-ink-900">Institutions</h1>
-          <p className="mt-1 text-[13px] text-ink-500">{universities.length} universities · {standalone.length} standalone schools · {totalStudents.toLocaleString()} students</p>
+          <h1 className="text-[22px] font-semibold tracking-tight text-ink-900">Overview</h1>
+          <p className="mt-1 text-[13px] text-ink-500">Every institution on the CampusTwin platform.</p>
         </div>
-        <Link href="/console/new" className="rounded-md bg-[#0F6CBD] px-3 py-2 text-[13px] font-medium text-white">+ New institution</Link>
+        <Link href="/console/new" className={btnPrimary}>+ New institution</Link>
       </div>
 
-      {universities.map((u) => (
-        <section key={u.id} className="mb-6">
-          <div className="mb-2 flex items-center gap-2">
-            <h2 className="text-[16px] font-semibold text-ink-900">{u.name}</h2>
-            <StatusBadge status={u.status} />
-            <a href={`https://${u.slug}.${BASE}`} target="_blank" rel="noreferrer" className="text-[12px] text-[#0F6CBD] hover:underline">{u.slug}.{BASE}</a>
-            <Link href={`/console/university/${u.id}`} className="ml-auto rounded-md border border-hair px-2.5 py-1 text-[12px] text-ink-700 hover:bg-panel">Edit</Link>
-            <form action={setUniversityStatus}>
-              <input type="hidden" name="id" value={u.id} />
-              <input type="hidden" name="status" value={u.status === "active" ? "suspended" : "active"} />
-              <button className="rounded-md border border-hair px-2.5 py-1 text-[12px] text-ink-700 hover:bg-panel">{u.status === "active" ? "Suspend" : "Activate"}</button>
-            </form>
-          </div>
-          <div className="grid gap-2 pl-3 sm:grid-cols-2">
-            {byUni(u.id).map((s) => <SchoolCard key={s.id} s={s} />)}
-            {byUni(u.id).length === 0 && <p className="text-[13px] text-ink-500">No campuses yet. <Link href={`/console/university/${u.id}`} className="text-[#0F6CBD]">Add one</Link>.</p>}
-          </div>
-        </section>
-      ))}
+      <div className="mb-7 grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-6">
+        <Metric label="Universities" value={universities.length.toLocaleString()} />
+        <Metric label="Campuses" value={campuses.length.toLocaleString()} />
+        <Metric label="Standalone schools" value={standalone.length.toLocaleString()} />
+        <Metric label="Students" value={totalStudents.toLocaleString()} sub="across all tenants" />
+        <Metric label="Staff" value={totalStaff.toLocaleString()} sub="across all tenants" />
+        <Metric label="Suspended" value={suspended.toLocaleString()} accent={suspended > 0} />
+      </div>
 
-      <section>
-        <h2 className="mb-2 text-[16px] font-semibold text-ink-900">Standalone schools</h2>
-        <div className="grid gap-2 sm:grid-cols-2">
-          {standalone.map((s) => <SchoolCard key={s.id} s={s} />)}
-          {standalone.length === 0 && <p className="text-[13px] text-ink-500">None.</p>}
-        </div>
-      </section>
+      <InstitutionsTable rows={rows} />
     </div>
   );
 }
