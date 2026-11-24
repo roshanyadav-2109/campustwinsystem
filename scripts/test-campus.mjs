@@ -64,9 +64,15 @@ try {
   const [centralStaff] = await adminInsert("staff", { full_name: "SRM Central Admin", employee_code: `SRMC-${S}`, role: "principal", school_id: campusA.id });
   await adminInsert("profile", { id: userCId, role: "staff", full_name: "SRM Central Admin", staff_id: centralStaff.id, school_id: campusA.id, university_id: uni });
 
+  // helper: set the central admin's active campus (what the switcher does)
+  async function setActiveCampus(campusId) {
+    const r = await fetch(`${REST}/profile?id=eq.${userCId}`, { method: "PATCH", headers: { ...adminHeaders, Prefer: "return=representation" },
+      body: JSON.stringify({ active_campus_id: campusId }) });
+    return r;
+  }
+
   const tokA = await signIn(emailA, PW);
   const tokB = await signIn(emailB, PW);
-  const tokC = await signIn(emailC, PW);
 
   console.log("\n--- per-campus isolation ---");
   const aStu = await userCount(tokA, "student?select=id");
@@ -76,18 +82,39 @@ try {
   const aSeesB = await userCount(tokA, `student?select=id&school_id=eq.${campusB.id}`);
   ok(aSeesB === 0, "campus-A principal cannot see campus-B students");
 
-  console.log("\n--- central university admin sees ALL campuses ---");
-  const cStu = await userCount(tokC, `student?select=id&school_id=in.(${campusA.id},${campusB.id})`);
-  ok(cStu === 2, `central admin sees BOTH campuses' students (saw ${cStu} of 2)`);
+  console.log("\n--- central admin scopes to its ACTIVE campus (reuses normal pages) ---");
+  // No active campus yet -> defaults to home campus A.
+  let tokC = await signIn(emailC, PW);
+  const cHome = await userCount(tokC, "student?select=id");
+  ok(cHome === 1, `central admin (no active set) sees home campus A only (saw ${cHome})`);
+  // Switch to campus B -> now scoped to B.
+  await setActiveCampus(campusB.id);
+  tokC = await signIn(emailC, PW);
+  const cOnB = await userCount(tokC, "student?select=id");
+  const cOnBisB = await userCount(tokC, `student?select=id&school_id=eq.${campusB.id}`);
+  ok(cOnB === 1 && cOnBisB === 1, `after switching, central admin sees campus B only (saw ${cOnB})`);
   const cSeesSchool1 = await userCount(tokC, "student?select=id&school_id=eq.1");
-  ok(cSeesSchool1 === 0, "central admin does NOT see a non-SRM tenant (school 1)");
+  ok(cSeesSchool1 === 0, "central admin never sees a non-SRM tenant (school 1)");
+
+  console.log("\n--- cross-campus roll-up via RPC + university read ---");
+  const rollup = await (await fetch(`${REST}/rpc/university_overview`, { method: "POST", headers: uh(tokC), body: "{}" })).json();
+  ok(Array.isArray(rollup) && rollup.length === 2, `university_overview() returns both campuses (got ${Array.isArray(rollup) ? rollup.length : "?"})`);
   const cUni = await userCount(tokC, `university?select=id&id=eq.${uni}`);
   ok(cUni === 1, "central admin can read its university row");
 
-  console.log("\n--- central admin can write into any SRM campus; campus principal cannot ---");
+  console.log("\n--- guard: cannot switch into a non-university campus ---");
+  const bad = await setActiveCampus(1); // school 1 is not an SRM campus
+  ok(!bad.ok, `switching active campus to a non-SRM school is rejected (HTTP ${bad.status})`);
+  await setActiveCampus(campusB.id); // restore valid
+
+  console.log("\n--- write scoping: active campus writable, other campus/principal blocked ---");
+  tokC = await signIn(emailC, PW); // active = B
   const w1 = await fetch(`${REST}/student`, { method: "POST", headers: { ...uh(tokC), Prefer: "return=representation" },
     body: JSON.stringify({ full_name: "Central-Added", admission_no: `CA-${S}`, gender: "other", dob: "2015-01-01", school_id: campusB.id }) });
-  ok(w1.ok, `central admin can insert a student into campus B (HTTP ${w1.status})`);
+  ok(w1.ok, `central admin (active=B) can insert into campus B (HTTP ${w1.status})`);
+  const w1x = await fetch(`${REST}/student`, { method: "POST", headers: { ...uh(tokC), Prefer: "return=representation" },
+    body: JSON.stringify({ full_name: "WrongCampus", admission_no: `WC-${S}`, gender: "other", dob: "2015-01-01", school_id: campusA.id }) });
+  ok(!w1x.ok, `central admin (active=B) cannot write into campus A without switching (HTTP ${w1x.status})`);
   const w2 = await fetch(`${REST}/student`, { method: "POST", headers: { ...uh(tokA), Prefer: "return=representation" },
     body: JSON.stringify({ full_name: "Intruder", admission_no: `IN-${S}`, gender: "other", dob: "2015-01-01", school_id: campusB.id }) });
   ok(!w2.ok, `campus-A principal CANNOT insert into campus B (HTTP ${w2.status})`);
