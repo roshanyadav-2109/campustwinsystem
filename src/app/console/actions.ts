@@ -3,6 +3,7 @@
 import { revalidatePath } from "next/cache";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { getOwnerEmail } from "@/lib/owner";
+import { refreshBrand } from "@/lib/brand-server";
 
 const YEAR = { name: "2025-26", start_date: "2025-04-01", end_date: "2026-03-31" };
 const DEFAULT_MODULES = { twin: false, fees: true, library: true, homework: true, admissions: true, hr: true, transport: true };
@@ -23,6 +24,7 @@ export async function createSchool(formData: FormData) {
   const { data: school, error } = await admin.from("school").insert({ name, slug, code: slug.toUpperCase(), place, modules: DEFAULT_MODULES }).select("id").single();
   if (error || !school) throw new Error(error?.message || "create failed");
   await admin.from("academic_year").insert({ ...YEAR, is_current: true, school_id: school.id });
+  refreshBrand();
   revalidatePath("/console");
 }
 
@@ -42,6 +44,7 @@ export async function createUniversity(formData: FormData) {
     const { data: campus } = await admin.from("school").insert({ name: cName, slug: cSlug, code: cSlug.toUpperCase(), university_id: uni.id, modules: uni.modules }).select("id").single();
     if (campus) await admin.from("academic_year").insert({ ...YEAR, is_current: true, school_id: campus.id });
   }
+  refreshBrand();
   revalidatePath("/console");
 }
 
@@ -54,6 +57,7 @@ export async function addCampus(formData: FormData) {
   const { data: uni } = await admin.from("university").select("modules").eq("id", universityId).single();
   const { data: campus } = await admin.from("school").insert({ name, slug, code: slug.toUpperCase(), university_id: universityId, modules: uni?.modules ?? DEFAULT_MODULES }).select("id").single();
   if (campus) await admin.from("academic_year").insert({ ...YEAR, is_current: true, school_id: campus.id });
+  refreshBrand();
   revalidatePath("/console");
 }
 
@@ -63,6 +67,7 @@ export async function setSchoolStatus(formData: FormData) {
   const status = String(formData.get("status"));
   if (!id || !["active", "suspended"].includes(status)) return;
   await admin.from("school").update({ status }).eq("id", id);
+  refreshBrand();
   revalidatePath("/console");
 }
 
@@ -75,6 +80,7 @@ export async function setUniversityStatus(formData: FormData) {
   // Cascade to all campuses so suspension actually blocks access (enforcement is
   // per-school), and reactivation restores them.
   await admin.from("school").update({ status }).eq("university_id", id);
+  refreshBrand();
   revalidatePath("/console");
 }
 
@@ -87,6 +93,7 @@ export async function toggleModule(formData: FormData) {
   const modules = { ...(data?.modules as Record<string, boolean> | null ?? {}) };
   modules[key] = !modules[key];
   await admin.from("school").update({ modules }).eq("id", id);
+  refreshBrand();
   revalidatePath("/console");
 }
 
@@ -97,6 +104,7 @@ export async function setPlan(formData: FormData) {
   const kind = String(formData.get("kind"));
   if (!id || !plan) return;
   await admin.from(kind === "university" ? "university" : "school").update({ plan }).eq("id", id);
+  refreshBrand();
   revalidatePath("/console");
 }
 
@@ -112,6 +120,7 @@ export async function updateBranding(formData: FormData) {
   };
   if (kind !== "university") patch.place = String(formData.get("place") || "").trim() || null;
   await admin.from(kind === "university" ? "university" : "school").update(patch as never).eq("id", id);
+  refreshBrand();
   revalidatePath("/console");
 }
 

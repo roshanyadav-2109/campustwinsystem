@@ -1,8 +1,14 @@
 import "server-only";
 import { cache } from "react";
 import { headers } from "next/headers";
+import { unstable_cache, revalidateTag } from "next/cache";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { SCHOOL } from "@/lib/school";
+
+// Branding is the same for every visitor and changes only when the office/console
+// edits it, so it is cached across requests (not just per request) to avoid a DB
+// round-trip on every public page hit. Dropped on edit via refreshBrand().
+export const BRAND_TAG = "brand";
 
 // Runtime institution branding, resolved per request from the subdomain
 // (name.campustwin.org -> slug "name" -> the school row). Falls back to the one
@@ -87,11 +93,8 @@ export type UniversityLanding = {
 // If the current host's slug is a UNIVERSITY (not a campus/school), resolve it and
 // its campuses for the public landing page. Null otherwise. Uses the admin client
 // (branding is public), so it works signed-out.
-export const getUniversityLanding = cache(async (): Promise<UniversityLanding | null> => {
-  try {
-    const host = (await headers()).get("host");
-    const slug = slugFromHost(host);
-    if (!slug) return null;
+const universityLandingBySlug = unstable_cache(
+  async (slug: string): Promise<UniversityLanding | null> => {
     const db = createAdminClient();
     const { data: uni } = await db
       .from("university")
@@ -114,19 +117,38 @@ export const getUniversityLanding = cache(async (): Promise<UniversityLanding | 
       primaryColor: (uni.primary_color && uni.primary_color.trim()) || "#0F6CBD",
       campuses: (campuses ?? []).map((c) => ({ id: c.id, name: c.name, slug: c.slug, place: c.place })),
     };
+  },
+  ["brand-university-by-slug-v1"],
+  { tags: [BRAND_TAG], revalidate: 600 },
+);
+
+export const getUniversityLanding = cache(async (): Promise<UniversityLanding | null> => {
+  try {
+    const slug = slugFromHost((await headers()).get("host"));
+    if (!slug) return null;
+    return await universityLandingBySlug(slug);
   } catch {
     return null;
   }
 });
 
+// Cached per slug across requests (10 min, or until a console edit drops it).
+const schoolRowBySlug = unstable_cache(
+  async (slug: string): Promise<Row | null> => {
+    const db = createAdminClient();
+    const { data } = await db.from("school").select(COLS).eq("slug", slug).maybeSingle();
+    return (data as Row) ?? null;
+  },
+  ["brand-school-by-slug-v1"],
+  { tags: [BRAND_TAG], revalidate: 600 },
+);
+
 export const getBrand = cache(async (): Promise<Brand> => {
   try {
-    const db = createAdminClient();
-    const host = (await headers()).get("host");
-    const slug = slugFromHost(host);
+    const slug = slugFromHost((await headers()).get("host"));
     if (slug) {
-      const { data } = await db.from("school").select(COLS).eq("slug", slug).maybeSingle();
-      if (data) return toBrand(data as Row);
+      const row = await schoolRowBySlug(slug);
+      if (row) return toBrand(row);
     }
     // No matching school: the apex / an unknown host is NOT a school. Show the
     // neutral CampusTwin brand rather than falling back to some institution.
@@ -136,3 +158,8 @@ export const getBrand = cache(async (): Promise<Brand> => {
     return CAMPUSTWIN;
   }
 });
+
+// Drop the branding cache so a console/office edit shows immediately.
+export function refreshBrand() {
+  revalidateTag(BRAND_TAG, { expire: 0 });
+}
