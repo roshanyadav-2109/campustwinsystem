@@ -15,7 +15,7 @@ export default async function ConsoleLayout({ children }: { children: React.Reac
         <nav className="flex items-center gap-4 text-[13px]">
           <Link href="/console" className="text-ink-700 hover:text-ink-900">Institutions</Link>
           <Link href="/console/new" className="text-ink-700 hover:text-ink-900">New</Link>
-          <Link href="/console/owners" className="text-ink-700 hover:text-ink-900">Owners</Link>
+          <Link href="/console/owners" className="text-ink-700 hover:text-ink-900">Team</Link>
         </nav>
         <div className="ml-auto flex items-center gap-3 text-[12px] text-ink-500">
           <span className="hidden sm:inline">{owner}</span>

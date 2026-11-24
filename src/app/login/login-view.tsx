@@ -65,7 +65,9 @@ export function LoginView({ brand, owner = false }: { brand: Brand; owner?: bool
       <div className="relative hidden flex-col justify-between p-12 text-white lg:flex" style={{ backgroundColor: color }}>
         <div className="flex items-center gap-3">
           <span className="flex h-12 w-12 items-center justify-center overflow-hidden rounded-lg bg-white">
-            <SchoolEmblem size={40} logo={logo} monogram={brand.monogram} name={brand.name} />
+            {owner
+              ? <span className="text-[18px] font-bold" style={{ color }}>CT</span>
+              : <SchoolEmblem size={40} logo={logo} monogram={brand.monogram} name={brand.name} />}
           </span>
           <div className="leading-tight">
             <div className="text-[18px] font-semibold">{heading}</div>
@@ -75,7 +77,7 @@ export function LoginView({ brand, owner = false }: { brand: Brand; owner?: bool
         <div>
           <h2 className="font-display text-[36px] font-medium leading-[1.1]">{owner ? "Manage every institution." : "Welcome back."}</h2>
           <p className="mt-3 max-w-sm text-[15px] text-white/85">
-            {owner ? "Sign in to the CampusTwin company console." : "Sign in to your school portal to continue."}
+            {owner ? "Sign in with your CampusTwin team account." : "Sign in to your school portal to continue."}
           </p>
         </div>
         <div className="text-[12px] text-white/75">Powered by CampusTwin</div>
@@ -85,7 +87,9 @@ export function LoginView({ brand, owner = false }: { brand: Brand; owner?: bool
       <div className="flex min-h-dvh flex-col justify-center bg-paper px-5 py-10 sm:px-10">
         <div className="mb-8 flex items-center gap-3 lg:hidden">
           <span className="flex h-11 w-11 items-center justify-center overflow-hidden rounded-lg border border-hair bg-white">
-            <SchoolEmblem size={36} logo={logo} monogram={brand.monogram} name={brand.name} />
+            {owner
+              ? <span className="text-[16px] font-bold" style={{ color }}>CT</span>
+              : <SchoolEmblem size={36} logo={logo} monogram={brand.monogram} name={brand.name} />}
           </span>
           <div className="leading-tight">
             <div className="text-[16px] font-semibold text-ink-900">{owner ? "CampusTwin Console" : brand.name}</div>
@@ -94,8 +98,8 @@ export function LoginView({ brand, owner = false }: { brand: Brand; owner?: bool
         </div>
 
         <div className="mx-auto w-full max-w-sm">
-          <h1 className="font-display text-[32px] font-medium tracking-[-0.02em] text-ink-900">{owner ? "Owner sign-in" : "Welcome"}</h1>
-          <p className="mt-1 text-[14px] text-ink-500">{owner ? "Only platform owners can enter the console." : "Sign in to continue."}</p>
+          <h1 className="font-display text-[32px] font-medium tracking-[-0.02em] text-ink-900">{owner ? "Company sign-in" : "Welcome"}</h1>
+          <p className="mt-1 text-[14px] text-ink-500">{owner ? "For the CampusTwin team only." : "Sign in to continue."}</p>
 
           {error && <p className="mt-4 rounded-md border border-down/30 bg-down-soft px-3 py-2 text-[13px] text-down">{t("auth.invalid")}</p>}
           {googleError && <p className="mt-4 rounded-md border border-down/30 bg-down-soft px-3 py-2 text-[13px] text-down">{googleError}</p>}

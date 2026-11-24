@@ -13,8 +13,8 @@ export default async function OwnersPage() {
   return (
     <div className="max-w-xl">
       <div className="mb-5"><Link href="/console" className="text-[13px] text-[#0F6CBD]">&larr; Institutions</Link></div>
-      <h1 className="t-h1 text-ink-900">Platform owners</h1>
-      <p className="mt-1 text-[13px] text-ink-500">Owners can sign in to this console (via Google) and manage every institution.</p>
+      <h1 className="t-h1 text-ink-900">Company team</h1>
+      <p className="mt-1 text-[13px] text-ink-500">CampusTwin team members who can sign in to this console (via Google) and manage every institution. Add your employees here.</p>
 
       <ul className="mt-5 divide-y divide-hair rounded-lg border border-hair bg-surface">
         {(owners ?? []).map((o) => (
@@ -31,8 +31,8 @@ export default async function OwnersPage() {
       </ul>
 
       <form action={addOwner} className="mt-4 flex items-center gap-2">
-        <input name="email" type="email" required placeholder="newowner@example.com" className={`${input} flex-1`} />
-        <button className="rounded-md bg-[#0F6CBD] px-4 py-2 text-[13px] font-medium text-white">Add owner</button>
+        <input name="email" type="email" required placeholder="employee@campustwin.org" className={`${input} flex-1`} />
+        <button className="rounded-md bg-[#0F6CBD] px-4 py-2 text-[13px] font-medium text-white">Add team member</button>
       </form>
     </div>
   );
