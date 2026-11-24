@@ -10,11 +10,14 @@ export function MeterList({ rows, max, format, marker, markerLabel, labelWidth =
 }) {
   if (rows.length === 0) return <p className="px-5 py-6 text-[13px] text-cx-muted">No data yet</p>;
   const pct = (v: number) => `${Math.max(0, Math.min(100, (v / max) * 100))}%`;
+  // The label column fits the longest name, within reason, so labels aren't cut short.
+  const lw = Math.min(190, Math.max(labelWidth, ...rows.map((r) => Math.ceil(r.label.length * 7.2))));
+  const vw = Math.max(48, ...rows.map((r) => Math.ceil(format(r.value).length * 8)));
   return (
     <div className="px-5 py-4">
       <ul className="space-y-2.5">
         {rows.map((r) => (
-          <li key={r.label} className="grid items-center gap-3 text-[13px]" style={{ gridTemplateColumns: `minmax(0,${labelWidth}px) 1fr 56px` }}>
+          <li key={r.label} className="grid items-center gap-3 text-[13px]" style={{ gridTemplateColumns: `minmax(0,${lw}px) 1fr ${vw}px` }}>
             <span className="truncate text-cx-text-2">{r.label}</span>
             <span className="relative h-2 rounded-full bg-cx-raised">
               <span className="absolute inset-y-0 left-0 rounded-full bg-[#0b57d0]" style={{ width: pct(r.value) }} />

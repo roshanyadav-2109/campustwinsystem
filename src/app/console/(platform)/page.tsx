@@ -1,7 +1,7 @@
 import Link from "next/link";
 import { redirect } from "next/navigation";
 import { createAdminClient } from "@/lib/supabase/admin";
-import { attendanceAnalytics } from "@/lib/console/tenant";
+import { attendanceRate30 } from "@/lib/console/tenant";
 import { institutionRows } from "@/lib/console/institutions";
 import { Kpi, ZoneHeader, kpiStrip, ConsoleTable, type Col } from "@/components/console/table";
 import { Section, StatusBadge, TypeBadge, btnPrimary } from "@/components/console/ui";
@@ -20,10 +20,10 @@ export default async function ConsoleHome({ searchParams }: { searchParams: Prom
     tenants.map(async (t) => {
       const y = yearOf.get(t.id);
       if (!y) return null;
-      const a = await attendanceAnalytics(t.id, y);
-      return a.rate30 == null ? null : { label: t.name, value: a.rate30 };
+      const rate = await attendanceRate30(t.id, y);
+      return rate == null ? null : { label: t.name, value: rate };
     }),
-  )).filter((x): x is { label: string; value: number } => x !== null);
+  )).filter((x): x is { label: string; value: number } => x !== null).sort((a, b) => b.value - a.value);
 
   const students = tenants.reduce((n, t) => n + t.students, 0);
   const staff = tenants.reduce((n, t) => n + t.staff, 0);

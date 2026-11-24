@@ -155,7 +155,7 @@ export function Kpi({ label, value, sub, href }: { label: string; value: string 
 export function Pill({ children, tone = "slate" }: { children: React.ReactNode; tone?: "slate" | "green" | "amber" | "sky" | "violet" | "rose" }) {
   const dot = tone === "green" ? "ok" : tone === "amber" ? "warn" : tone === "rose" ? "bad" : null;
   return (
-    <span className="inline-flex items-center gap-1.5 whitespace-nowrap text-[13px] capitalize text-cx-text-2">
+    <span className="inline-flex items-center gap-1.5 whitespace-nowrap text-[13px] text-cx-text-2">
       {dot && <Dot tone={dot} />}
       {children}
     </span>

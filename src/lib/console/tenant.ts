@@ -164,3 +164,16 @@ export const guardianRelations = (schoolId: number) =>
     const rows = await pageAll<{ relation: string | null }>((from) => admin.from("guardian").select("relation").eq("school_id", schoolId).range(from, from + 999));
     return tally(rows.map((r) => (r.relation ? r.relation.toLowerCase() : null)));
   }, ["console-guardian-relations", String(schoolId)], { revalidate: 600 })();
+
+// One 30-day figure per institution, for cross-tenant views: two calls each,
+// not the twelve-week trend, so a dashboard of many tenants stays cheap.
+export const attendanceRate30 = (schoolId: number, yearId: number) =>
+  unstable_cache(async (): Promise<number | null> => {
+    const admin = createAdminClient();
+    const { data: last } = await admin.from("attendance_record").select("on_date").eq("school_id", schoolId).eq("academic_year_id", yearId).is("period", null).order("on_date", { ascending: false }).limit(1);
+    const latest = last?.[0]?.on_date as string | undefined;
+    if (!latest) return null;
+    const rows = await rangeByClass(admin, yearId, addDays(latest, -29), latest);
+    const t = rows.reduce((a, r) => ({ present: a.present + Number(r.present), total: a.total + Number(r.total) }), { present: 0, total: 0 });
+    return t.total ? Math.round((1000 * t.present) / t.total) / 10 : null;
+  }, ["console-att30", String(schoolId), String(yearId)], { revalidate: 600 })();
