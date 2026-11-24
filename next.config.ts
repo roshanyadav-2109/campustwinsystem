@@ -37,7 +37,6 @@ const nextConfig: NextConfig = {
       "progress", "promotion", "reports", "schedule", "search", "students", "transport",
     ];
     return [
-      { source: "/", destination: "/dashboard", permanent: false },
       ...tabs.flatMap((t) => [
         { source: `/${t}`, destination: `/dashboard/${t}`, permanent: false },
         { source: `/${t}/:rest*`, destination: `/dashboard/${t}/:rest*`, permanent: false },

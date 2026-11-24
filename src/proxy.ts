@@ -42,7 +42,9 @@ export async function proxy(request: NextRequest) {
   const user = data?.claims ?? null;
 
   const path = request.nextUrl.pathname;
-  const isPublic = PUBLIC_PATHS.some((p) => path === p || path.startsWith(p + "/"));
+  // "/" is public: the root page shows a university landing on a university host,
+  // or redirects to /dashboard elsewhere (which the proxy then gates as usual).
+  const isPublic = path === "/" || PUBLIC_PATHS.some((p) => path === p || path.startsWith(p + "/"));
 
   // Signed out: go to login, remembering the whole link (filters included) so a
   // shared link opens exactly that page once they have signed in.

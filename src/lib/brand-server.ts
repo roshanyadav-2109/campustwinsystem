@@ -68,6 +68,51 @@ const ENV_FALLBACK: Brand = {
   loginImage: SCHOOL.loginImage, loginVideoId: SCHOOL.loginVideoId, primaryColor: "#0F6CBD",
 };
 
+export type UniversityLanding = {
+  id: number;
+  name: string;
+  slug: string;
+  shortName: string | null;
+  logo: string;
+  primaryColor: string;
+  campuses: { id: number; name: string; slug: string; place: string | null }[];
+};
+
+// If the current host's slug is a UNIVERSITY (not a campus/school), resolve it and
+// its campuses for the public landing page. Null otherwise. Uses the admin client
+// (branding is public), so it works signed-out.
+export const getUniversityLanding = cache(async (): Promise<UniversityLanding | null> => {
+  try {
+    const host = (await headers()).get("host");
+    const slug = slugFromHost(host);
+    if (!slug) return null;
+    const db = createAdminClient();
+    const { data: uni } = await db
+      .from("university")
+      .select("id, name, slug, short_name, logo_url, primary_color")
+      .eq("slug", slug)
+      .maybeSingle();
+    if (!uni) return null;
+    const { data: campuses } = await db
+      .from("school")
+      .select("id, name, slug, place")
+      .eq("university_id", uni.id)
+      .eq("status", "active")
+      .order("name");
+    return {
+      id: uni.id,
+      name: uni.name,
+      slug: uni.slug,
+      shortName: uni.short_name,
+      logo: (uni.logo_url && uni.logo_url.trim()) || SCHOOL.logo,
+      primaryColor: (uni.primary_color && uni.primary_color.trim()) || "#0F6CBD",
+      campuses: (campuses ?? []).map((c) => ({ id: c.id, name: c.name, slug: c.slug, place: c.place })),
+    };
+  } catch {
+    return null;
+  }
+});
+
 export const getBrand = cache(async (): Promise<Brand> => {
   try {
     const db = createAdminClient();
