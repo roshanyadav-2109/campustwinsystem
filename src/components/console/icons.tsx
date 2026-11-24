@@ -66,6 +66,8 @@ const P = {
   "arrow-down": ["M10 4V15.5", "M5.5 11L10 15.5L14.5 11"],
   home: ["M3 8.75L10 3.25L17 8.75V17H12.25V12H7.75V17H3V8.75Z"],
   briefcase: ["M2.75 6H17.25V16.75H2.75V6Z", "M7.25 6V3.25H12.75V6", "M2.75 10.75H17.25", "M10 9.5V12"],
+  pulse: ["M2.75 10.5H6L8 5.5L11.5 15L13.75 10.5H17.25"],
+  alert: ["M10 3L17.5 16.5H2.5L10 3Z", "M10 8.5V11.75", "M10 14.25V14.5"],
 } as const;
 
 export type IconName = keyof typeof P;

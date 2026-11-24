@@ -8,6 +8,7 @@ function Rail() {
     <>
       <RailLink href="/console" exact icon={<Icon name="home" size={20} />} label="Home" />
       <RailLink href="/console/institutions" icon={<Icon name="institution" size={20} />} label="Institutions" also={["/console/school", "/console/university", "/console/new"]} />
+      <RailLink href="/console/health" icon={<Icon name="pulse" size={20} />} label="Health" />
       <RailLink href="/console/owners" icon={<Icon name="team" size={20} />} label="Team" />
     </>
   );

@@ -9,9 +9,24 @@ function Title({ children }: { children: React.ReactNode }) {
   return <p className="mb-2 px-2 pt-1 text-[15px] font-semibold leading-5 text-cx-text">{children}</p>;
 }
 
-export function PlatformPanel({ universities, schools }: { universities: Item[]; schools: Item[] }) {
+export function PlatformPanel({ universities, schools, addresses = [] }: { universities: Item[]; schools: Item[]; addresses?: { slug: string; name: string }[] }) {
   const p = usePathname();
   const all = [...universities, ...schools];
+
+  if (p.startsWith("/console/health")) {
+    const hrefs = addresses.map((a) => `/console/health/${a.slug}`);
+    return (
+      <>
+        <Title>Health</Title>
+        <div className="space-y-0.5">
+          <PanelLink href="/console/health" exact icon="pulse" label="Platform overview" />
+          <NavGroup id="plat-health-addr" label="By address" icon="institution" hrefs={hrefs}>
+            {addresses.map((a) => <PanelLink key={a.slug} sub href={`/console/health/${a.slug}`} label={a.name} />)}
+          </NavGroup>
+        </div>
+      </>
+    );
+  }
 
   if (p.startsWith("/console/owners")) {
     return (
