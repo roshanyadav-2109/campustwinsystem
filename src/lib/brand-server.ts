@@ -62,10 +62,12 @@ export function slugFromHost(host: string | null): string | null {
   return sub.split(".").pop() || null;
 }
 
-const ENV_FALLBACK: Brand = {
-  slug: "", name: SCHOOL.name, place: SCHOOL.place, fullName: SCHOOL.fullName,
-  shortName: SCHOOL.shortName, monogram: SCHOOL.monogram, logo: SCHOOL.logo,
-  loginImage: SCHOOL.loginImage, loginVideoId: SCHOOL.loginVideoId, primaryColor: "#0F6CBD",
+// The apex (campustwin.org) and any unmatched host are NOT a school — they get
+// the neutral CampusTwin brand, never a fall-back to some institution.
+export const CAMPUSTWIN: Brand = {
+  slug: "", name: "CampusTwin", place: "", fullName: "CampusTwin",
+  shortName: "CampusTwin", monogram: "CT", logo: "", loginImage: "", loginVideoId: "",
+  primaryColor: "#0F6CBD",
 };
 
 export type UniversityLanding = {
@@ -122,10 +124,11 @@ export const getBrand = cache(async (): Promise<Brand> => {
       const { data } = await db.from("school").select(COLS).eq("slug", slug).maybeSingle();
       if (data) return toBrand(data as Row);
     }
-    const { data } = await db.from("school").select(COLS).order("id", { ascending: true }).limit(1).maybeSingle();
-    if (data) return toBrand(data as Row);
+    // No matching school: the apex / an unknown host is NOT a school. Show the
+    // neutral CampusTwin brand rather than falling back to some institution.
+    return CAMPUSTWIN;
   } catch {
-    // fall through to env defaults
+    // On a DB error, prefer the neutral brand over leaking a specific school.
+    return CAMPUSTWIN;
   }
-  return ENV_FALLBACK;
 });
