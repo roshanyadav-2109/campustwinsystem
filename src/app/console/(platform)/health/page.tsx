@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { analyticsConfigured, platformTraffic, databasePing, busyDays, evaluate, type Alert, type Traffic, type HostRow } from "@/lib/console/health";
+import { analyticsConfigured, platformTraffic, databasePing, storagePing, busyDays, evaluate, type Alert, type Traffic, type HostRow } from "@/lib/console/health";
 import { institutionRows } from "@/lib/console/institutions";
 import { ZoneHeader, Kpi, kpiStrip, ConsoleTable, type Col } from "@/components/console/table";
 import { Section } from "@/components/console/ui";
@@ -33,16 +33,18 @@ function Banner({ alerts, configured }: { alerts: Alert[]; configured: boolean }
 
 export default async function HealthPage() {
   const configured = analyticsConfigured();
-  const [traffic, db, rows] = await Promise.all([
+  const [traffic, db, rows, storage] = await Promise.all([
     configured ? platformTraffic().catch((e: Error) => ({ error: e.message })) : Promise.resolve(null),
     databasePing(),
     institutionRows(),
+    storagePing(),
   ]);
   const t: Traffic | null = traffic && !("error" in traffic) ? traffic : null;
   const trafficError = traffic && "error" in traffic ? traffic.error : null;
   const tenants = rows.filter((r) => r.kind !== "university");
   const days = await busyDays(new Map(tenants.map((r) => [r.id, r.students])), new Map(tenants.map((r) => [r.id, r.name])));
   const alerts = evaluate(t, db);
+  if (!storage.ok) alerts.unshift({ level: "degraded", title: "File storage unavailable", detail: storage.reason ?? "Uploads will fail." });
   if (trafficError) alerts.unshift({ level: "notice", title: "Traffic analytics unavailable", detail: trafficError });
 
   const req24 = t ? t.hours.reduce((s, h) => s + h.requests, 0) : 0;
@@ -100,7 +102,12 @@ export default async function HealthPage() {
       ) : <p className="px-5 py-8 text-center text-[13px] text-cx-muted">No exams scheduled in the next 45 days</p>}
     </Section>
   );
-  const dbKpi = <Kpi label="Database" value={db.ok ? `${db.ms} ms` : "Not responding"} sub="round trip, measured now" />;
+  const dbKpi = (
+    <>
+      <Kpi label="Database" value={db.ok ? `${db.ms} ms` : "Not responding"} sub="round trip, measured now" />
+      <Kpi label="File storage" value={storage.ok ? `${storage.ms} ms` : "Failing"} sub={storage.ok ? "photos and documents" : "uploads will fail"} />
+    </>
+  );
 
   return (
     <div>

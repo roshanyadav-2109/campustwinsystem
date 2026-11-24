@@ -173,3 +173,19 @@ export const hostDetail = (host: string) =>
       cache: list("cache", "cacheStatus"),
     };
   }, ["console-health-host-v1", host], { revalidate: 60 })();
+
+// Live check that the app can reach file storage with its own credentials, so a
+// missing or revoked key shows up here before a school notices broken uploads.
+export async function storagePing(): Promise<{ ok: boolean; ms: number; reason?: string }> {
+  const { R2_ACCOUNT_ID, R2_ACCESS_KEY_ID, R2_SECRET_ACCESS_KEY } = process.env;
+  if (!R2_ACCOUNT_ID || !R2_ACCESS_KEY_ID || !R2_SECRET_ACCESS_KEY) return { ok: false, ms: 0, reason: "File storage credentials are not set on the app, so photo uploads and deletions fail." };
+  const { AwsClient } = await import("aws4fetch");
+  const r2 = new AwsClient({ accessKeyId: R2_ACCESS_KEY_ID, secretAccessKey: R2_SECRET_ACCESS_KEY, service: "s3", region: "auto" });
+  const t0 = Date.now();
+  try {
+    const r = await r2.fetch(`https://${R2_ACCOUNT_ID}.r2.cloudflarestorage.com/${process.env.R2_BUCKET || "campustwin-media"}?list-type=2&max-keys=1`);
+    return r.ok ? { ok: true, ms: Date.now() - t0 } : { ok: false, ms: Date.now() - t0, reason: `File storage refused the app's credentials (HTTP ${r.status}).` };
+  } catch {
+    return { ok: false, ms: Date.now() - t0, reason: "File storage could not be reached." };
+  }
+}
