@@ -13,15 +13,16 @@ export type Col<T> = {
   render: (row: T) => React.ReactNode;
 };
 
-export function ConsoleTable<T>({ columns, rows, rowKey, empty = "Nothing here yet" }: {
+export function ConsoleTable<T>({ columns, rows, rowKey, empty = "Nothing here yet", bare }: {
   columns: Col<T>[];
   rows: T[];
   rowKey: (row: T) => string | number;
   empty?: string;
+  bare?: boolean;
 }) {
   const align = (a?: string) => (a === "right" ? "text-right" : a === "center" ? "text-center" : "text-left");
   return (
-    <div className="overflow-x-auto rounded-lg border border-cx-line bg-cx-card">
+    <div className={bare ? "overflow-x-auto" : "overflow-x-auto rounded-lg border border-cx-line bg-cx-card"}>
       <table className="w-full text-[13.5px]">
         <thead className="border-b border-cx-line bg-cx-raised/60">
           <tr>
@@ -80,7 +81,6 @@ export function Pager({ page, pageSize, total, hrefFor }: { page: number; pageSi
     <div className="mt-2 flex items-center justify-between text-[12.5px] text-cx-muted">
       <span className="tabular-nums">{from.toLocaleString()}–{to.toLocaleString()} of {total.toLocaleString()}</span>
       <div className="flex items-center gap-2">
-        <span className="tabular-nums">Page {page} of {pages}</span>
         {page > 1
           ? <Link aria-label="Previous page" href={hrefFor(page - 1)} className={`${btn} text-cx-text hover:bg-cx-raised`}><Icon name="chevron-left" size={16} /></Link>
           : <span className={`${btn} text-cx-faint`}><Icon name="chevron-left" size={16} /></span>}

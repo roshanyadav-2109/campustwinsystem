@@ -18,11 +18,11 @@ export default async function FeesZone({ params }: { params: Promise<{ id: strin
     <div>
       <ZoneHeader title="Fees" />
       {!on && <ModuleNotice module="fees" schoolId={s.id} />}
-      <div className={kpiStrip}>
+      {(invoices ?? 0) > 0 && (<div className={kpiStrip}>
         <Kpi label="Fee heads" value={heads ?? 0} />
         <Kpi label="Invoices raised" value={invoices ?? 0} />
         <Kpi label="Payments" value={payments ?? 0} />
-      </div>
+      </div>)}
       {(invoices ?? 0) === 0 && (
         <p className="rounded-lg border border-dashed border-cx-line px-4 py-10 text-center text-[13px] text-cx-muted">
           No fees have been billed yet. Fee heads, structures and invoices are managed by the school office inside the portal.

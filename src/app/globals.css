@@ -21,6 +21,9 @@
   /* Platform console — graphite ramp, one link colour, brand red in the mark only */
   --color-cx-bar: #0a0a0a;
   --color-cx-bg: #f6f6f7;
+  --color-cx-side: #f3f3f4;
+  --color-cx-hover: #e9e9eb;
+  --color-cx-sel: #e2e2e5;
   --color-cx-card: #ffffff;
   --color-cx-raised: #f1f1f2;
   --color-cx-active: #e8e8ea;

@@ -1,65 +1,67 @@
 import Link from "next/link";
+import { redirect } from "next/navigation";
 import { createAdminClient } from "@/lib/supabase/admin";
-import { InstitutionsTable, type InstRow } from "@/components/console/institutions-table";
-import { Kpi, ZoneHeader, kpiStrip } from "@/components/console/table";
-import { btnPrimary } from "@/components/console/ui";
+import { attendanceAnalytics } from "@/lib/console/tenant";
+import { institutionRows } from "@/lib/console/institutions";
+import { Kpi, ZoneHeader, kpiStrip, ConsoleTable, type Col } from "@/components/console/table";
+import { Section, StatusBadge, TypeBadge, btnPrimary } from "@/components/console/ui";
+import { MeterList } from "@/components/console/meter-list";
+import type { InstRow } from "@/components/console/institutions-table";
 
-
-const BASE = process.env.NEXT_PUBLIC_BASE_DOMAIN || "campustwin.org";
-
-type SchoolRow = {
-  id: number; name: string; slug: string; plan: string | null; status: string;
-  university_id: number | null; students: { count: number }[]; staff: { count: number }[];
-};
-type Uni = { id: number; name: string; slug: string; plan: string | null; status: string };
-const c = (a: { count: number }[] | null) => a?.[0]?.count ?? 0;
-
-export default async function ConsolePage({ searchParams }: { searchParams: Promise<{ q?: string }> }) {
+export default async function ConsoleHome({ searchParams }: { searchParams: Promise<{ q?: string }> }) {
   const { q } = await searchParams;
+  if (q) redirect(`/console/institutions?q=${encodeURIComponent(q)}`);
   const admin = createAdminClient();
-  const [{ data: unis }, { data: schools }] = await Promise.all([
-    admin.from("university").select("id, name, slug, plan, status").order("name"),
-    admin.from("school").select("id, name, slug, plan, status, university_id, students:student(count), staff:staff(count)").order("name"),
-  ]);
-  const allSchools = (schools ?? []) as unknown as SchoolRow[];
-  const universities = (unis ?? []) as Uni[];
-  const uniName = new Map(universities.map((u) => [u.id, u.name]));
-
-  const campuses = allSchools.filter((s) => s.university_id);
-  const standalone = allSchools.filter((s) => !s.university_id);
-  const totalStudents = allSchools.reduce((n, s) => n + c(s.students), 0);
-  const totalStaff = allSchools.reduce((n, s) => n + c(s.staff), 0);
-  const suspended = universities.filter((u) => u.status !== "active").length + allSchools.filter((s) => s.status !== "active").length;
-
-  const uniAgg = (uid: number) => campuses.filter((s) => s.university_id === uid).reduce(
-    (acc, s) => ({ students: acc.students + c(s.students), staff: acc.staff + c(s.staff) }), { students: 0, staff: 0 },
-  );
-
-  const rows: InstRow[] = [
-    ...universities.map<InstRow>((u) => {
-      const agg = uniAgg(u.id);
-      return { id: u.id, kind: "university", name: u.name, slug: `${u.slug}.${BASE}`, url: `${u.slug}.${BASE}`, parent: `${campuses.filter((s) => s.university_id === u.id).length} campuses`, plan: u.plan, status: u.status, students: agg.students, staff: agg.staff, href: `/console/university/${u.id}` };
+  const rows = await institutionRows();
+  const tenants = rows.filter((r) => r.kind !== "university");
+  const { data: years } = await admin.from("academic_year").select("id, school_id").eq("is_current", true);
+  const yearOf = new Map((years ?? []).map((y) => [y.school_id, y.id]));
+  const attendance = (await Promise.all(
+    tenants.map(async (t) => {
+      const y = yearOf.get(t.id);
+      if (!y) return null;
+      const a = await attendanceAnalytics(t.id, y);
+      return a.rate30 == null ? null : { label: t.name, value: a.rate30 };
     }),
-    ...campuses.map<InstRow>((s) => ({ id: s.id, kind: "campus", name: s.name, slug: `${s.slug}.${BASE}`, url: `${s.slug}.${BASE}`, parent: uniName.get(s.university_id!) ?? null, plan: s.plan, status: s.status, students: c(s.students), staff: c(s.staff), href: `/console/school/${s.id}` })),
-    ...standalone.map<InstRow>((s) => ({ id: s.id, kind: "school", name: s.name, slug: `${s.slug}.${BASE}`, url: `${s.slug}.${BASE}`, parent: null, plan: s.plan, status: s.status, students: c(s.students), staff: c(s.staff), href: `/console/school/${s.id}` })),
+  )).filter((x): x is { label: string; value: number } => x !== null);
+
+  const students = tenants.reduce((n, t) => n + t.students, 0);
+  const staff = tenants.reduce((n, t) => n + t.staff, 0);
+  const suspended = rows.filter((r) => r.status !== "active").length;
+  const top = [...tenants].sort((a, b) => b.students - a.students);
+
+  const cols: Col<InstRow>[] = [
+    { key: "name", label: "Name", render: (r) => <Link href={r.href} className="font-medium text-cx-link hover:underline">{r.name}</Link> },
+    { key: "type", label: "Type", render: (r) => <TypeBadge kind={r.kind} /> },
+    { key: "students", label: "Students", align: "right", render: (r) => <span className="text-cx-text">{r.students.toLocaleString("en-IN")}</span> },
+    { key: "status", label: "Status", render: (r) => <StatusBadge status={r.status} /> },
   ];
 
   return (
     <div>
-      <ZoneHeader title="Platform overview" sub={`${rows.length} institution${rows.length === 1 ? "" : "s"} · ${totalStudents.toLocaleString("en-IN")} students`}>
-        <Link href="/console/new" className={btnPrimary}>+ New institution</Link>
+      <ZoneHeader title="Dashboard">
+        <Link href="/console/new" className={btnPrimary}>New institution</Link>
       </ZoneHeader>
 
       <div className={kpiStrip}>
-        <Kpi label="Universities" value={universities.length} />
-        <Kpi label="Campuses" value={campuses.length} />
-        <Kpi label="Standalone schools" value={standalone.length} />
-        <Kpi label="Students" value={totalStudents} sub="all tenants" />
-        <Kpi label="Staff" value={totalStaff} sub="all tenants" />
-        <Kpi label="Suspended" value={suspended} />
+        <Kpi label="Institutions" value={rows.length} href="/console/institutions" />
+        <Kpi label="Students" value={students} />
+        <Kpi label="Staff" value={staff} />
+        {suspended > 0 && <Kpi label="Suspended" value={suspended} />}
       </div>
 
-      <InstitutionsTable rows={rows} initialQuery={q ?? ""} />
+      <div className="mb-4 grid gap-4 lg:grid-cols-2">
+        <Section title="Students by institution" flush>
+          <MeterList rows={top.map((t) => ({ label: t.name, value: t.students }))} max={Math.max(1, ...top.map((t) => t.students))} format={(v) => v.toLocaleString("en-IN")} labelWidth={220} />
+        </Section>
+        <Section title="Attendance rate by institution" desc="Present or late, last 30 days" flush>
+          <MeterList rows={attendance} max={100} format={(v) => `${v.toFixed(1)}%`} labelWidth={220} />
+        </Section>
+      </div>
+
+      <Section title="Largest institutions" flush right={<Link href="/console/institutions" className="text-[13px] text-cx-link hover:underline">View all</Link>}>
+        <ConsoleTable bare columns={cols} rows={top.slice(0, 5)} rowKey={(r) => `${r.kind}-${r.id}`} empty="No institutions yet" />
+      </Section>
     </div>
   );
 }

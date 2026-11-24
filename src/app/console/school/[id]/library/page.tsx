@@ -18,11 +18,11 @@ export default async function LibraryZone({ params }: { params: Promise<{ id: st
     <div>
       <ZoneHeader title="Library" />
       {!on && <ModuleNotice module="library" schoolId={s.id} />}
-      <div className={kpiStrip}>
+      {(books ?? 0) > 0 && (<div className={kpiStrip}>
         <Kpi label="Titles" value={books ?? 0} />
         <Kpi label="Total loans" value={issues ?? 0} />
         <Kpi label="On loan now" value={openLoans ?? 0} />
-      </div>
+      </div>)}
       {(books ?? 0) === 0 && (
         <p className="rounded-lg border border-dashed border-cx-line px-4 py-10 text-center text-[13px] text-cx-muted">
           No books catalogued yet. The catalogue and issue desk live in the school portal.

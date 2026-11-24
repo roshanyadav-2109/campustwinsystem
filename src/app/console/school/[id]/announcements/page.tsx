@@ -1,6 +1,6 @@
 import { createAdminClient } from "@/lib/supabase/admin";
 import { loadSchool } from "@/lib/console/tenant";
-import { Pill, ZoneHeader } from "@/components/console/table";
+import { ZoneHeader } from "@/components/console/table";
 
 type Row = { id: number; title: string; body: string; scope: string; published_at: string; staff: { full_name: string } | null };
 
@@ -26,7 +26,6 @@ export default async function AnnouncementsZone({ params }: { params: Promise<{ 
               <div className="flex flex-wrap items-center justify-between gap-2">
                 <h3 className="text-[14px] font-semibold text-cx-text">{a.title}</h3>
                 <span className="flex items-center gap-2 text-[11.5px] text-cx-muted">
-                  <Pill tone="sky">{a.scope}</Pill>
                   {a.staff?.full_name && <span>{a.staff.full_name}</span>}
                   <span>{new Date(a.published_at).toLocaleDateString("en-IN", { day: "numeric", month: "short", year: "numeric" })}</span>
                 </span>

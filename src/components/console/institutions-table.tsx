@@ -44,7 +44,7 @@ export function InstitutionsTable({ rows, initialQuery = "" }: { rows: InstRow[]
     if (sort === k) setDir((d) => (d === 1 ? -1 : 1));
     else { setSort(k); setDir(k === "name" ? 1 : -1); }
   };
-  const Th = ({ k, children, right }: { k: SortKey; children: React.ReactNode; right?: boolean }) => (
+  const th = (k: SortKey, children: React.ReactNode, right?: boolean) => (
     <th className={`h-9 px-3 font-medium ${right ? "text-right" : "text-left"}`} aria-sort={sort === k ? (dir === 1 ? "ascending" : "descending") : "none"}>
       <button onClick={() => toggleSort(k)} className="inline-flex items-center gap-1 text-cx-muted transition-colors hover:text-cx-text">
         {children}
@@ -89,12 +89,12 @@ export function InstitutionsTable({ rows, initialQuery = "" }: { rows: InstRow[]
         <table className="w-full text-[13.5px]">
           <thead className="border-b border-cx-line bg-cx-raised/60 text-[12.5px]">
             <tr>
-              <Th k="name">Name</Th>
+              {th("name", "Name")}
               <th className="h-9 px-3 text-left font-medium text-cx-muted">Type</th>
               <th className="h-9 px-3 text-left font-medium text-cx-muted">Address</th>
               <th className="h-9 px-3 text-left font-medium text-cx-muted">Plan</th>
-              <Th k="students" right>Students</Th>
-              <Th k="staff" right>Staff</Th>
+              {th("students", "Students", true)}
+              {th("staff", "Staff", true)}
               <th className="h-9 px-3 text-left font-medium text-cx-muted">Status</th>
             </tr>
           </thead>

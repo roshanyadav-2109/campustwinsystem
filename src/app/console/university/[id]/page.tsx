@@ -14,9 +14,8 @@ export default async function UniversityOverview({ params }: { params: Promise<{
   const admin = createAdminClient();
   const { data: u } = await admin.from("university").select("id, name, slug, status, plan").eq("id", uid).maybeSingle();
   if (!u) notFound();
-  const [{ data: campuses }, { count: admins }] = await Promise.all([
+  const [{ data: campuses }] = await Promise.all([
     admin.from("school").select("id, name, slug, status, students:student(count), staff:staff(count)").eq("university_id", uid).order("name"),
-    admin.from("profile").select("*", { count: "exact", head: true }).eq("university_id", uid),
   ]);
   const camps = (campuses ?? []) as unknown as Campus[];
   const students = camps.reduce((n, x) => n + c(x.students), 0);
@@ -41,7 +40,6 @@ export default async function UniversityOverview({ params }: { params: Promise<{
         <Kpi label="Campuses" value={camps.length} href={`/console/university/${uid}/campuses`} />
         <Kpi label="Students" value={students} sub="all campuses" />
         <Kpi label="Staff" value={staff} sub="all campuses" />
-        <Kpi label="Central admins" value={admins ?? 0} href={`/console/university/${uid}/admins`} />
       </div>
       <p className="mb-2 text-[14px] font-semibold text-cx-text">Campuses</p>
       <ConsoleTable columns={cols} rows={camps} rowKey={(x) => x.id} empty="No campuses yet" />

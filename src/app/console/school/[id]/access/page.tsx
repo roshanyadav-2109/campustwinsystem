@@ -18,7 +18,6 @@ export default async function AccessZone({ params }: { params: Promise<{ id: str
     { key: "name", label: "Account", render: (r) => <span className="font-medium text-cx-text">{r.full_name}</span> },
     { key: "role", label: "Role", render: (r) => <Pill tone={tone(r.role)}>{r.role}</Pill> },
     { key: "link", label: "Linked record", render: (r) => <span className="text-cx-text-2">{linkOf(r)}</span> },
-    { key: "uid", label: "Auth ID", render: (r) => <span className="font-mono text-[11px] text-cx-muted">{r.id.slice(0, 8)}…</span> },
     { key: "created", label: "Since", align: "right", render: (r) => <span className="text-cx-muted">{new Date(r.created_at).toLocaleDateString("en-IN", { day: "numeric", month: "short", year: "numeric" })}</span> },
   ];
 

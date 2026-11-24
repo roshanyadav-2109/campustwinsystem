@@ -26,7 +26,6 @@ export default async function GuardiansZone({ params, searchParams }: { params: 
     ) },
     { key: "relation", label: "Relation", render: (r) => r.relation ? <Pill>{r.relation}</Pill> : <span className="text-cx-muted">—</span> },
     { key: "phone", label: "Phone", render: (r) => <span className="text-cx-text-2">{r.phone ?? "—"}</span> },
-    { key: "email", label: "Email", render: (r) => <span className="text-cx-text-2">{r.email ?? "—"}</span> },
   ];
 
   return (

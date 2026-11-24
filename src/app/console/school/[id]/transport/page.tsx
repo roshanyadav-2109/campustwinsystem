@@ -1,6 +1,6 @@
 import { createAdminClient } from "@/lib/supabase/admin";
 import { loadSchool, modulesOf } from "@/lib/console/tenant";
-import { ConsoleTable, Pill, Kpi, ZoneHeader, type Col, kpiStrip } from "@/components/console/table";
+import { ConsoleTable, Pill, ZoneHeader, type Col } from "@/components/console/table";
 import { ModuleNotice } from "@/components/console/module-notice";
 
 type Bus = { id: number; code: string | null; registration_no: string | null };
@@ -30,13 +30,8 @@ export default async function TransportZone({ params }: { params: Promise<{ id: 
 
   return (
     <div>
-      <ZoneHeader title="Transport" />
+      <ZoneHeader title="Transport" sub={`${(riders ?? 0).toLocaleString("en-IN")} students use school transport`} />
       {!on && <ModuleNotice module="transport" schoolId={s.id} />}
-      <div className={kpiStrip}>
-        <Kpi label="Buses" value={buses?.length ?? 0} />
-        <Kpi label="Routes" value={routes?.length ?? 0} />
-        <Kpi label="Active riders" value={riders ?? 0} />
-      </div>
       <div className="grid gap-4 lg:grid-cols-2">
         <div><p className="mb-2 text-[14px] font-semibold text-cx-text">Fleet</p><ConsoleTable columns={busCols} rows={(buses ?? []) as Bus[]} rowKey={(b) => b.id} empty="No buses" /></div>
         <div><p className="mb-2 text-[14px] font-semibold text-cx-text">Routes</p><ConsoleTable columns={routeCols} rows={(routes ?? []) as Route[]} rowKey={(r) => r.id} empty="No routes" /></div>

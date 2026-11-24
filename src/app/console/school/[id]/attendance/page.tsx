@@ -1,7 +1,11 @@
 import { createAdminClient } from "@/lib/supabase/admin";
-import { loadSchool, currentYear } from "@/lib/console/tenant";
-import { Kpi, ZoneHeader, kpiStrip } from "@/components/console/table";
+import { loadSchool, currentYear, attendanceAnalytics } from "@/lib/console/tenant";
+import { ZoneHeader } from "@/components/console/table";
 import { Section } from "@/components/console/ui";
+import { AttendanceTrend } from "@/components/console/charts";
+import { MeterList } from "@/components/console/meter-list";
+
+const fmt = (d: string) => new Date(d + "T00:00:00Z").toLocaleDateString("en-IN", { day: "numeric", month: "short", year: "numeric", timeZone: "UTC" });
 
 async function dayCount(admin: ReturnType<typeof createAdminClient>, schoolId: number, date: string, status?: string) {
   let q = admin.from("attendance_record").select("*", { count: "exact", head: true }).eq("school_id", schoolId).eq("on_date", date).is("period", null);
@@ -15,12 +19,8 @@ export default async function AttendanceZone({ params }: { params: Promise<{ id:
   const s = await loadSchool(id);
   const admin = createAdminClient();
   const year = await currentYear(admin, s.id);
-
-  const [{ count: total }, { data: latestRow }] = await Promise.all([
-    admin.from("attendance_record").select("*", { count: "exact", head: true }).eq("school_id", s.id),
-    admin.from("attendance_record").select("on_date").eq("school_id", s.id).order("on_date", { ascending: false }).limit(1),
-  ]);
-  const latest = latestRow?.[0]?.on_date as string | undefined;
+  const att = year ? await attendanceAnalytics(s.id, year.id) : null;
+  const latest = att?.latest ?? null;
 
   let marked = 0, present = 0, late = 0, holiday = 0;
   if (latest) {
@@ -29,37 +29,56 @@ export default async function AttendanceZone({ params }: { params: Promise<{ id:
     ]);
   }
   const absent = Math.max(0, marked - present - late - holiday);
-  const pct = marked - holiday > 0 ? Math.round(((present + late) / (marked - holiday)) * 100) : 0;
   const seg = (n: number) => (marked ? `${(n / marked) * 100}%` : "0%");
+
+  if (!latest) {
+    return (
+      <div>
+        <ZoneHeader title="Attendance" sub={year?.name} />
+        <p className="rounded-lg border border-cx-line bg-cx-card px-4 py-10 text-center text-[13px] text-cx-muted">No attendance has been marked this session</p>
+      </div>
+    );
+  }
 
   return (
     <div>
-      <ZoneHeader title="Attendance" sub={year ? year.name : undefined} />
-      <div className={kpiStrip}>
-        <Kpi label="Records (all time)" value={total ?? 0} />
-        <Kpi label="Last marked" value={latest ? new Date(latest).toLocaleDateString("en-IN", { day: "numeric", month: "short", year: "numeric" }) : "—"} />
-        <Kpi label="Marked that day" value={marked} />
-        <Kpi label="Attendance rate" value={`${pct}%`} sub="present + late" />
+      <ZoneHeader title="Attendance" sub={`${year?.name} · last marked ${fmt(latest)}`} />
+
+      <div className="mb-4 grid gap-4 lg:grid-cols-3">
+        <div className="lg:col-span-2">
+          <Section
+            title="Attendance rate"
+            desc="Weekly share of students present or late"
+            right={att?.rate30 != null ? <div className="text-right"><p className="text-[22px] font-semibold leading-7 tabular-nums text-cx-text">{att.rate30.toFixed(1)}%</p><p className="text-[12px] text-cx-muted">last 30 days</p></div> : undefined}
+          >
+            {att && att.weekly.length > 1 ? <AttendanceTrend data={att.weekly} /> : <p className="py-10 text-center text-[13px] text-cx-muted">Not enough attendance marked yet</p>}
+          </Section>
+        </div>
+        <Section title="By class" desc="Last 30 days" flush>
+          <MeterList
+            rows={(att?.byClass ?? []).map((c) => ({ label: c.name, value: c.rate }))}
+            max={100}
+            format={(v) => `${v.toFixed(1)}%`}
+            marker={att?.rate30 ?? undefined}
+            markerLabel={att?.rate30 != null ? `School average ${att.rate30.toFixed(1)}%` : undefined}
+          />
+        </Section>
       </div>
 
-      {latest ? (
-        <Section title={`Breakdown — ${new Date(latest).toLocaleDateString("en-IN", { day: "numeric", month: "short", year: "numeric" })}`}>
-          <div className="flex h-3 w-full overflow-hidden rounded-full bg-cx-raised">
-            <div className="bg-cx-ok" style={{ width: seg(present) }} title={`Present ${present}`} />
-            <div className="bg-cx-warn" style={{ width: seg(late) }} title={`Late ${late}`} />
-            <div className="bg-cx-bad" style={{ width: seg(absent) }} title={`Absent ${absent}`} />
-            <div className="bg-cx-line-strong" style={{ width: seg(holiday) }} title={`Holiday ${holiday}`} />
-          </div>
-          <div className="mt-3 flex flex-wrap gap-4 text-[12.5px]">
-            <span className="flex items-center gap-1.5"><span className="h-2.5 w-2.5 rounded-sm bg-cx-ok" />Present <b className="tabular-nums">{present.toLocaleString("en-IN")}</b></span>
-            <span className="flex items-center gap-1.5"><span className="h-2.5 w-2.5 rounded-sm bg-cx-warn" />Late <b className="tabular-nums">{late.toLocaleString("en-IN")}</b></span>
-            <span className="flex items-center gap-1.5"><span className="h-2.5 w-2.5 rounded-sm bg-cx-bad" />Absent <b className="tabular-nums">{absent.toLocaleString("en-IN")}</b></span>
-            <span className="flex items-center gap-1.5"><span className="h-2.5 w-2.5 rounded-sm bg-cx-line-strong" />Holiday <b className="tabular-nums">{holiday.toLocaleString("en-IN")}</b></span>
-          </div>
-        </Section>
-      ) : (
-        <p className="rounded-lg border border-dashed border-cx-line px-4 py-10 text-center text-[13px] text-cx-muted">No attendance has been marked yet.</p>
-      )}
+      <Section title={`Last marked day · ${fmt(latest)}`} desc={`${marked.toLocaleString("en-IN")} students marked`}>
+        <div className="flex h-3 w-full gap-0.5 overflow-hidden rounded-full">
+          <div className="bg-cx-ok" style={{ width: seg(present) }} title={`Present ${present}`} />
+          <div className="bg-cx-warn" style={{ width: seg(late) }} title={`Late ${late}`} />
+          <div className="bg-cx-bad" style={{ width: seg(absent) }} title={`Absent ${absent}`} />
+          {holiday > 0 && <div className="bg-cx-line-strong" style={{ width: seg(holiday) }} title={`Holiday ${holiday}`} />}
+        </div>
+        <div className="mt-3 flex flex-wrap gap-5 text-[13px] text-cx-text-2">
+          <span className="flex items-center gap-1.5"><span className="h-2.5 w-2.5 rounded-sm bg-cx-ok" />Present <b className="font-semibold tabular-nums text-cx-text">{present.toLocaleString("en-IN")}</b></span>
+          <span className="flex items-center gap-1.5"><span className="h-2.5 w-2.5 rounded-sm bg-cx-warn" />Late <b className="font-semibold tabular-nums text-cx-text">{late.toLocaleString("en-IN")}</b></span>
+          <span className="flex items-center gap-1.5"><span className="h-2.5 w-2.5 rounded-sm bg-cx-bad" />Absent <b className="font-semibold tabular-nums text-cx-text">{absent.toLocaleString("en-IN")}</b></span>
+          {holiday > 0 && <span className="flex items-center gap-1.5"><span className="h-2.5 w-2.5 rounded-sm bg-cx-line-strong" />Holiday <b className="font-semibold tabular-nums text-cx-text">{holiday.toLocaleString("en-IN")}</b></span>}
+        </div>
+      </Section>
     </div>
   );
 }

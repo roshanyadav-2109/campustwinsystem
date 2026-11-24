@@ -29,7 +29,6 @@ export default async function ClassesZone({ params }: { params: Promise<{ id: st
   type C = { id: number; name: string; level: number; stage: string };
   const classCols: Col<C>[] = [
     { key: "name", label: "Class", render: (c) => <span className="font-medium text-cx-text">{c.name}</span> },
-    { key: "level", label: "Level", align: "right", render: (c) => c.level },
     { key: "stage", label: "NEP stage", render: (c) => <Pill>{c.stage}</Pill> },
     { key: "sections", label: "Sections", align: "right", render: (c) => secs.filter((x) => x.class_id === c.id).length },
     { key: "students", label: "Students", align: "right", render: (c) => secs.filter((x) => x.class_id === c.id).reduce((n, x) => n + (tally.get(x.id) ?? 0), 0).toLocaleString("en-IN") },
@@ -38,7 +37,6 @@ export default async function ClassesZone({ params }: { params: Promise<{ id: st
   type S = { id: number; name: string; class_id: number };
   const secCols: Col<S>[] = [
     { key: "label", label: "Section", render: (x) => <span className="font-medium text-cx-text">{classById.get(x.class_id)?.name ?? "?"}-{x.name}</span> },
-    { key: "class", label: "Class", render: (x) => <span className="text-cx-text-2">{classById.get(x.class_id)?.name ?? "—"}</span> },
     { key: "students", label: "Students", align: "right", render: (x) => (tally.get(x.id) ?? 0).toLocaleString("en-IN") },
   ];
 

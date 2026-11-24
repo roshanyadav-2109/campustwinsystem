@@ -17,9 +17,8 @@ export default async function ExamsZone({ params, searchParams }: { params: Prom
 
   let query = admin.from("assessment").select("id, name, section_id, subject_id, max_marks, assessed_on, is_published, term", { count: "exact" }).eq("school_id", s.id);
   if (safe) query = query.ilike("name", `%${safe}%`);
-  const [{ data, count }, { count: marks }, { count: published }, { data: subjects }, maps] = await Promise.all([
+  const [{ data, count }, { count: published }, { data: subjects }, maps] = await Promise.all([
     query.order("assessed_on", { ascending: false }).range((page - 1) * SIZE, page * SIZE - 1),
-    admin.from("mark").select("*", { count: "exact", head: true }).eq("school_id", s.id),
     admin.from("assessment").select("*", { count: "exact", head: true }).eq("school_id", s.id).eq("is_published", true),
     admin.from("subject").select("id, name").eq("school_id", s.id),
     sectionClassMaps(admin, s.id),
@@ -42,8 +41,6 @@ export default async function ExamsZone({ params, searchParams }: { params: Prom
       <div className={kpiStrip}>
         <Kpi label="Assessments" value={count ?? 0} />
         <Kpi label="Published" value={published ?? 0} />
-        <Kpi label="Marks recorded" value={marks ?? 0} />
-        <Kpi label="Subjects" value={subjectName.size} />
       </div>
       <div className="mb-3"><SearchForm action={base} defaultValue={q} placeholder="Search assessments" /></div>
       <ConsoleTable columns={cols} rows={rows} rowKey={(r) => r.id} empty={q ? `No assessments match “${q}”` : "No assessments yet."} />

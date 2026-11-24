@@ -1,10 +1,8 @@
-import Link from "next/link";
 import { notFound } from "next/navigation";
 import { createAdminClient } from "@/lib/supabase/admin";
-import { Shell, NavLabel } from "@/components/console/shell";
-import { ConsoleNavLink } from "@/components/console/nav-link";
+import { Shell, NavLabel, PanelTitle } from "@/components/console/shell";
+import { PanelLink } from "@/components/console/nav-link";
 import { Crumbs } from "@/components/console/crumbs";
-import { Icon, type IconName } from "@/components/console/icons";
 import { Dot } from "@/components/console/ui";
 
 const BASE = process.env.NEXT_PUBLIC_BASE_DOMAIN || "campustwin.org";
@@ -15,11 +13,11 @@ const ZONES: Record<string, string> = {
   fees: "Fees", admissions: "Admissions", transport: "Transport", library: "Library",
   announcements: "Announcements", settings: "Settings",
 };
-const GROUPS: { label: string; items: [string, IconName][] }[] = [
-  { label: "People", items: [["students", "students"], ["staff", "staff"], ["guardians", "guardians"], ["access", "access"]] },
-  { label: "Academics", items: [["classes", "classes"], ["attendance", "attendance"], ["exams", "exams"]] },
-  { label: "Operations", items: [["fees", "fees"], ["admissions", "admissions"], ["transport", "transport"], ["library", "library"], ["announcements", "announcements"]] },
-  { label: "Administration", items: [["settings", "settings"]] },
+const GROUPS: { label: string; items: string[] }[] = [
+  { label: "People", items: ["students", "staff", "guardians", "access"] },
+  { label: "Academics", items: ["classes", "attendance", "exams"] },
+  { label: "Operations", items: ["fees", "admissions", "transport", "library", "announcements"] },
+  { label: "Administration", items: ["settings"] },
 ];
 
 export default async function SchoolWorkspaceLayout({ params, children }: { params: Promise<{ id: string }>; children: React.ReactNode }) {
@@ -31,35 +29,26 @@ export default async function SchoolWorkspaceLayout({ params, children }: { para
     ? await admin.from("university").select("id, name").eq("id", s.university_id).maybeSingle()
     : { data: null };
   const base = `/console/school/${s.id}`;
-  const back = uni ? { href: `/console/university/${uni.id}`, label: uni.name } : { href: "/console", label: "All institutions" };
-
-  const brand = (
-    <div className="px-3 py-3">
-      <Link href={back.href} className="inline-flex items-center gap-1 text-[12px] text-cx-muted transition-colors hover:text-cx-text">
-        <Icon name="chevron-left" size={12} />{back.label}
-      </Link>
-      <p className="mt-1.5 line-clamp-2 text-[14px] font-semibold leading-5 text-cx-text" title={s.name}>{s.name}</p>
-      <p className="mt-0.5 flex items-center gap-1.5 font-mono text-[11.5px] text-cx-muted">
-        <Dot tone={s.status === "active" ? "ok" : "warn"} />{s.slug}.{BASE}
-      </p>
-    </div>
-  );
-
-  const trail = [{ label: "Console", href: "/console" }, ...(uni ? [{ label: uni.name, href: `/console/university/${uni.id}` }] : []), { label: s.name, href: base }];
+  const trail = [
+    { label: "Institutions", href: "/console/institutions" },
+    ...(uni ? [{ label: uni.name, href: `/console/university/${uni.id}` }] : []),
+    { label: s.name, href: base },
+  ];
 
   return (
     <Shell
-      brand={brand}
       crumbs={<Crumbs trail={trail} base={base} zones={ZONES} />}
-      nav={
+      panel={
         <>
-          <ConsoleNavLink href={base} exact icon={<Icon name="overview" size={18} />} label="Overview" />
+          <PanelTitle
+            title={s.name}
+            sub={<span className="flex items-center gap-1.5 font-mono"><Dot tone={s.status === "active" ? "ok" : "warn"} />{s.slug}.{BASE}</span>}
+          />
+          <PanelLink href={base} exact label="Overview" />
           {GROUPS.map((g) => (
             <div key={g.label}>
               <NavLabel>{g.label}</NavLabel>
-              {g.items.map(([seg, icon]) => (
-                <ConsoleNavLink key={seg} href={`${base}/${seg}`} icon={<Icon name={icon} size={18} />} label={ZONES[seg]} />
-              ))}
+              {g.items.map((seg) => <PanelLink key={seg} href={`${base}/${seg}`} label={ZONES[seg]} />)}
             </div>
           ))}
         </>
