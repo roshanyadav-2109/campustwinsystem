@@ -1,8 +1,12 @@
 import Link from "next/link";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { InstitutionsTable, type InstRow } from "@/components/console/institutions-table";
-import { Kpi } from "@/components/console/table";
+import { Kpi, ZoneHeader } from "@/components/console/table";
 import { btnPrimary } from "@/components/console/ui";
+
+function HomeIcon() {
+  return <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="m3 9 9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z" /><path d="M9 22V12h6v10" /></svg>;
+}
 
 const BASE = process.env.NEXT_PUBLIC_BASE_DOMAIN || "campustwin.org";
 
@@ -13,7 +17,8 @@ type SchoolRow = {
 type Uni = { id: number; name: string; slug: string; plan: string | null; status: string };
 const c = (a: { count: number }[] | null) => a?.[0]?.count ?? 0;
 
-export default async function ConsolePage() {
+export default async function ConsolePage({ searchParams }: { searchParams: Promise<{ q?: string }> }) {
+  const { q } = await searchParams;
   const admin = createAdminClient();
   const [{ data: unis }, { data: schools }] = await Promise.all([
     admin.from("university").select("id, name, slug, plan, status").order("name"),
@@ -44,13 +49,9 @@ export default async function ConsolePage() {
 
   return (
     <div>
-      <div className="mb-5 flex flex-wrap items-end justify-between gap-3">
-        <div>
-          <h1 className="text-[19px] font-semibold tracking-tight text-ink-900">Overview</h1>
-          <p className="mt-0.5 text-[12.5px] text-ink-500">Every institution on the CampusTwin platform.</p>
-        </div>
+      <ZoneHeader title="Overview" sub="Every institution on the CampusTwin platform." icon={<HomeIcon />}>
         <Link href="/console/new" className={btnPrimary}>+ New institution</Link>
-      </div>
+      </ZoneHeader>
 
       <div className="mb-5 grid grid-cols-2 gap-2.5 sm:grid-cols-3 lg:grid-cols-6">
         <Kpi label="Universities" value={universities.length} />
@@ -61,7 +62,7 @@ export default async function ConsolePage() {
         <Kpi label="Suspended" value={suspended} />
       </div>
 
-      <InstitutionsTable rows={rows} />
+      <InstitutionsTable rows={rows} initialQuery={q ?? ""} />
     </div>
   );
 }

@@ -25,8 +25,8 @@ const FILTERS = [
   { key: "school", label: "Schools" },
 ] as const;
 
-export function InstitutionsTable({ rows }: { rows: InstRow[] }) {
-  const [q, setQ] = useState("");
+export function InstitutionsTable({ rows, initialQuery = "" }: { rows: InstRow[]; initialQuery?: string }) {
+  const [q, setQ] = useState(initialQuery);
   const [filter, setFilter] = useState<string>("all");
   const [sort, setSort] = useState<SortKey>("name");
   const [dir, setDir] = useState<1 | -1>(1);

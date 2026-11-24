@@ -85,14 +85,17 @@ export function Pager({ page, pageSize, total, hrefFor }: { page: number; pageSi
   );
 }
 
-export function ZoneHeader({ title, sub, children }: { title: string; sub?: string; children?: React.ReactNode }) {
+export function ZoneHeader({ title, sub, icon, badges, children }: { title: string; sub?: string; icon?: React.ReactNode; badges?: React.ReactNode; children?: React.ReactNode }) {
   return (
-    <div className="mb-4 flex flex-wrap items-end justify-between gap-3">
-      <div>
-        <h1 className="text-[19px] font-semibold tracking-tight text-ink-900">{title}</h1>
-        {sub && <p className="mt-0.5 text-[12.5px] text-ink-500">{sub}</p>}
+    <div className="mb-5 flex flex-wrap items-start justify-between gap-3 border-b border-hair pb-4">
+      <div className="flex min-w-0 items-start gap-3">
+        {icon && <span className="mt-0.5 flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-[#13233c] text-white">{icon}</span>}
+        <div className="min-w-0">
+          <div className="flex items-center gap-2.5"><h1 className="truncate text-[23px] font-semibold tracking-tight text-ink-900">{title}</h1>{badges}</div>
+          {sub && <p className="mt-0.5 text-[12.5px] text-ink-500">{sub}</p>}
+        </div>
       </div>
-      {children && <div className="flex items-center gap-2">{children}</div>}
+      {children && <div className="flex shrink-0 items-center gap-2">{children}</div>}
     </div>
   );
 }

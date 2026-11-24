@@ -1,10 +1,17 @@
 import { redirect } from "next/navigation";
 import { getOwnerEmail } from "@/lib/owner";
+import { TopBar, ConsoleFooter } from "@/components/console/topbar";
 
-// Owner gate only. The platform rail and each institution workspace supply their
-// own Shell underneath, so the left navigation can switch to match the context.
+// Owner gate + the global chrome (dark top bar, footer). Each section supplies
+// its own Shell underneath, so the left navigation switches to match context.
 export default async function ConsoleLayout({ children }: { children: React.ReactNode }) {
   const owner = await getOwnerEmail();
   if (!owner) redirect("/login?next=/console");
-  return <div className="min-h-dvh bg-paper text-ink-900">{children}</div>;
+  return (
+    <div className="flex min-h-dvh flex-col bg-paper text-ink-900">
+      <TopBar owner={owner} />
+      <div className="flex-1">{children}</div>
+      <ConsoleFooter />
+    </div>
+  );
 }

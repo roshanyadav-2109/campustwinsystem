@@ -4,20 +4,20 @@ import Link from "next/link";
 // platform rail and every institution workspace so both levels feel like one tool.
 export function Shell({ brand, nav, footer, children }: { brand: React.ReactNode; nav: React.ReactNode; footer?: React.ReactNode; children: React.ReactNode }) {
   return (
-    <div className="min-h-dvh lg:grid lg:grid-cols-[240px_1fr]">
-      <aside className="sticky top-0 z-20 hidden h-dvh flex-col border-r border-hair bg-white lg:flex">
+    <div className="lg:grid lg:min-h-[calc(100dvh-3.5rem)] lg:grid-cols-[240px_1fr]">
+      <aside className="sticky top-14 z-20 hidden h-[calc(100dvh-3.5rem)] flex-col border-r border-hair bg-white lg:flex">
         <div className="border-b border-hair">{brand}</div>
         <nav className="flex-1 space-y-px overflow-y-auto px-2 py-2.5">{nav}</nav>
         {footer && <div className="border-t border-hair p-2">{footer}</div>}
       </aside>
 
-      <header className="sticky top-0 z-30 border-b border-hair bg-white lg:hidden">
+      <header className="sticky top-14 z-30 border-b border-hair bg-white lg:hidden">
         <div className="border-b border-hair">{brand}</div>
         <nav className="flex gap-1 overflow-x-auto px-2 py-1.5 [-ms-overflow-style:none] [scrollbar-width:none]">{nav}</nav>
       </header>
 
       <div className="flex min-w-0 flex-col bg-paper">
-        <main className="mx-auto w-full max-w-[1200px] flex-1 px-4 py-5 sm:px-6">{children}</main>
+        <main className="mx-auto w-full max-w-[1200px] flex-1 px-4 py-6 sm:px-7">{children}</main>
       </div>
     </div>
   );

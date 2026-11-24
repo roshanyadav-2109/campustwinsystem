@@ -32,9 +32,12 @@ export default async function SchoolOverview({ params }: { params: Promise<{ id:
 
   return (
     <div>
-      <ZoneHeader title="Overview" sub={`${s.slug}.${BASE}${s.place ? ` · ${s.place}` : ""}`}>
-        <TypeBadge kind={s.university_id ? "campus" : "school"} />
-        <StatusBadge status={s.status} />
+      <ZoneHeader
+        title={s.name}
+        sub={`${s.slug}.${BASE}${s.place ? ` · ${s.place}` : ""}`}
+        icon={<span className="text-[13px] font-bold">{s.name.slice(0, 2).toUpperCase()}</span>}
+        badges={<><TypeBadge kind={s.university_id ? "campus" : "school"} /><StatusBadge status={s.status} /></>}
+      >
         <a href={`https://${s.slug}.${BASE}`} target="_blank" rel="noreferrer" className="rounded-md border border-hair bg-white px-3 py-2 text-[13px] font-medium text-ink-700 hover:bg-panel">Open portal ↗</a>
       </ZoneHeader>
 

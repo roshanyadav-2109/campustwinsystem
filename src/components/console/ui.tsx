@@ -7,7 +7,7 @@ export const inputCls =
   "w-full rounded-md border border-hair bg-white px-3 py-2 text-[13.5px] text-ink-900 outline-none transition-colors placeholder:text-ink-400 focus:border-[#0F6CBD] focus:ring-2 focus:ring-[#0F6CBD]/15";
 export const labelCls = "block text-[12px] font-medium text-ink-700 mb-1.5";
 export const btnPrimary =
-  "inline-flex items-center justify-center gap-1.5 rounded-md bg-[#0F6CBD] px-3.5 py-2 text-[13px] font-semibold text-white transition-colors hover:bg-[#0B5CA3] disabled:opacity-50";
+  "inline-flex items-center justify-center gap-1.5 rounded-md bg-[#13233c] px-3.5 py-2 text-[13px] font-semibold text-white transition-colors hover:bg-[#1d3457] disabled:opacity-50";
 export const btnGhost =
   "inline-flex items-center justify-center gap-1.5 rounded-md border border-hair bg-white px-3 py-2 text-[13px] font-medium text-ink-700 transition-colors hover:bg-panel";
 export const btnDanger =
@@ -73,7 +73,7 @@ export function PageHeader({
       <div className="mt-1.5 flex flex-wrap items-center justify-between gap-3">
         <div className="min-w-0">
           <div className="flex items-center gap-2.5">
-            <h1 className="truncate text-[19px] font-semibold tracking-tight text-ink-900">{title}</h1>
+            <h1 className="truncate text-[23px] font-semibold tracking-tight text-ink-900">{title}</h1>
             {badge}
           </div>
           {subdomain && (
