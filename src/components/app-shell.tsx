@@ -133,13 +133,12 @@ export function AppShell({
 
   // Everyone's name, role and sign-out sit at the foot of the side menu, on
   // every page — the same place in the desktop rail and the phone drawer —
-  // with the Neural AI credit just above.
+  // with the CampusTwin credit just above.
   const personCard = (
     <div className="border-t border-hair p-3">
-      <a href="https://neuralai.in" target="_blank" rel="noreferrer"
-        className="mb-2 block text-center text-[11px] text-ink-500 hover:text-[#0F6CBD]">
-        Powered by <span className="font-semibold text-ink-700">Neural AI</span>
-      </a>
+      <div className="mb-2 block text-center text-[11px] text-ink-500">
+        Powered by <span className="font-semibold text-ink-700">CampusTwin</span>
+      </div>
       <button
         onClick={() => { setOpen(false); setMenuOpen(true); }}
         aria-haspopup="dialog"
