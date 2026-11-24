@@ -2808,6 +2808,7 @@ export type Database = {
           full_name: string
           id: number
           phone: string | null
+          photo_path: string | null
           role: Database["public"]["Enums"]["staff_role"]
           school_id: number
           updated_at: string
@@ -2819,6 +2820,7 @@ export type Database = {
           full_name: string
           id?: never
           phone?: string | null
+          photo_path?: string | null
           role: Database["public"]["Enums"]["staff_role"]
           school_id?: number
           updated_at?: string
@@ -2830,6 +2832,7 @@ export type Database = {
           full_name?: string
           id?: never
           phone?: string | null
+          photo_path?: string | null
           role?: Database["public"]["Enums"]["staff_role"]
           school_id?: number
           updated_at?: string

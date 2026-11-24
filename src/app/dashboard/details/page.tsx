@@ -2,7 +2,8 @@ import { PageHeader } from "@/components/ui/page-header";
 import { EmptyState } from "@/components/ui/empty";
 import { guardTab } from "@/lib/access";
 import { MyDetailsForm } from "@/components/details/my-details-form";
-import { loadMyDetails } from "./actions";
+import { PhotoUpload } from "@/components/photo-upload";
+import { loadMyDetails, signMyPhotoUpload, saveMyPhoto, removeMyPhoto } from "./actions";
 
 // A student's own details: everything the school holds, with only their phone
 // and their parents' phone and email open to change.
@@ -14,7 +15,12 @@ export default async function DetailsPage() {
     <div>
       <PageHeader title="Personal details" />
       {details
-        ? <MyDetailsForm details={details} />
+        ? (
+          <div className="space-y-6">
+            <PhotoUpload url={details.photoUrl} name={details.name} sign={signMyPhotoUpload} save={saveMyPhoto} remove={removeMyPhoto} />
+            <MyDetailsForm details={details} />
+          </div>
+        )
         : <EmptyState art="nothing-yet" title="Your details aren't available" hint="Please ask the school office." />}
     </div>
   );

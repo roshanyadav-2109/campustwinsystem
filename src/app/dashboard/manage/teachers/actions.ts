@@ -3,6 +3,7 @@ import { revalidatePath } from "next/cache";
 import { createClient } from "@/lib/supabase/server";
 import { getCurrentYear, getSession } from "@/lib/session";
 import type { StaffRole } from "@/lib/session";
+import { tenantPrefixForSchool, staffPhotoKey, presignPut, publicUrl, urlUnderPrefix, deleteObject } from "@/lib/r2";
 
 // Office-only changes to the staff list and to who teaches what. The database's
 // own rules (RLS) also refuse these from anyone but office/principal.
@@ -215,6 +216,47 @@ export async function removeClassTeacher(sectionId: number): Promise<ActionResul
   if (readErr) return { ok: false, error: plainError(readErr, "") };
   const err = await clearClassTeacher(supabase, (current ?? []) as CtRow[]);
   if (err) return { ok: false, error: plainError(err, "") };
+  refresh();
+  return { ok: true };
+}
+
+// ---- Staff photo (office-managed) ----
+export type StaffPhotoTicket = { ok: true; uploadUrl: string; publicUrl: string } | { ok: false; error: string };
+
+export async function signStaffPhotoUpload(staffId: number, contentType: string): Promise<StaffPhotoTicket> {
+  const denied = await officeOnly();
+  if (denied) return { ok: false, error: denied };
+  if (!contentType.startsWith("image/")) return { ok: false, error: "Only images can be uploaded." };
+  const session = await getSession();
+  const prefix = await tenantPrefixForSchool(session!.schoolId);
+  const key = staffPhotoKey(prefix, staffId, contentType);
+  return { ok: true, uploadUrl: await presignPut(key), publicUrl: publicUrl(key) };
+}
+
+export async function saveStaffPhoto(staffId: number, url: string): Promise<ActionResult> {
+  const denied = await officeOnly();
+  if (denied) return { ok: false, error: denied };
+  const session = await getSession();
+  const prefix = await tenantPrefixForSchool(session!.schoolId);
+  if (!urlUnderPrefix(url, prefix)) return { ok: false, error: "That photo could not be saved." };
+  const supabase = await createClient();
+  const { data: cur } = await supabase.from("staff").select("photo_path").eq("id", staffId).maybeSingle();
+  const old = (cur as { photo_path?: string | null } | null)?.photo_path ?? null;
+  if (old && old !== url) await deleteObject(old); // no orphan on replace
+  const { error } = await supabase.from("staff").update({ photo_path: url }).eq("id", staffId);
+  if (error) return { ok: false, error: error.message };
+  refresh();
+  return { ok: true };
+}
+
+export async function removeStaffPhoto(staffId: number): Promise<ActionResult> {
+  const denied = await officeOnly();
+  if (denied) return { ok: false, error: denied };
+  const supabase = await createClient();
+  const { data: cur } = await supabase.from("staff").select("photo_path").eq("id", staffId).maybeSingle();
+  await deleteObject((cur as { photo_path?: string | null } | null)?.photo_path ?? null);
+  const { error } = await supabase.from("staff").update({ photo_path: null }).eq("id", staffId);
+  if (error) return { ok: false, error: error.message };
   refresh();
   return { ok: true };
 }

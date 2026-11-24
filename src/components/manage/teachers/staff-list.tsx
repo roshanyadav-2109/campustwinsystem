@@ -7,7 +7,8 @@ import { Field, Input, Select } from "@/components/ui/field";
 import { EmptyState } from "@/components/ui/empty";
 import { PlusIcon } from "@/components/icons";
 import type { StaffRole } from "@/lib/session";
-import { addStaff, updateStaff, type ActionResult, type StaffInput } from "@/app/dashboard/manage/teachers/actions";
+import { addStaff, updateStaff, signStaffPhotoUpload, saveStaffPhoto, removeStaffPhoto, type ActionResult, type StaffInput } from "@/app/dashboard/manage/teachers/actions";
+import { PhotoUpload } from "@/components/photo-upload";
 
 export type StaffRow = {
   id: number;
@@ -17,6 +18,7 @@ export type StaffRow = {
   email: string;
   phone: string;
   hasLogin: boolean;
+  photoUrl: string | null;
 };
 
 export const ROLE_LABEL: Record<StaffRole, string> = {
@@ -116,6 +118,15 @@ export function StaffList({ staff }: { staff: StaffRow[] }) {
                   editing === s.id ? (
                     <tr key={s.id}>
                       <td colSpan={7} className="bg-panel py-3">
+                        <div className="mb-4">
+                          <PhotoUpload
+                            url={s.photoUrl}
+                            name={s.fullName}
+                            sign={(ct) => signStaffPhotoUpload(s.id, ct)}
+                            save={(url) => saveStaffPhoto(s.id, url)}
+                            remove={() => removeStaffPhoto(s.id)}
+                          />
+                        </div>
                         <StaffForm
                           initial={s}
                           pending={pending}

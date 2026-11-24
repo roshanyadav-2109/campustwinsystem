@@ -101,6 +101,23 @@ export async function tenantPrefixForSchool(schoolId: number): Promise<string> {
   return schoolPrefix(schoolSlug, uniSlug);
 }
 
+// The object key behind a public URL (for deletes), or null if not one of ours.
+export function keyFromUrl(url: string | null | undefined): string | null {
+  if (!url || !url.startsWith(PUBLIC_BASE + "/")) return null;
+  return url.slice(PUBLIC_BASE.length + 1).split("?")[0];
+}
+
+// Delete an object so storage never keeps an orphan after a photo is replaced or
+// removed. No-op for a blank/foreign URL. Never throws (best-effort cleanup).
+export async function deleteObject(keyOrUrl: string | null | undefined): Promise<void> {
+  if (!keyOrUrl) return;
+  const key = keyOrUrl.startsWith("http") ? keyFromUrl(keyOrUrl) : keyOrUrl;
+  if (!key) return;
+  try {
+    await client().fetch(`${ENDPOINT}/${key}`, { method: "DELETE" });
+  } catch { /* best-effort */ }
+}
+
 // A short-lived presigned PUT URL for a direct browser upload.
 export async function presignPut(key: string, expiresSec = 300): Promise<string> {
   const u = new URL(`${ENDPOINT}/${key}`);

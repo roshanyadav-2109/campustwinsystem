@@ -2,6 +2,7 @@
 import { revalidatePath } from "next/cache";
 import { getCurrentYear, getSession } from "@/lib/session";
 import { createAdminClient } from "@/lib/supabase/admin";
+import { tenantPrefixForSchool, studentPhotoKey, presignPut, publicUrl, urlUnderPrefix, deleteObject } from "@/lib/r2";
 
 // A student's own "Personal details". Students may not write school records
 // directly, so this runs on the server with the service key — but only ever on
@@ -22,6 +23,7 @@ export type MyDetails = {
   classTeacher: string | null;
   schoolYear: string | null;
   parents: ParentDetails[];
+  photoUrl: string | null;
 };
 export type SaveInput = { phone: string; parents: { id: number; phone: string; email: string }[] };
 export type Result = { ok: true } | { ok: false; error: string };
@@ -36,7 +38,7 @@ export async function loadMyDetails(): Promise<MyDetails | null> {
   const admin = createAdminClient();
   const year = await getCurrentYear();
   const [{ data: s }, { data: enr }, { data: links }] = await Promise.all([
-    admin.from("student").select("full_name, admission_no, dob, gender, email, phone").eq("id", session.studentId).single(),
+    admin.from("student").select("full_name, admission_no, dob, gender, email, phone, photo_path").eq("id", session.studentId).single(),
     year
       ? admin.from("student_enrollment").select("roll_no, section_id, section:section_id(name, class:class_id(name))")
           .eq("student_id", session.studentId).eq("academic_year_id", year.id).maybeSingle()
@@ -70,7 +72,49 @@ export async function loadMyDetails(): Promise<MyDetails | null> {
     classTeacher,
     schoolYear: year?.name ?? null,
     parents,
+    photoUrl: (s as { photo_path?: string | null }).photo_path ?? null,
   };
+}
+
+// ---- Student's own photo (self-service) ----
+export type PhotoTicket = { ok: true; uploadUrl: string; publicUrl: string } | { ok: false; error: string };
+
+export async function signMyPhotoUpload(contentType: string): Promise<PhotoTicket> {
+  const session = await getSession();
+  if (session?.role !== "student" || !session.studentId) return { ok: false, error: "Only a student can set this." };
+  if (!contentType.startsWith("image/")) return { ok: false, error: "Only images." };
+  const prefix = await tenantPrefixForSchool(session.schoolId);
+  const key = studentPhotoKey(prefix, session.studentId, contentType);
+  return { ok: true, uploadUrl: await presignPut(key), publicUrl: publicUrl(key) };
+}
+
+export async function saveMyPhoto(url: string): Promise<Result> {
+  const session = await getSession();
+  if (session?.role !== "student" || !session.studentId) return { ok: false, error: "Only a student can set this." };
+  const prefix = await tenantPrefixForSchool(session.schoolId);
+  if (!urlUnderPrefix(url, prefix)) return { ok: false, error: "That photo could not be saved." };
+  const admin = createAdminClient();
+  // Delete the previous object if it was stored under a different key (e.g. a
+  // different extension), so storage never keeps an orphan.
+  const { data: cur } = await admin.from("student").select("photo_path").eq("id", session.studentId).maybeSingle();
+  const old = (cur as { photo_path?: string | null } | null)?.photo_path ?? null;
+  if (old && old !== url) await deleteObject(old);
+  const { error } = await admin.from("student").update({ photo_path: url }).eq("id", session.studentId);
+  if (error) return { ok: false, error: error.message };
+  revalidatePath("/dashboard/details");
+  return { ok: true };
+}
+
+export async function removeMyPhoto(): Promise<Result> {
+  const session = await getSession();
+  if (session?.role !== "student" || !session.studentId) return { ok: false, error: "Only a student can do this." };
+  const admin = createAdminClient();
+  const { data: cur } = await admin.from("student").select("photo_path").eq("id", session.studentId).maybeSingle();
+  await deleteObject((cur as { photo_path?: string | null } | null)?.photo_path ?? null);
+  const { error } = await admin.from("student").update({ photo_path: null }).eq("id", session.studentId);
+  if (error) return { ok: false, error: error.message };
+  revalidatePath("/dashboard/details");
+  return { ok: true };
 }
 
 export async function saveMyDetails(input: SaveInput): Promise<Result> {
