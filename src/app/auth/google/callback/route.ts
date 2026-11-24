@@ -2,8 +2,24 @@ import { NextResponse, type NextRequest } from "next/server";
 import { createClient } from "@/lib/supabase/server";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { safeNext } from "@/lib/safe-next";
+import { cookieDomainForHost } from "@/lib/supabase/cookie-domain";
 
-type Saved = { state: string; nonce: string; next: string };
+const BASE = process.env.NEXT_PUBLIC_BASE_DOMAIN || "campustwin.org";
+
+type Saved = { state: string; nonce: string; next: string; origin?: string };
+
+// Where to send the signed-in user back to. Only the base domain, its campus
+// subdomains, or the current host are trusted; anything else falls back to here.
+function returnOrigin(saved: Saved | null, reqOrigin: string): string {
+  const o = saved?.origin;
+  if (!o) return reqOrigin;
+  try {
+    const u = new URL(o);
+    const h = u.hostname.toLowerCase();
+    if (h === BASE || h.endsWith("." + BASE)) return u.origin;
+  } catch { /* ignore */ }
+  return reqOrigin;
+}
 type GoogleClaims = { email?: string; email_verified?: boolean; name?: string; aud?: string };
 type Kind = "staff" | "guardian" | "student";
 type SchoolRecord = { kind: Kind; id: number; name: string; schoolId: number; otherGuardianIds: number[] };
@@ -21,14 +37,17 @@ const LINK_COLUMN = { staff: "staff_id", guardian: "guardian_id", student: "stud
 // re-pointed if the office changed the record's email, and taken off any other
 // record that used to hold the email. No record with this email: no entry.
 export async function GET(request: NextRequest) {
-  const fail = (code: string) => {
-    const res = NextResponse.redirect(new URL(`/login?error=${code}`, request.url));
-    res.cookies.delete({ name: "g_oauth", path: "/auth/google" });
-    return res;
-  };
+  const cookieDomain = cookieDomainForHost(request.headers.get("host"));
+  const clearOauth = { name: "g_oauth", path: "/auth/google", ...(cookieDomain ? { domain: cookieDomain } : {}) };
 
   let saved: Saved | null = null;
   try { saved = JSON.parse(request.cookies.get("g_oauth")?.value ?? "null"); } catch { saved = null; }
+
+  const fail = (code: string) => {
+    const res = NextResponse.redirect(new URL(`/login?error=${code}`, returnOrigin(saved, request.nextUrl.origin)));
+    res.cookies.delete(clearOauth);
+    return res;
+  };
   const params = request.nextUrl.searchParams;
   const code = params.get("code");
   if (!saved || !code || params.get("state") !== saved.state) return fail("google_failed");
@@ -71,8 +90,8 @@ export async function GET(request: NextRequest) {
     return fail("google_failed");
   }
 
-  const res = NextResponse.redirect(new URL(safeNext(saved.next), request.url));
-  res.cookies.delete({ name: "g_oauth", path: "/auth/google" });
+  const res = NextResponse.redirect(new URL(safeNext(saved.next), returnOrigin(saved, request.nextUrl.origin)));
+  res.cookies.delete(clearOauth);
   return res;
 }
 

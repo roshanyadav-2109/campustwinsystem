@@ -2,6 +2,7 @@ import { createServerClient } from "@supabase/ssr";
 import { SUPABASE_URL, SUPABASE_ANON_KEY } from "@/lib/supabase/config";
 import { NextResponse, type NextRequest } from "next/server";
 import { safeNext } from "@/lib/safe-next";
+import { cookieDomainForHost } from "@/lib/supabase/cookie-domain";
 
 // Next 16 renamed `middleware` -> `proxy`. Runs before render: refreshes the
 // Supabase session cookie and gates unauthenticated users to /login.
@@ -9,6 +10,7 @@ const PUBLIC_PATHS = ["/login", "/auth", "/apply"];
 
 export async function proxy(request: NextRequest) {
   let response = NextResponse.next({ request });
+  const cookieDomain = cookieDomainForHost(request.headers.get("host"));
 
   const supabase = createServerClient(
     SUPABASE_URL,
@@ -24,7 +26,7 @@ export async function proxy(request: NextRequest) {
           );
           response = NextResponse.next({ request });
           cookiesToSet.forEach(({ name, value, options }) =>
-            response.cookies.set(name, value, options),
+            response.cookies.set(name, value, cookieDomain ? { ...options, domain: cookieDomain } : options),
           );
         },
       },
