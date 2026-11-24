@@ -5,6 +5,13 @@
 
 import { SCHOOL } from "@/lib/school";
 
+// The current tenant's full name for PDF letterheads/footers, set once by the
+// app shell (so every download uses the right institution, not the build-time
+// default). A PdfDoc may still override it via `school`.
+let _pdfSchool: string | null = null;
+export function setPdfSchool(name: string) { _pdfSchool = name?.trim() || null; }
+function pdfSchoolName() { return _pdfSchool || SCHOOL.fullName; }
+
 /** A table cell. `low: true` draws the small red triangle used for low attendance. */
 export type PdfCell = string | number | null | undefined | { text: string; low?: boolean };
 
@@ -25,6 +32,8 @@ export type PdfDoc = {
   meta: string[];
   orientation?: "portrait" | "landscape";
   blocks: PdfBlock[];
+  /** Override the letterhead institution name (defaults to the current tenant). */
+  school?: string;
 };
 
 const INK: [number, number, number] = [17, 24, 39];
@@ -79,12 +88,13 @@ function drawDoc({ doc, autoTable }: Lib, spec: PdfDoc, first: number) {
   const pageH = doc.internal.pageSize.getHeight();
   const M = 14;
   const title = clean(spec.title);
+  const schoolName = clean(spec.school || pdfSchoolName());
 
   // ---- First-page letterhead ----
   let y = M + 2;
   doc.setTextColor(...INK);
   doc.setFont("helvetica", "bold"); doc.setFontSize(15);
-  doc.text(clean(SCHOOL.fullName), M, y);
+  doc.text(schoolName, M, y);
   y += 7;
   doc.setFontSize(12);
   doc.text(title, M, y);
@@ -175,11 +185,11 @@ function drawDoc({ doc, autoTable }: Lib, spec: PdfDoc, first: number) {
     doc.setPage(i);
     doc.setFont("helvetica", "normal"); doc.setFontSize(8); doc.setTextColor(...MUTED);
     if (n > 1) {
-      doc.text(clean(`${SCHOOL.fullName} - ${title}`), M, M);
+      doc.text(clean(`${schoolName} - ${title}`), M, M);
       doc.setDrawColor(...LINE); doc.line(M, M + 2, pageW - M, M + 2);
     }
     doc.setDrawColor(...LINE); doc.line(M, pageH - M + 1, pageW - M, pageH - M + 1);
-    doc.text(clean(`${SCHOOL.fullName} - printed ${printed}`), M, pageH - M + 5);
+    doc.text(clean(`${schoolName} - printed ${printed}`), M, pageH - M + 5);
     doc.text(`Page ${n} of ${pages}`, pageW - M, pageH - M + 5, { align: "right" });
   }
   doc.setPage(last);

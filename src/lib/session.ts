@@ -122,7 +122,7 @@ export const getSession = cache(async (): Promise<Session | null> => {
     logo_url: string | null; login_image_url: string | null; login_video_id: string | null;
     primary_color: string; modules: SchoolModules | null; status: string;
   } | null;
-  const school: SchoolBrand = {
+  let school: SchoolBrand = {
     slug: sc?.slug ?? "",
     name: sc?.name ?? "",
     shortName: sc?.short_name ?? null,
@@ -136,11 +136,31 @@ export const getSession = cache(async (): Promise<Session | null> => {
     status: sc?.status ?? "active",
   };
 
+  const universityId = (data as { university_id: number | null }).university_id ?? null;
+  const activeCampusId = (data as { active_campus_id: number | null }).active_campus_id ?? null;
+
+  // A central admin working inside a campus: both the data scope (current_school_id
+  // = active campus) and the displayed brand follow that campus, not their home
+  // school. Fetch the active campus's brand to keep the shell consistent.
+  if (activeCampusId && activeCampusId !== data.school_id) {
+    const { data: ac } = await supabase
+      .from("school")
+      .select("slug, name, short_name, place, monogram, logo_url, login_image_url, login_video_id, primary_color, modules, status")
+      .eq("id", activeCampusId)
+      .maybeSingle();
+    const a = ac as unknown as typeof sc;
+    if (a) {
+      school = {
+        slug: a.slug, name: a.name, shortName: a.short_name, place: a.place, monogram: a.monogram,
+        logoUrl: a.logo_url, loginImageUrl: a.login_image_url, loginVideoId: a.login_video_id,
+        primaryColor: a.primary_color ?? "#0F6CBD", modules: (a.modules as SchoolModules) ?? {}, status: a.status ?? "active",
+      };
+    }
+  }
+
   // Central university admin: load the university brand and the campus list
   // (via the SECURITY DEFINER roll-up, which returns all of this university's
   // campuses even though normal RLS only exposes the active one).
-  const universityId = (data as { university_id: number | null }).university_id ?? null;
-  const activeCampusId = (data as { active_campus_id: number | null }).active_campus_id ?? null;
   let university: UniversityBrand | null = null;
   let campuses: CampusLite[] = [];
   if (universityId) {
@@ -167,7 +187,7 @@ export const getSession = cache(async (): Promise<Session | null> => {
     role: data.role,
     fullName: data.full_name,
     locale: data.locale,
-    schoolId: data.school_id,
+    schoolId: activeCampusId ?? data.school_id,
     staffId: data.staff_id,
     guardianId: data.guardian_id,
     studentId: data.student_id,

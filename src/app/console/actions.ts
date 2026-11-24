@@ -72,6 +72,9 @@ export async function setUniversityStatus(formData: FormData) {
   const status = String(formData.get("status"));
   if (!id || !["active", "suspended"].includes(status)) return;
   await admin.from("university").update({ status }).eq("id", id);
+  // Cascade to all campuses so suspension actually blocks access (enforcement is
+  // per-school), and reactivation restores them.
+  await admin.from("school").update({ status }).eq("university_id", id);
   revalidatePath("/console");
 }
 
@@ -110,6 +113,24 @@ export async function updateBranding(formData: FormData) {
   if (kind !== "university") patch.place = String(formData.get("place") || "").trim() || null;
   await admin.from(kind === "university" ? "university" : "school").update(patch as never).eq("id", id);
   revalidatePath("/console");
+}
+
+export async function addOwner(formData: FormData) {
+  const admin = await guard();
+  const email = String(formData.get("email") || "").trim().toLowerCase();
+  if (!email || !email.includes("@")) return;
+  await admin.from("platform_owner").insert({ email }).select().maybeSingle();
+  revalidatePath("/console/owners");
+}
+
+export async function removeOwner(formData: FormData) {
+  const admin = await guard();
+  const self = await getOwnerEmail();
+  const email = String(formData.get("email") || "").trim().toLowerCase();
+  // Never let an owner remove themselves (avoids locking the console out).
+  if (!email || email === self) return;
+  await admin.from("platform_owner").delete().eq("email", email);
+  revalidatePath("/console/owners");
 }
 
 // Make an existing account the central admin of a university (gives cross-campus

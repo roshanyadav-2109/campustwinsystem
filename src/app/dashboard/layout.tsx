@@ -9,6 +9,11 @@ export default async function AppLayout({ children }: { children: React.ReactNod
   // Signed in but with no school record behind the login (or a Google email
   // the office has since changed): sign them out properly, with a reason.
   if (!session) redirect("/auth/signout?error=google_not_registered");
+  // A suspended institution can't use the app (company console sets this).
+  if (session.school.status === "suspended") {
+    const { Suspended } = await import("@/components/suspended");
+    return <Suspended name={session.school.name} />;
+  }
   const { t } = await getT();
   const roleLabel = t(`roles.${session.navRole}`);
   const university = session.isUniversityAdmin && session.university

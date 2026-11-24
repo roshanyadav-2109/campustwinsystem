@@ -19,7 +19,7 @@ export default async function ApplyPage() {
   const brand = await getBrand();
   let classes: ClassRef[] = [];
   try {
-    const ref = await getReference();
+    const ref = await getReference(brand.schoolId ?? undefined);
     const byId = new Map<number, { id: number; name: string; level: number }>();
     for (const s of ref.sections) if (s.class) byId.set(s.class.id, s.class);
     classes = [...byId.values()].sort((a, b) => a.level - b.level).map((c) => ({ id: c.id, name: c.name }));

@@ -1,6 +1,8 @@
 import "server-only";
+import { cache } from "react";
 import { unstable_cache, revalidateTag } from "next/cache";
 import { createAdminClient } from "@/lib/supabase/admin";
+import { createClient } from "@/lib/supabase/server";
 
 // The school's reference lists — school years, classes and sections, subjects,
 // and which subjects each class studies. They are the same for everyone, change
@@ -26,15 +28,31 @@ export type Reference = {
 };
 
 const TAG = "school-reference";
+const EMPTY: Reference = { years: [], currentYear: null, subjects: [], sections: [], classSubjects: [] };
 
-export const getReference = unstable_cache(
-  async (): Promise<Reference> => {
+// The caller's effective school: a central university admin's active campus, else
+// their own school. Null when signed out. Cached per request.
+export const effectiveSchoolId = cache(async (): Promise<number | null> => {
+  const supabase = await createClient();
+  const { data } = await supabase.auth.getClaims();
+  const uid = data?.claims?.sub as string | undefined;
+  if (!uid) return null;
+  const admin = createAdminClient();
+  const { data: p } = await admin.from("profile").select("school_id, active_campus_id").eq("id", uid).maybeSingle();
+  if (!p) return null;
+  return (p as { school_id: number; active_campus_id: number | null }).active_campus_id ?? (p as { school_id: number }).school_id;
+});
+
+// Per-school reference lists, cached per school id (unstable_cache keys on the
+// argument). Multi-tenant safe: every query is filtered by school_id.
+const fetchReference = unstable_cache(
+  async (schoolId: number): Promise<Reference> => {
     const db = createAdminClient();
     const [years, subjects, sections, classSubjects] = await Promise.all([
-      db.from("academic_year").select("id, name, is_current").order("start_date", { ascending: false }),
-      db.from("subject").select("id, name, code").order("name"),
-      db.from("section").select("id, name, class:class_id(id, name, level)").order("name"),
-      db.from("class_subject").select("class_id, subject_id"),
+      db.from("academic_year").select("id, name, is_current").eq("school_id", schoolId).order("start_date", { ascending: false }),
+      db.from("subject").select("id, name, code").eq("school_id", schoolId).order("name"),
+      db.from("section").select("id, name, class:class_id(id, name, level)").eq("school_id", schoolId).order("name"),
+      db.from("class_subject").select("class_id, subject_id").eq("school_id", schoolId),
     ]);
     const err = years.error ?? subjects.error ?? sections.error ?? classSubjects.error;
     if (err) throw new Error(`Could not load school lists: ${err.message}`); // never cache a failed read
@@ -48,9 +66,17 @@ export const getReference = unstable_cache(
       classSubjects: classSubjects.data ?? [],
     };
   },
-  ["school-reference-v1"],
+  ["school-reference-v2"],
   { tags: [TAG], revalidate: 600 },
 );
+
+// Signed-in callers get their own school's lists automatically; the public apply
+// page passes the school id resolved from the subdomain.
+export async function getReference(schoolIdOverride?: number): Promise<Reference> {
+  const schoolId = schoolIdOverride ?? (await effectiveSchoolId());
+  if (!schoolId) return EMPTY;
+  return fetchReference(schoolId);
+}
 
 // Call after any change to school years, classes, sections, subjects or which
 // subjects a class studies, so every page shows the change straight away.

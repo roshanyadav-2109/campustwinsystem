@@ -14,6 +14,7 @@ import { SCHOOL } from "@/lib/school";
 const BASE = process.env.NEXT_PUBLIC_BASE_DOMAIN || "campustwin.org";
 
 export type Brand = {
+  schoolId: number | null;
   slug: string;
   name: string;
   place: string;
@@ -24,19 +25,21 @@ export type Brand = {
   loginImage: string;
   loginVideoId: string;
   primaryColor: string;
+  status: string;
 };
 
 type Row = {
-  slug: string; name: string; place: string | null; short_name: string | null;
+  id: number; slug: string; name: string; place: string | null; short_name: string | null;
   monogram: string | null; logo_url: string | null; login_image_url: string | null;
-  login_video_id: string | null; primary_color: string | null;
+  login_video_id: string | null; primary_color: string | null; status: string | null;
 };
-const COLS = "slug, name, place, short_name, monogram, logo_url, login_image_url, login_video_id, primary_color, status";
+const COLS = "id, slug, name, place, short_name, monogram, logo_url, login_image_url, login_video_id, primary_color, status";
 
 function toBrand(r: Row): Brand {
   const name = r.name;
   const place = r.place ?? "";
   return {
+    schoolId: r.id,
     slug: r.slug,
     name,
     place,
@@ -47,6 +50,7 @@ function toBrand(r: Row): Brand {
     loginImage: (r.login_image_url && r.login_image_url.trim()) || "",
     loginVideoId: (r.login_video_id && r.login_video_id.trim()) || SCHOOL.loginVideoId,
     primaryColor: (r.primary_color && r.primary_color.trim()) || "#0F6CBD",
+    status: r.status ?? "active",
   };
 }
 
@@ -65,9 +69,9 @@ export function slugFromHost(host: string | null): string | null {
 // The apex (campustwin.org) and any unmatched host are NOT a school — they get
 // the neutral CampusTwin brand, never a fall-back to some institution.
 export const CAMPUSTWIN: Brand = {
-  slug: "", name: "CampusTwin", place: "", fullName: "CampusTwin",
+  schoolId: null, slug: "", name: "CampusTwin", place: "", fullName: "CampusTwin",
   shortName: "CampusTwin", monogram: "CT", logo: "", loginImage: "", loginVideoId: "",
-  primaryColor: "#0F6CBD",
+  primaryColor: "#0F6CBD", status: "active",
 };
 
 export type UniversityLanding = {

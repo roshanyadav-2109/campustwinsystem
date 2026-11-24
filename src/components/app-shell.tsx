@@ -1,5 +1,6 @@
 "use client";
-import { useState } from "react";
+import { useEffect, useState } from "react";
+import { setPdfSchool } from "@/lib/pdf";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { SearchBox } from "@/components/search-box";
@@ -40,6 +41,8 @@ export function AppShell({
 }) {
   const bName = brand?.name || SCHOOL.name;
   const bPlace = brand?.place ?? SCHOOL.place;
+  // Every PDF download uses this institution's name on its letterhead.
+  useEffect(() => { setPdfSchool(bPlace ? `${bName}, ${bPlace}` : bName); }, [bName, bPlace]);
   const bLogo = brand?.logo ?? undefined;
   const bMono = brand?.monogram ?? undefined;
   const t = useT();
