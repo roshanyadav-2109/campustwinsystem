@@ -2,7 +2,7 @@
 import { revalidatePath } from "next/cache";
 import { createClient } from "@/lib/supabase/server";
 import { getSession, getCurrentYear } from "@/lib/session";
-import { tenantPrefixForSchool, mediaKey, presignPut, publicUrl, urlUnderPrefix } from "@/lib/r2";
+import { tenantPrefixForSchool, announcementKey, presignPut, publicUrl, urlUnderPrefix } from "@/lib/r2";
 
 // Images go straight from the poster's browser to R2 (so a large photo never
 // passes through our server), landing under this institution's own topological
@@ -17,8 +17,7 @@ export async function signAnnouncementUpload(contentType: string): Promise<Uploa
   if (!session?.staffId) return { ok: false, error: "Only staff can add images." };
   if (!contentType.startsWith("image/")) return { ok: false, error: "Only images can be attached." };
   const prefix = await tenantPrefixForSchool(session.schoolId);
-  const ext = (contentType.split("/")[1] || "jpg").replace("jpeg", "jpg").replace("+xml", "").replace(/[^a-z0-9]/g, "") || "jpg";
-  const key = mediaKey(prefix, "announcements", `${crypto.randomUUID()}.${ext}`);
+  const key = announcementKey(prefix, contentType);
   return { ok: true, uploadUrl: await presignPut(key), publicUrl: publicUrl(key) };
 }
 

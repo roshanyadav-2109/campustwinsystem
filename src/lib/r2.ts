@@ -49,6 +49,38 @@ export function universityPrefix(universitySlug: string): string {
 export function mediaKey(prefix: string, category: string, filename: string): string {
   return `${prefix}/${seg(category)}/${seg(filename)}`.replace(/\/+/g, "/");
 }
+
+// ---- File naming ----
+// One clean extension; original filenames are never used (they carry spaces,
+// unicode and sometimes personal info).
+export function extFromType(contentType: string): string {
+  return (contentType.split("/")[1] || "bin").toLowerCase().replace("jpeg", "jpg").replace("+xml", "").replace(/[^a-z0-9]/g, "").slice(0, 5) || "bin";
+}
+
+// Category key builders — the ONLY way files get named, so every feature drops
+// into the correct, non-mixing branch of the topology:
+//   announcements -> announcements/<uuid>.<ext>   (unique per post)
+//   student photo -> students/<id>/photo.<ext>    (one current photo per student)
+//   staff photo   -> staff/<id>/photo.<ext>       (one current photo per teacher)
+//   branding      -> brand/<logo|wordmark|login>.<ext>
+//   documents     -> docs/<uuid>.<ext>
+// Student/staff keys use the person's STABLE id, so class promotion (a DB
+// enrolment change) never moves or orphans their files.
+export function announcementKey(prefix: string, contentType: string): string {
+  return `${prefix}/announcements/${crypto.randomUUID()}.${extFromType(contentType)}`;
+}
+export function studentPhotoKey(prefix: string, studentId: number, contentType: string): string {
+  return `${prefix}/students/${studentId}/photo.${extFromType(contentType)}`;
+}
+export function staffPhotoKey(prefix: string, staffId: number, contentType: string): string {
+  return `${prefix}/staff/${staffId}/photo.${extFromType(contentType)}`;
+}
+export function brandKey(prefix: string, which: "logo" | "wordmark" | "login-image", contentType: string): string {
+  return `${prefix}/brand/${which}.${extFromType(contentType)}`;
+}
+export function documentKey(prefix: string, contentType: string): string {
+  return `${prefix}/docs/${crypto.randomUUID()}.${extFromType(contentType)}`;
+}
 export function publicUrl(key: string): string { return `${PUBLIC_BASE}/${key}`; }
 export function isOwnR2Url(url: string): boolean { return url.startsWith(PUBLIC_BASE + "/"); }
 // A file truly belongs to this tenant only if it sits under the tenant's prefix.
