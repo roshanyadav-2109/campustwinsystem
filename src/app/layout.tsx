@@ -1,12 +1,13 @@
 import type { Metadata } from "next";
-import { Source_Sans_3, Fraunces } from "next/font/google";
+import { Reddit_Sans, Fraunces } from "next/font/google";
 import "./globals.css";
 import { getLocale } from "@/i18n/server";
 import { I18nProvider } from "@/i18n/provider";
 import { getBrand } from "@/lib/brand-server";
 
-// Source Sans 3 — formal, highly legible body face with clear figures.
-const body = Source_Sans_3({
+// Reddit Sans — a warm, modern grotesque with even colour and clear figures;
+// the product's primary UI face.
+const body = Reddit_Sans({
   subsets: ["latin"],
   variable: "--font-body",
   weight: ["400", "500", "600", "700"],
