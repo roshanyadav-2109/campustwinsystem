@@ -1,4 +1,5 @@
 "use client";
+/* eslint-disable @next/next/no-img-element -- static brand wordmark from /public */
 import { useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { ArrowRightIcon } from "@/components/icons";
@@ -63,17 +64,21 @@ export function LoginView({ brand, owner = false }: { brand: Brand; owner?: bool
     <div className="min-h-dvh lg:grid lg:grid-cols-2">
       {/* Left — branded panel in the institution's own colour (desktop). */}
       <div className="relative hidden flex-col justify-between p-12 text-white lg:flex" style={{ backgroundColor: color }}>
-        <div className="flex items-center gap-3">
-          <span className="flex h-12 w-12 items-center justify-center overflow-hidden rounded-lg bg-white">
-            {owner
-              ? <span className="text-[18px] font-bold" style={{ color }}>CT</span>
-              : <SchoolEmblem size={40} logo={logo} monogram={brand.monogram} name={brand.name} />}
+        {owner ? (
+          <span className="inline-flex w-fit items-center rounded-lg bg-white px-4 py-2.5">
+            <img src="/brand/campustwin-wordmark.webp" alt="CampusTwin" className="h-7 w-auto" />
           </span>
-          <div className="leading-tight">
-            <div className="text-[18px] font-semibold">{heading}</div>
-            {subline && <div className="text-[13px] text-white/80">{subline}</div>}
+        ) : (
+          <div className="flex items-center gap-3">
+            <span className="flex h-12 w-12 items-center justify-center overflow-hidden rounded-lg bg-white">
+              <SchoolEmblem size={40} logo={logo} monogram={brand.monogram} name={brand.name} />
+            </span>
+            <div className="leading-tight">
+              <div className="text-[18px] font-semibold">{heading}</div>
+              {subline && <div className="text-[13px] text-white/80">{subline}</div>}
+            </div>
           </div>
-        </div>
+        )}
         <div>
           <h2 className="font-display text-[36px] font-medium leading-[1.1]">{owner ? "Manage every institution." : "Welcome back."}</h2>
           <p className="mt-3 max-w-sm text-[15px] text-white/85">
@@ -86,15 +91,19 @@ export function LoginView({ brand, owner = false }: { brand: Brand; owner?: bool
       {/* Right — sign-in. */}
       <div className="flex min-h-dvh flex-col justify-center bg-paper px-5 py-10 sm:px-10">
         <div className="mb-8 flex items-center gap-3 lg:hidden">
-          <span className="flex h-11 w-11 items-center justify-center overflow-hidden rounded-lg border border-hair bg-white">
-            {owner
-              ? <span className="text-[16px] font-bold" style={{ color }}>CT</span>
-              : <SchoolEmblem size={36} logo={logo} monogram={brand.monogram} name={brand.name} />}
-          </span>
-          <div className="leading-tight">
-            <div className="text-[16px] font-semibold text-ink-900">{owner ? "CampusTwin Console" : brand.name}</div>
-            {subline && <div className="text-[12px] text-ink-500">{subline}</div>}
-          </div>
+          {owner ? (
+            <img src="/brand/campustwin-wordmark.webp" alt="CampusTwin" className="h-8 w-auto" />
+          ) : (
+            <>
+              <span className="flex h-11 w-11 items-center justify-center overflow-hidden rounded-lg border border-hair bg-white">
+                <SchoolEmblem size={36} logo={logo} monogram={brand.monogram} name={brand.name} />
+              </span>
+              <div className="leading-tight">
+                <div className="text-[16px] font-semibold text-ink-900">{brand.name}</div>
+                {subline && <div className="text-[12px] text-ink-500">{subline}</div>}
+              </div>
+            </>
+          )}
         </div>
 
         <div className="mx-auto w-full max-w-sm">

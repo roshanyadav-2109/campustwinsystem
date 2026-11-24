@@ -9,8 +9,9 @@ export default async function ConsoleLayout({ children }: { children: React.Reac
     <div className="min-h-dvh bg-paper">
       <header className="sticky top-0 z-30 flex h-14 items-center gap-4 border-b border-hair bg-white px-4 sm:px-6">
         <Link href="/console" className="flex items-center gap-2">
-          <span className="flex h-7 w-7 items-center justify-center rounded-md bg-[#0F6CBD] text-[12px] font-bold text-white">CT</span>
-          <span className="text-[14px] font-semibold text-ink-900">CampusTwin Console</span>
+          {/* eslint-disable-next-line @next/next/no-img-element -- static brand wordmark */}
+          <img src="/brand/campustwin-wordmark.webp" alt="CampusTwin" className="h-6 w-auto" />
+          <span className="text-[13px] font-medium text-ink-500">Console</span>
         </Link>
         <nav className="flex items-center gap-4 text-[13px]">
           <Link href="/console" className="text-ink-700 hover:text-ink-900">Institutions</Link>

@@ -6,7 +6,8 @@
   "compatibility_flags": ["nodejs_compat"],
   "workers_dev": true,
   "routes": [
-    { "pattern": "*.campustwin.org/*", "zone_name": "campustwin.org" }
+    { "pattern": "*.campustwin.org/*", "zone_name": "campustwin.org" },
+    { "pattern": "campustwin.org/auth/*", "zone_name": "campustwin.org" }
   ],
   "assets": {
     "binding": "ASSETS",
