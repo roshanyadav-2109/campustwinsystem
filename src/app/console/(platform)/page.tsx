@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { InstitutionsTable, type InstRow } from "@/components/console/institutions-table";
+import { Kpi } from "@/components/console/table";
 import { btnPrimary } from "@/components/console/ui";
 
 const BASE = process.env.NEXT_PUBLIC_BASE_DOMAIN || "campustwin.org";
@@ -10,18 +11,7 @@ type SchoolRow = {
   university_id: number | null; students: { count: number }[]; staff: { count: number }[];
 };
 type Uni = { id: number; name: string; slug: string; plan: string | null; status: string };
-
 const c = (a: { count: number }[] | null) => a?.[0]?.count ?? 0;
-
-function Metric({ label, value, sub, accent }: { label: string; value: string; sub?: string; accent?: boolean }) {
-  return (
-    <div className="rounded-xl border border-hair bg-white p-4 shadow-[0_1px_2px_rgba(16,24,40,0.04)]">
-      <p className="text-[12px] font-medium text-ink-500">{label}</p>
-      <p className={`mt-1.5 text-[26px] font-semibold tracking-tight tabular-nums ${accent ? "text-amber-600" : "text-ink-900"}`}>{value}</p>
-      {sub && <p className="mt-0.5 text-[11.5px] text-ink-400">{sub}</p>}
-    </div>
-  );
-}
 
 export default async function ConsolePage() {
   const admin = createAdminClient();
@@ -54,21 +44,21 @@ export default async function ConsolePage() {
 
   return (
     <div>
-      <div className="mb-6 flex flex-wrap items-end justify-between gap-3">
+      <div className="mb-5 flex flex-wrap items-end justify-between gap-3">
         <div>
-          <h1 className="text-[22px] font-semibold tracking-tight text-ink-900">Overview</h1>
-          <p className="mt-1 text-[13px] text-ink-500">Every institution on the CampusTwin platform.</p>
+          <h1 className="text-[19px] font-semibold tracking-tight text-ink-900">Overview</h1>
+          <p className="mt-0.5 text-[12.5px] text-ink-500">Every institution on the CampusTwin platform.</p>
         </div>
         <Link href="/console/new" className={btnPrimary}>+ New institution</Link>
       </div>
 
-      <div className="mb-7 grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-6">
-        <Metric label="Universities" value={universities.length.toLocaleString()} />
-        <Metric label="Campuses" value={campuses.length.toLocaleString()} />
-        <Metric label="Standalone schools" value={standalone.length.toLocaleString()} />
-        <Metric label="Students" value={totalStudents.toLocaleString()} sub="across all tenants" />
-        <Metric label="Staff" value={totalStaff.toLocaleString()} sub="across all tenants" />
-        <Metric label="Suspended" value={suspended.toLocaleString()} accent={suspended > 0} />
+      <div className="mb-5 grid grid-cols-2 gap-2.5 sm:grid-cols-3 lg:grid-cols-6">
+        <Kpi label="Universities" value={universities.length} />
+        <Kpi label="Campuses" value={campuses.length} />
+        <Kpi label="Standalone schools" value={standalone.length} />
+        <Kpi label="Students" value={totalStudents} sub="all tenants" />
+        <Kpi label="Staff" value={totalStaff} sub="all tenants" />
+        <Kpi label="Suspended" value={suspended} />
       </div>
 
       <InstitutionsTable rows={rows} />

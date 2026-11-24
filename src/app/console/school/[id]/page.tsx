@@ -1,108 +1,87 @@
-import { notFound } from "next/navigation";
+import Link from "next/link";
 import { createAdminClient } from "@/lib/supabase/admin";
-import { updateBranding, setPlan, toggleModule, setSchoolStatus } from "../../actions";
-import { PageHeader, Section, StatusBadge, TypeBadge, inputCls, labelCls, btnPrimary, btnGhost, btnDanger } from "@/components/console/ui";
+import { loadSchool, currentYear, headCount, modulesOf } from "@/lib/console/tenant";
+import { ZoneHeader, Kpi, Pill } from "@/components/console/table";
+import { Section, StatusBadge, TypeBadge } from "@/components/console/ui";
 
 const BASE = process.env.NEXT_PUBLIC_BASE_DOMAIN || "campustwin.org";
-const MODULES: { key: string; label: string; desc: string }[] = [
-  { key: "fees", label: "Fees", desc: "Fee heads, invoices and collection" },
-  { key: "library", label: "Library", desc: "Catalogue, issue and returns" },
-  { key: "homework", label: "Homework", desc: "Assignments and submissions" },
-  { key: "admissions", label: "Admissions", desc: "Enquiries and the admission pipeline" },
-  { key: "hr", label: "HR", desc: "Staff records, leave and payroll" },
-  { key: "transport", label: "Transport", desc: "Routes, vehicles and tracking" },
-];
+const PAID = ["fees", "library", "homework", "admissions", "hr", "transport"];
 
-export default async function EditSchoolPage({ params }: { params: Promise<{ id: string }> }) {
+export default async function SchoolOverview({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
+  const s = await loadSchool(id);
   const admin = createAdminClient();
-  const { data: s } = await admin
-    .from("school")
-    .select("id, name, slug, place, plan, status, modules, university_id, logo_url, primary_color, students:student(count), staff:staff(count)")
-    .eq("id", Number(id))
-    .maybeSingle();
-  if (!s) notFound();
-  const mods = (s.modules as Record<string, boolean> | null) ?? {};
-  const kind = s.university_id ? "campus" : "school";
-  const students = (s.students as { count: number }[] | null)?.[0]?.count ?? 0;
-  const staff = (s.staff as { count: number }[] | null)?.[0]?.count ?? 0;
+  const base = `/console/school/${s.id}`;
+
+  const [students, staff, guardians, classes, sections, logins, year] = await Promise.all([
+    headCount(admin, "student", s.id),
+    headCount(admin, "staff", s.id),
+    headCount(admin, "guardian", s.id),
+    headCount(admin, "class", s.id),
+    headCount(admin, "section", s.id),
+    headCount(admin, "profile", s.id),
+    currentYear(admin, s.id),
+  ]);
+  const { data: recent } = await admin
+    .from("announcement")
+    .select("id, title, scope, published_at")
+    .eq("school_id", s.id)
+    .order("published_at", { ascending: false })
+    .limit(5);
+  const mods = modulesOf(s.modules);
 
   return (
-    <div className="max-w-4xl">
-      <PageHeader
-        title={s.name}
-        subdomain={`${s.slug}.${BASE}`}
-        badge={<><TypeBadge kind={kind} /><StatusBadge status={s.status} /></>}
-      >
-        <form action={setSchoolStatus}>
-          <input type="hidden" name="id" value={s.id} />
-          <input type="hidden" name="status" value={s.status === "active" ? "suspended" : "active"} />
-          <button className={s.status === "active" ? btnDanger : btnPrimary}>{s.status === "active" ? "Suspend institution" : "Activate institution"}</button>
-        </form>
-      </PageHeader>
+    <div>
+      <ZoneHeader title="Overview" sub={`${s.slug}.${BASE}${s.place ? ` · ${s.place}` : ""}`}>
+        <TypeBadge kind={s.university_id ? "campus" : "school"} />
+        <StatusBadge status={s.status} />
+        <a href={`https://${s.slug}.${BASE}`} target="_blank" rel="noreferrer" className="rounded-md border border-hair bg-white px-3 py-2 text-[13px] font-medium text-ink-700 hover:bg-panel">Open portal ↗</a>
+      </ZoneHeader>
 
-      <div className="mb-5 grid grid-cols-2 gap-3 sm:grid-cols-4">
-        {[["Students", students], ["Staff", staff]].map(([l, v]) => (
-          <div key={l} className="rounded-xl border border-hair bg-white p-4">
-            <p className="text-[12px] text-ink-500">{l}</p>
-            <p className="mt-1 text-[20px] font-semibold tabular-nums text-ink-900">{(v as number).toLocaleString()}</p>
-          </div>
-        ))}
-        <div className="rounded-xl border border-hair bg-white p-4">
-          <p className="text-[12px] text-ink-500">Plan</p>
-          <p className="mt-1 text-[20px] font-semibold capitalize text-ink-900">{s.plan ?? "—"}</p>
-        </div>
-        <div className="rounded-xl border border-hair bg-white p-4">
-          <p className="text-[12px] text-ink-500">Modules on</p>
-          <p className="mt-1 text-[20px] font-semibold tabular-nums text-ink-900">{MODULES.filter((m) => mods[m.key]).length}/{MODULES.length}</p>
-        </div>
+      <div className="mb-5 grid grid-cols-2 gap-2.5 sm:grid-cols-3 lg:grid-cols-6">
+        <Kpi label="Students" value={students} href={`${base}/students`} />
+        <Kpi label="Staff" value={staff} href={`${base}/staff`} />
+        <Kpi label="Guardians" value={guardians} href={`${base}/guardians`} />
+        <Kpi label="Classes" value={classes} href={`${base}/classes`} />
+        <Kpi label="Sections" value={sections} href={`${base}/classes`} />
+        <Kpi label="Logins" value={logins} href={`${base}/access`} />
       </div>
 
-      <div className="space-y-5">
-        <Section title="Branding" desc="Shown on this institution's login and dashboard.">
-          <form action={updateBranding} className="grid gap-4 sm:grid-cols-2">
-            <input type="hidden" name="id" value={s.id} /><input type="hidden" name="kind" value="school" />
-            <div><label className={labelCls}>Name</label><input name="name" defaultValue={s.name} className={inputCls} /></div>
-            <div><label className={labelCls}>Place</label><input name="place" defaultValue={s.place ?? ""} className={inputCls} /></div>
-            <div>
-              <label className={labelCls}>Primary colour</label>
-              <div className="flex items-center gap-2">
-                <span className="h-9 w-9 shrink-0 rounded-md border border-hair" style={{ background: s.primary_color ?? "#0F6CBD" }} />
-                <input name="primary_color" defaultValue={s.primary_color ?? "#0F6CBD"} className={inputCls} />
+      <div className="grid gap-5 lg:grid-cols-3">
+        <div className="lg:col-span-2">
+          <Section title="Recent announcements" right={<Link href={`${base}/announcements`} className="text-[12px] font-medium text-[#0F6CBD] hover:underline">View all</Link>}>
+            {(recent ?? []).length > 0 ? (
+              <ul className="divide-y divide-hair">
+                {(recent ?? []).map((a) => (
+                  <li key={a.id} className="flex items-center justify-between gap-3 py-2 text-[13px]">
+                    <span className="min-w-0 truncate text-ink-800">{a.title}</span>
+                    <span className="flex shrink-0 items-center gap-2">
+                      <Pill tone="sky">{a.scope}</Pill>
+                      <span className="text-[11.5px] text-ink-400">{new Date(a.published_at).toLocaleDateString()}</span>
+                    </span>
+                  </li>
+                ))}
+              </ul>
+            ) : <p className="py-6 text-center text-[13px] text-ink-500">No announcements yet.</p>}
+          </Section>
+        </div>
+
+        <div className="space-y-5">
+          <Section title="Academic year">
+            {year ? (
+              <div className="text-[13px]">
+                <p className="font-medium text-ink-900">{year.name}{year.is_current && <span className="ml-2 align-middle"><Pill tone="green">current</Pill></span>}</p>
+                <p className="mt-0.5 text-[12px] text-ink-500">{year.start_date} → {year.end_date}</p>
               </div>
+            ) : <p className="text-[13px] text-ink-500">No academic year set.</p>}
+          </Section>
+
+          <Section title="Modules" right={<Link href={`${base}/settings`} className="text-[12px] font-medium text-[#0F6CBD] hover:underline">Manage</Link>}>
+            <div className="flex flex-wrap gap-1.5">
+              {PAID.map((m) => <Pill key={m} tone={mods[m] ? "green" : "slate"}>{mods[m] ? m : `${m} off`}</Pill>)}
             </div>
-            <div><label className={labelCls}>Logo URL</label><input name="logo_url" defaultValue={s.logo_url ?? ""} className={inputCls} /></div>
-            <div className="sm:col-span-2"><button className={btnPrimary}>Save branding</button></div>
-          </form>
-        </Section>
-
-        <Section title="Modules" desc="Turn paid features on or off for this institution.">
-          <div className="grid gap-2 sm:grid-cols-2">
-            {MODULES.map((m) => {
-              const on = !!mods[m.key];
-              return (
-                <form key={m.key} action={toggleModule} className={`flex items-center justify-between gap-3 rounded-lg border px-3.5 py-3 ${on ? "border-[#0F6CBD]/30 bg-[#0F6CBD]/[0.03]" : "border-hair bg-white"}`}>
-                  <input type="hidden" name="id" value={s.id} /><input type="hidden" name="key" value={m.key} />
-                  <div className="min-w-0">
-                    <p className="text-[13px] font-medium text-ink-900">{m.label}</p>
-                    <p className="truncate text-[11.5px] text-ink-500">{m.desc}</p>
-                  </div>
-                  <button aria-label={`${on ? "Disable" : "Enable"} ${m.label}`} className={`relative h-5 w-9 shrink-0 rounded-full transition-colors ${on ? "bg-[#0F6CBD]" : "bg-slate-300"}`}>
-                    <span className={`absolute top-0.5 h-4 w-4 rounded-full bg-white shadow transition-all ${on ? "left-[18px]" : "left-0.5"}`} />
-                  </button>
-                </form>
-              );
-            })}
-          </div>
-        </Section>
-
-        <Section title="Plan" desc="Billing tier for this institution.">
-          <form action={setPlan} className="flex flex-wrap items-end gap-2">
-            <input type="hidden" name="id" value={s.id} /><input type="hidden" name="kind" value="school" />
-            <div className="min-w-[200px] flex-1"><label className={labelCls}>Plan name</label><input name="plan" defaultValue={s.plan ?? "standard"} className={inputCls} /></div>
-            <button className={btnGhost}>Update plan</button>
-          </form>
-        </Section>
+          </Section>
+        </div>
       </div>
     </div>
   );

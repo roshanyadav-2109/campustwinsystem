@@ -1,4 +1,4 @@
-import { createSchool, createUniversity } from "../actions";
+import { createSchool, createUniversity } from "@/app/console/actions";
 import { PageHeader, Section, inputCls, labelCls, btnPrimary } from "@/components/console/ui";
 
 const BASE = process.env.NEXT_PUBLIC_BASE_DOMAIN || "campustwin.org";
@@ -7,7 +7,6 @@ export default function NewInstitutionPage() {
   return (
     <div className="max-w-3xl">
       <PageHeader title="New institution" />
-
       <div className="space-y-5">
         <Section title="A single school or college" desc={`Its portal will live at slug.${BASE}.`}>
           <form action={createSchool} className="grid gap-4 sm:grid-cols-2">
