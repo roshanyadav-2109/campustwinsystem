@@ -4,7 +4,7 @@ import { createAdminClient } from "@/lib/supabase/admin";
 import { updateBranding, setPlan, toggleModule, setSchoolStatus } from "../../actions";
 
 const BASE = process.env.NEXT_PUBLIC_BASE_DOMAIN || "campustwin.org";
-const GATEABLE = ["twin", "fees", "library", "homework", "admissions", "hr", "transport"] as const;
+const GATEABLE = ["fees", "library", "homework", "admissions", "hr", "transport"] as const;
 const input = "w-full rounded-md border border-hair bg-white px-3 py-2 text-[14px] text-ink-900 outline-none focus:border-[#0F6CBD]";
 const label = "block text-[12px] font-medium text-ink-700 mb-1";
 

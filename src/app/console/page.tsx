@@ -3,7 +3,7 @@ import { createAdminClient } from "@/lib/supabase/admin";
 import { setSchoolStatus, setUniversityStatus, toggleModule } from "./actions";
 
 const BASE = process.env.NEXT_PUBLIC_BASE_DOMAIN || "campustwin.org";
-const GATEABLE = ["twin", "fees", "library", "homework", "admissions", "hr", "transport"] as const;
+const GATEABLE = ["fees", "library", "homework", "admissions", "hr", "transport"] as const;
 
 type SchoolRow = {
   id: number; name: string; slug: string; place: string | null; plan: string | null;

@@ -1,4 +1,3 @@
-import React from "react";
 import {
   DashboardIcon, ProgressIcon, AttendanceIcon, MarksIcon, StudentsIcon,
   AnnounceIcon, CalendarIcon, ReportIcon, LeaveIcon, AllotmentIcon,
@@ -49,13 +48,10 @@ export const NAV: NavItem[] = [
   { href: "/dashboard/details", icon: RoleStudentIcon, labelKey: "nav.details", roles: ["student"] },
 ];
 
-// Twin's mark is the one coloured thing in the menu: the yellow cell with its nucleus.
-function TwinNavIcon({ size = 18 }: { size?: number; active?: boolean }) {
-  return React.createElement("span", { "aria-hidden": true, style: { width: size, height: size, flexShrink: 0, display: "inline-block", position: "relative" } },
-    React.createElement("span", { style: { position: "absolute", inset: size * 0.08, borderRadius: "50%", background: "#FFD84A" } },
-      React.createElement("span", { style: { position: "absolute", width: "36%", height: "36%", left: "42%", top: "24%", borderRadius: "50%", background: "#F59A1B" } })));
-}
-NAV.splice(1, 0, { href: "/dashboard/twin", icon: TwinNavIcon, labelKey: "nav.twin", roles: ALL, module: "twin" });
+// NOTE: the AI "Twin" tab is intentionally NOT in the nav yet — its page lives on
+// an un-merged branch. Re-add the /dashboard/twin entry (and "twin" to GateModule
+// + the console module toggles) when the Twin feature ships, so it never shows a
+// broken 404 tab in the meantime.
 
 // A paid module counts as on only when the institution's registry switches it on.
 // Core tabs (no `module`) are always on. `enabled` is the school.modules map.
