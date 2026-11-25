@@ -57,3 +57,5 @@ swap-db.log
 .shot-any.mjs
 .school-login.mjs
 .fin-e2e.mjs
+.alum-e2e.mjs
+.shot-local.mjs

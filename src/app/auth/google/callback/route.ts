@@ -96,7 +96,7 @@ export async function GET(request: NextRequest) {
     // Not on any school's records: an employee in Eternity HR may still sign in
     // (shop, hospital or school staff kept only in HR). Their HR employee record
     // holds the email; it gets a login the first time, linked by the database.
-    const hrLogin = (await hrEmployeeLogin(email, claims.name)) ?? (await eternityLogin(email));
+    const hrLogin = (await hrEmployeeLogin(email, claims.name)) ?? (await eternityLogin(email)) ?? (await alumniLogin(email, claims.name));
     if (!hrLogin) return fail("google_not_registered");
     const supabase = await createClient();
     const { data, error } = await supabase.auth.signInWithIdToken({ provider: "google", token: tokens.id_token, nonce: saved.nonce });
@@ -269,4 +269,35 @@ async function eternityLogin(email: string): Promise<string | null> {
   const core = createJs(url, key, { auth: { autoRefreshToken: false, persistSession: false }, db: { schema: "core" } });
   const { data, error } = await core.rpc("login_for_email", { p_email: email });
   return error || !data ? null : (data as string);
+}
+
+// Eternity Alumni: a verified alumnus (imported or approved by the alumni
+// office) whose record holds this email, in an institution that has Alumni.
+// Reuses the linked login, or creates one the first time and links it.
+async function alumniLogin(email: string, googleName?: string): Promise<string | null> {
+  const key = process.env.SUPABASE_SERVICE_ROLE_KEY;
+  const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
+  if (!key || !url) return null;
+  const { createClient: createJs } = await import("@supabase/supabase-js");
+  const opts = { auth: { autoRefreshToken: false, persistSession: false } };
+  const alum = createJs(url, key, { ...opts, db: { schema: "alum" } });
+  const { data: recs } = await alum.from("member").select("id, org_id, user_id").eq("email", email).eq("status", "verified");
+  if (!recs?.length) return null;
+  const live: typeof recs = [];
+  for (const r of recs) {
+    const { data: ok } = await alum.rpc("subscribed", { p_org: r.org_id });
+    if (ok) live.push(r);
+  }
+  if (!live.length) return null;
+  const linked = live.find((r) => r.user_id)?.user_id as string | undefined;
+  if (linked) return linked;
+  const admin = createAdminClient();
+  const { data: created, error } = await admin.auth.admin.createUser({ email, email_confirm: true, user_metadata: { full_name: googleName ?? email } });
+  if (error || !created.user) return null;
+  const { error: linkErr } = await alum.from("member").update({ user_id: created.user.id }).in("id", live.map((r) => r.id as number));
+  if (linkErr) {
+    await admin.auth.admin.deleteUser(created.user.id);
+    return null;
+  }
+  return created.user.id;
 }
