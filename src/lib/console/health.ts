@@ -24,52 +24,83 @@ async function gql<T>(query: string, variables: Record<string, unknown>): Promis
   return j.data;
 }
 
-export type HourPoint = { hour: string; requests: number; errors: number; p50: number | null; p99: number | null; cpu99: number | null };
-export type HostRow = { host: string; requests: number; errors: number };
-export type Traffic = { hours: HourPoint[]; hosts: HostRow[]; fetchedAt: string };
+// Time windows, like a hosting panel's monitoring tab. Cloudflare keeps 31 days
+// of request analytics and answers any window up to 30 days, so the bucket just
+// grows with the window to keep each chart around 24 to 168 points.
+export type Range = "5h" | "24h" | "7d" | "30d";
+type Dim = "datetimeFiveMinutes" | "datetimeHour" | "date";
+export const RANGES: Record<Range, { label: string; long: string; bucket: string; dim: Dim; step: number; count: number }> = {
+  "5h": { label: "5 hours", long: "last 5 hours", bucket: "5 minutes", dim: "datetimeFiveMinutes", step: 300e3, count: 60 },
+  "24h": { label: "24 hours", long: "last 24 hours", bucket: "hour", dim: "datetimeHour", step: 3600e3, count: 24 },
+  "7d": { label: "7 days", long: "last 7 days", bucket: "hour", dim: "datetimeHour", step: 3600e3, count: 168 },
+  "30d": { label: "30 days", long: "last 30 days", bucket: "day", dim: "date", step: 86400e3, count: 30 },
+};
+export const parseRange = (v: unknown): Range => (typeof v === "string" && v in RANGES ? (v as Range) : "24h");
 
-type Group = { count: number; dimensions: { datetimeHour?: string; clientRequestHTTPHost?: string } };
-type ZoneData = { viewer: { zones: { all: Group[]; errs: Group[]; hosts: Group[]; hostErrs: Group[] }[] } };
-type WorkerRow = { sum: { requests: number; errors: number }; quantiles: { durationP50: number; durationP99: number; cpuTimeP99: number }; dimensions: { datetimeHour: string; status: string } };
+// Bucket starts in the exact form Cloudflare returns them, oldest first.
+function slotsFor(range: Range) {
+  const { step, count, dim } = RANGES[range];
+  const end = Math.floor(Date.now() / step) * step;
+  const slots = Array.from({ length: count }, (_, i) => new Date(end - (count - 1 - i) * step).toISOString());
+  const keys = slots.map((iso) => (dim === "date" ? iso.slice(0, 10) : iso.replace(".000Z", "Z")));
+  return { keys, since: slots[0], until: new Date().toISOString() };
+}
+
+export type HourPoint = { hour: string; requests: number; errors: number; bytes: number; visits: number; p50: number | null; p99: number | null; cpu99: number | null };
+export type HostRow = { host: string; requests: number; errors: number };
+export type Totals = { requests: number; errors: number; bytes: number; visits: number };
+// prev is the window of the same length just before this one; null when it falls outside what Cloudflare keeps.
+export type Traffic = { range: Range; since: string; hours: HourPoint[]; hosts: HostRow[]; prev: Totals | null; fetchedAt: string };
+
+type Group = { count: number; sum?: { edgeResponseBytes: number; visits: number }; dimensions: Record<string, string> };
+type ZoneData = { viewer: { zones: { all: Group[]; errs: Group[]; hosts: Group[]; hostErrs: Group[]; prev?: Group[]; prevErr?: Group[] }[] } };
+type WorkerRow = { sum: { requests: number; errors: number }; quantiles: { durationP50: number; durationP99: number; cpuTimeP99: number }; dimensions: Record<string, string> };
 type WorkerData = { viewer: { accounts: { workersInvocationsAdaptive: WorkerRow[] }[] } };
 
-export const platformTraffic = unstable_cache(async (): Promise<Traffic> => {
-  const end = new Date();
-  end.setUTCMinutes(0, 0, 0);
-  const slots = Array.from({ length: 24 }, (_, i) => new Date(end.getTime() - (23 - i) * 3600e3).toISOString().replace(".000Z", "Z"));
-  const since = slots[0];
-  const until = new Date().toISOString();
+export const platformTraffic = (range: Range = "24h") => unstable_cache(async (): Promise<Traffic> => {
+  const { dim } = RANGES[range];
+  const { keys, since, until } = slotsFor(range);
   const erp = { AND: [{ datetime_geq: since, datetime_leq: until }, ...NOT_ERP.map((h) => ({ clientRequestHTTPHost_neq: h }))] };
   const errOnly = { AND: [erp, { edgeResponseStatus_geq: 500 }] };
+  const span = Date.now() - Date.parse(since); // same length as this window, so the comparison is fair
+  const prevFrom = new Date(Date.parse(since) - span).toISOString();
+  const hasPrev = Date.now() - Date.parse(prevFrom) < 30 * 86400e3; // Cloudflare keeps 31 days
+  const before = { AND: [{ datetime_geq: prevFrom, datetime_lt: since }, ...NOT_ERP.map((h) => ({ clientRequestHTTPHost_neq: h }))] };
 
   const [zone, worker] = await Promise.all([
     gql<ZoneData>(
-      `query($z:String!,$f:ZoneHttpRequestsAdaptiveGroupsFilter_InputObject!,$e:ZoneHttpRequestsAdaptiveGroupsFilter_InputObject!){viewer{zones(filter:{zoneTag:$z}){
-        all:httpRequestsAdaptiveGroups(limit:100,filter:$f,orderBy:[datetimeHour_ASC]){count dimensions{datetimeHour}}
-        errs:httpRequestsAdaptiveGroups(limit:100,filter:$e,orderBy:[datetimeHour_ASC]){count dimensions{datetimeHour}}
+      `query($z:String!,$f:ZoneHttpRequestsAdaptiveGroupsFilter_InputObject!,$e:ZoneHttpRequestsAdaptiveGroupsFilter_InputObject!${hasPrev ? ",$p:ZoneHttpRequestsAdaptiveGroupsFilter_InputObject!,$pe:ZoneHttpRequestsAdaptiveGroupsFilter_InputObject!" : ""}){viewer{zones(filter:{zoneTag:$z}){
+        ${hasPrev ? "prev:httpRequestsAdaptiveGroups(limit:1,filter:$p){count sum{edgeResponseBytes visits}} prevErr:httpRequestsAdaptiveGroups(limit:1,filter:$pe){count}" : ""}
+        all:httpRequestsAdaptiveGroups(limit:500,filter:$f,orderBy:[${dim}_ASC]){count sum{edgeResponseBytes visits} dimensions{${dim}}}
+        errs:httpRequestsAdaptiveGroups(limit:500,filter:$e,orderBy:[${dim}_ASC]){count dimensions{${dim}}}
         hosts:httpRequestsAdaptiveGroups(limit:100,filter:$f,orderBy:[count_DESC]){count dimensions{clientRequestHTTPHost}}
         hostErrs:httpRequestsAdaptiveGroups(limit:100,filter:$e,orderBy:[count_DESC]){count dimensions{clientRequestHTTPHost}}}}}`,
-      { z: ZONE, f: erp, e: errOnly },
+      { z: ZONE, f: erp, e: errOnly, ...(hasPrev ? { p: before, pe: { AND: [before, { edgeResponseStatus_geq: 500 }] } } : {}) },
     ),
     gql<WorkerData>(
-      `query($a:String!,$s:Time!,$u:Time!,$w:String!){viewer{accounts(filter:{accountTag:$a}){workersInvocationsAdaptive(limit:500,filter:{scriptName:$w,datetime_geq:$s,datetime_leq:$u},orderBy:[datetimeHour_ASC]){
-        sum{requests errors} quantiles{durationP50 durationP99 cpuTimeP99} dimensions{datetimeHour status}}}}}`,
+      `query($a:String!,$s:Time!,$u:Time!,$w:String!){viewer{accounts(filter:{accountTag:$a}){workersInvocationsAdaptive(limit:1000,filter:{scriptName:$w,datetime_geq:$s,datetime_leq:$u},orderBy:[${dim}_ASC]){
+        sum{requests errors} quantiles{durationP50 durationP99 cpuTimeP99} dimensions{${dim} status}}}}}`,
       { a: ACCOUNT, s: since, u: until, w: SCRIPT },
     ).catch(() => null), // response times need Account Analytics: Read; traffic still works without it
   ]);
   const z = zone.viewer.zones[0];
-  const byHour = (gs: Group[]) => new Map(gs.map((g) => [g.dimensions.datetimeHour!, g.count]));
-  const all = byHour(z.all), errs = byHour(z.errs);
+  const all = new Map(z.all.map((g) => [g.dimensions[dim], g]));
+  const errs = new Map(z.errs.map((g) => [g.dimensions[dim], g.count]));
   const lat = new Map<string, { p50: number; p99: number; cpu99: number }>();
   for (const w of worker?.viewer.accounts[0]?.workersInvocationsAdaptive ?? []) {
     if (w.dimensions.status !== "success") continue;
-    lat.set(w.dimensions.datetimeHour, { p50: Math.round(w.quantiles.durationP50 * 1000), p99: Math.round(w.quantiles.durationP99 * 1000), cpu99: Math.round(w.quantiles.cpuTimeP99 / 1000) });
+    lat.set(w.dimensions[dim], { p50: Math.round(w.quantiles.durationP50 * 1000), p99: Math.round(w.quantiles.durationP99 * 1000), cpu99: Math.round(w.quantiles.cpuTimeP99 / 1000) });
   }
-  const hours = slots.map((h) => ({ hour: h, requests: all.get(h) ?? 0, errors: errs.get(h) ?? 0, p50: lat.get(h)?.p50 ?? null, p99: lat.get(h)?.p99 ?? null, cpu99: lat.get(h)?.cpu99 ?? null }));
-  const hostErr = new Map(z.hostErrs.map((g) => [g.dimensions.clientRequestHTTPHost!, g.count]));
-  const hosts = z.hosts.map((g) => ({ host: g.dimensions.clientRequestHTTPHost!, requests: g.count, errors: hostErr.get(g.dimensions.clientRequestHTTPHost!) ?? 0 }));
-  return { hours, hosts, fetchedAt: new Date().toISOString() };
-}, ["console-health-traffic-v1"], { revalidate: 60 });
+  const hours = keys.map((k) => {
+    const g = all.get(k);
+    return { hour: k, requests: g?.count ?? 0, errors: errs.get(k) ?? 0, bytes: g?.sum?.edgeResponseBytes ?? 0, visits: g?.sum?.visits ?? 0, p50: lat.get(k)?.p50 ?? null, p99: lat.get(k)?.p99 ?? null, cpu99: lat.get(k)?.cpu99 ?? null };
+  });
+  const hostErr = new Map(z.hostErrs.map((g) => [g.dimensions.clientRequestHTTPHost, g.count]));
+  const hosts = z.hosts.map((g) => ({ host: g.dimensions.clientRequestHTTPHost, requests: g.count, errors: hostErr.get(g.dimensions.clientRequestHTTPHost) ?? 0 }));
+  const p = z.prev?.[0];
+  const prev = hasPrev ? { requests: p?.count ?? 0, errors: z.prevErr?.[0]?.count ?? 0, bytes: p?.sum?.edgeResponseBytes ?? 0, visits: p?.sum?.visits ?? 0 } : null;
+  return { range, since, hours, hosts, prev, fetchedAt: new Date().toISOString() };
+}, ["console-health-traffic-v3", range], { revalidate: 60 })();
 
 // Live round trip from the app to the database: the number that rises first
 // when the database is the bottleneck.
@@ -127,22 +158,22 @@ export function evaluate(t: Traffic | null, db: { ok: boolean; ms: number }): Al
 export type Count = { key: string; count: number };
 export type HostDetail = {
   host: string; requests: number; visits: number; bytes: number; errors: number;
-  hours: { hour: string; value: number }[];
+  range: Range; hours: { hour: string; value: number }[];
   pages: Count[]; failing: Count[]; statuses: Count[]; countries: Count[]; devices: Count[]; browsers: Count[]; systems: Count[]; cache: Count[];
 };
 type G = { count: number; dimensions: Record<string, string | number> };
 
-// Everything Cloudflare knows about one portal address over the last 24 hours.
-export const hostDetail = (host: string) =>
+// Everything Cloudflare knows about one portal address over the chosen window.
+export const hostDetail = (host: string, range: Range = "24h") =>
   unstable_cache(async (): Promise<HostDetail> => {
-    const end = new Date(); end.setUTCMinutes(0, 0, 0);
-    const slots = Array.from({ length: 24 }, (_, i) => new Date(end.getTime() - (23 - i) * 3600e3).toISOString().replace(".000Z", "Z"));
-    const f = { AND: [{ datetime_geq: slots[0], datetime_leq: new Date().toISOString() }, { clientRequestHTTPHost: host }] };
+    const bucketDim = RANGES[range].dim;
+    const { keys, since, until } = slotsFor(range);
+    const f = { AND: [{ datetime_geq: since, datetime_leq: until }, { clientRequestHTTPHost: host }] };
     const e = { AND: [f, { edgeResponseStatus_geq: 500 }] };
     const dim = (alias: string, field: string, limit: number, filter = "$f") => `${alias}:httpRequestsAdaptiveGroups(limit:${limit},filter:${filter},orderBy:[count_DESC]){count dimensions{${field}}}`;
     const d = await gql<{ viewer: { zones: Record<string, G[] | { count: number; sum: { edgeResponseBytes: number; visits: number } }[]>[] } }>(
       `query($z:String!,$f:ZoneHttpRequestsAdaptiveGroupsFilter_InputObject!,$e:ZoneHttpRequestsAdaptiveGroupsFilter_InputObject!){viewer{zones(filter:{zoneTag:$z}){
-        hours:httpRequestsAdaptiveGroups(limit:100,filter:$f,orderBy:[datetimeHour_ASC]){count dimensions{datetimeHour}}
+        hours:httpRequestsAdaptiveGroups(limit:500,filter:$f,orderBy:[${bucketDim}_ASC]){count dimensions{${bucketDim}}}
         totals:httpRequestsAdaptiveGroups(limit:1,filter:$f){count sum{edgeResponseBytes visits}}
         errTotal:httpRequestsAdaptiveGroups(limit:1,filter:$e){count}
         ${dim("pages", "clientRequestPath", 60)} ${dim("failing", "clientRequestPath", 15, "$e")} ${dim("statuses", "edgeResponseStatus", 20)}
@@ -153,16 +184,17 @@ export const hostDetail = (host: string) =>
     const z = d.viewer.zones[0] as Record<string, G[]>;
     const list = (k: string, field: string): Count[] => (z[k] ?? []).map((g) => ({ key: String(g.dimensions[field]), count: g.count }));
     const totals = (z.totals as unknown as { count: number; sum: { edgeResponseBytes: number; visits: number } }[])[0];
-    const hourMap = new Map((z.hours ?? []).map((g) => [String(g.dimensions.datetimeHour), g.count]));
+    const hourMap = new Map((z.hours ?? []).map((g) => [String(g.dimensions[bucketDim]), g.count]));
     // Pages people open, not the scripts and images the browser fetches for them.
     const isAsset = (p: string) => p.startsWith("/_next/") || p.startsWith("/cdn-cgi/") || /\.(js|css|png|jpe?g|webp|svg|ico|woff2?|txt|map)$/.test(p);
     return {
       host,
+      range,
       requests: totals?.count ?? 0,
       visits: totals?.sum.visits ?? 0,
       bytes: totals?.sum.edgeResponseBytes ?? 0,
       errors: (z.errTotal?.[0]?.count as number | undefined) ?? 0,
-      hours: slots.map((h) => ({ hour: h, value: hourMap.get(h) ?? 0 })),
+      hours: keys.map((h) => ({ hour: h, value: hourMap.get(h) ?? 0 })),
       pages: list("pages", "clientRequestPath").filter((p) => !isAsset(p.key)).slice(0, 12),
       failing: list("failing", "clientRequestPath"),
       statuses: list("statuses", "edgeResponseStatus"),
@@ -172,7 +204,7 @@ export const hostDetail = (host: string) =>
       systems: list("systems", "userAgentOS"),
       cache: list("cache", "cacheStatus"),
     };
-  }, ["console-health-host-v1", host], { revalidate: 60 })();
+  }, ["console-health-host-v2", host, range], { revalidate: 60 })();
 
 // Live check that the app can reach file storage with its own credentials, so a
 // missing or revoked key shows up here before a school notices broken uploads.
