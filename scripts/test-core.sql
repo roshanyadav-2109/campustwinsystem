@@ -112,5 +112,28 @@ begin
   select count(*) into v_n from core.organisation where id = v_uni_org;
   if v_n <> 1 then raise exception 'FAIL 13: university organisation removed with a campus'; end if;
 
+  -- 14. a school whose organisation has audit events can still be deleted; the events stay
+  declare v_s4 bigint; v_o4 uuid; v_ev bigint;
+  begin
+    insert into public.school (name, code, slug, status) values ('Core Test Four', 'CT4', 'core-test-four', 'active')
+      returning id, org_id into v_s4, v_o4;
+    insert into core.audit_event (org_id, action) values (v_o4, 'test.kept') returning id into v_ev;
+    delete from public.school where id = v_s4;
+    select count(*) into v_n from core.audit_event where id = v_ev and org_id is null;
+    if v_n <> 1 then raise exception 'FAIL 14: audit event lost or still linked'; end if;
+  end;
+
+  -- 15. reserved addresses cannot be taken by a school or university
+  begin
+    insert into public.school (name, code, slug, status) values ('Grab HR', 'GHR', 'hrms', 'active');
+    raise exception 'FAIL 15: school took a reserved address';
+  exception when check_violation then null;
+  end;
+  begin
+    insert into public.university (name, slug, status) values ('Grab Finance', 'finance', 'active');
+    raise exception 'FAIL 15: university took a reserved address';
+  exception when check_violation then null;
+  end;
+
   raise exception 'CORE_TEST_PASSED';
 end $$;

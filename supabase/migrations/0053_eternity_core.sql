@@ -162,9 +162,17 @@ create table if not exists core.audit_event (
 );
 create index if not exists audit_event_org_at on core.audit_event (org_id, at desc);
 
+-- Direct edits are refused. When an organisation is deleted, its events stay
+-- and only lose the link (the foreign key's SET NULL runs one trigger level deeper).
 create or replace function core.audit_append_only() returns trigger
 language plpgsql as $$
 begin
+  if tg_op = 'UPDATE' and pg_trigger_depth() > 1
+     and new.org_id is null and old.org_id is not null
+     and (new.id, new.product_code, new.actor_user_id, new.actor_email, new.action, new.entity, new.entity_id, new.data, new.at)
+         is not distinct from (old.id, old.product_code, old.actor_user_id, old.actor_email, old.action, old.entity, old.entity_id, old.data, old.at) then
+    return new;
+  end if;
   raise exception 'core.audit_event is append-only';
 end $$;
 drop trigger if exists audit_event_no_change on core.audit_event;
@@ -176,6 +184,35 @@ alter table public.university add column if not exists org_id uuid references co
 alter table public.school     add column if not exists org_id uuid references core.organisation(id);
 create unique index if not exists university_org_id on public.university (org_id) where org_id is not null;
 create index if not exists school_org_id on public.school (org_id);
+
+-- ------------------------------------------------------------ reserved addresses
+-- Sub-addresses of the base domain used by Eternity itself (products, sign-in,
+-- console, files). No school, campus or university may take one.
+create table if not exists core.reserved_name (
+  name text primary key check (name ~ '^[a-z0-9][a-z0-9-]{0,62}$')
+);
+insert into core.reserved_name (name) values
+  ('www'), ('cdn'), ('console'), ('id'), ('accounts'), ('auth'), ('login'), ('api'), ('status'),
+  ('eternity'), ('app'), ('admin'), ('mail'), ('email'), ('help'), ('support'), ('docs'), ('blog'),
+  ('static'), ('assets'), ('media'), ('files'),
+  ('hr'), ('hrms'), ('finance'), ('books'), ('learn'), ('desk'), ('campustwin')
+on conflict do nothing;
+
+create or replace function core.refuse_reserved_slug() returns trigger
+language plpgsql security definer set search_path = '' as $$
+begin
+  if new.slug is not null and exists (select 1 from core.reserved_name r where r.name = lower(new.slug)) then
+    raise exception 'The address "%" is reserved for Eternity; choose another', new.slug
+      using errcode = 'check_violation';
+  end if;
+  return new;
+end $$;
+drop trigger if exists school_reserved_slug on public.school;
+create trigger school_reserved_slug before insert or update of slug on public.school
+  for each row execute function core.refuse_reserved_slug();
+drop trigger if exists university_reserved_slug on public.university;
+create trigger university_reserved_slug before insert or update of slug on public.university
+  for each row execute function core.refuse_reserved_slug();
 
 -- ------------------------------------------------------------ sync triggers
 -- Universities and standalone schools are customers; campuses belong to their
