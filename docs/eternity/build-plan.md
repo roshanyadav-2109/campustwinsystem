@@ -46,4 +46,4 @@ Lessons fixed in code:
 4. Give the first organisations an HR subscription from the console.
 
 ## Products after HR
-Order: Eternity Finance, Eternity Alumni (directory, events, jobs, donations with 80G receipts, Form 113/114 export, FCRA checks, CSR grants; sold alone or linked to CampusTwin), Learn, Desk.
+Order (owner, 25 Nov): Eternity Finance, then Eternity Alumni, then Eternity Desk; Learn later. Alumni: (directory, events, jobs, donations with 80G receipts, Form 113/114 export, FCRA checks, CSR grants; sold alone or linked to CampusTwin), Learn, Desk.

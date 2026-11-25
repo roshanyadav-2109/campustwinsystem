@@ -111,7 +111,7 @@ create table if not exists hr.leave_request (
   decision_note  text check (decision_note is null or char_length(decision_note) <= 500),
   created_at     timestamptz not null default now(),
   foreign key (org_id, employee_id)   references hr.employee (org_id, id)   on delete cascade,
-  foreign key (org_id, leave_type_id) references hr.leave_type (org_id, id) on delete restrict,
+  foreign key (org_id, leave_type_id) references hr.leave_type (org_id, id),
   check (to_date >= from_date),
   check (not half_day or from_date = to_date),
   check (to_date - from_date <= 366)
@@ -134,7 +134,7 @@ create table if not exists hr.leave_ledger (
   created_by    uuid default auth.uid(),
   created_at    timestamptz not null default now(),
   foreign key (org_id, employee_id)   references hr.employee (org_id, id)   on delete cascade,
-  foreign key (org_id, leave_type_id) references hr.leave_type (org_id, id) on delete restrict,
+  foreign key (org_id, leave_type_id) references hr.leave_type (org_id, id),
   check ((kind in ('leave', 'reversal')) = (request_id is not null))
 );
 create unique index if not exists leave_ledger_one_allocation
@@ -501,5 +501,22 @@ grant execute on function
   hr.decide_leave(bigint, boolean, text), hr.cancel_leave(bigint), hr.allocate_year(uuid, int),
   hr.check_in(uuid), hr.check_out(uuid), hr.seed_defaults(uuid)
   to authenticated, service_role;
+
+-- Links into reference rows (accounts, parties, leave types, requests) are
+-- checked when the change is saved (DEFERRABLE INITIALLY DEFERRED): deleting a
+-- row that is still in use is still refused, but removing a whole organisation
+-- cascades cleanly whatever order Postgres deletes the rows in.
+do $fix$
+declare c record;
+begin
+  for c in select conrelid::regclass as t, conname, pg_get_constraintdef(oid) as def
+           from pg_constraint where connamespace = 'hr'::regnamespace and contype = 'f' and confdeltype = 'r' loop
+    execute format('alter table %s drop constraint %I, add constraint %I %s', c.t, c.conname, c.conname, replace(c.def, ' ON DELETE RESTRICT', ''));
+  end loop;
+  for c in select conrelid::regclass as t, conname
+           from pg_constraint where connamespace = 'hr'::regnamespace and contype = 'f' and confdeltype = 'a' and not condeferrable loop
+    execute format('alter table %s alter constraint %I deferrable initially deferred', c.t, c.conname);
+  end loop;
+end $fix$;
 
 commit;
