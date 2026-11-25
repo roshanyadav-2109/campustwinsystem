@@ -58,10 +58,11 @@ begin
   set local role authenticated;
 
   if hr.is_admin(o1) then raise exception 'FAIL 5: employee is HR admin'; end if;
-  select count(*) into n from hr.employee;
+  -- (the same login may administer other organisations, so count within o1 only)
+  select count(*) into n from hr.employee where org_id = o1;
   if n <> 1 then raise exception 'FAIL 5: employee sees % employee rows', n; end if;
-  select count(*) into n from (select hr.my_orgs()) x;
-  if n <> 1 then raise exception 'FAIL 5: employee has % HR organisations', n; end if;
+  select count(*) into n from (select hr.my_orgs()) x where x.my_orgs = o1;
+  if n <> 1 then raise exception 'FAIL 5: employee cannot open their HR organisation'; end if;
 
   insert into hr.leave_request (org_id, employee_id, leave_type_id, from_date, to_date, reason)
     values (o1, e2, cl, hr.today() + 10, hr.today() + 12, 'Family function') returning id, days into r1, v;
@@ -184,6 +185,22 @@ begin
   delete from core.organisation where id = o1;
   select count(*) into n from hr.leave_ledger where org_id = o1;
   if n <> 0 then raise exception 'FAIL 20: ledger left after organisation removed'; end if;
+
+  -- 21. a platform owner administers HR in every organisation that has HR, and only those
+  declare o4 uuid; ec text;
+  begin
+    insert into core.organisation (name, kind) values ('HR Test Four', 'business') returning id into o4;
+    insert into core.subscription (org_id, product_code, status) values (o4, 'hr', 'active');
+    select email into ec from auth.users where id = uc;
+    insert into public.platform_owner (email) values (lower(ec)) on conflict do nothing;
+    perform set_config('request.jwt.claims', json_build_object('sub', uc, 'role', 'authenticated')::text, true);
+    set local role authenticated;
+    if not hr.is_admin(o4) then raise exception 'FAIL 21: platform owner is not admin of an HR organisation'; end if;
+    if hr.is_admin(o3) then raise exception 'FAIL 21: platform owner is admin where there is no HR'; end if;
+    select count(*) into n from (select hr.my_orgs()) x where x.my_orgs = o4;
+    if n <> 1 then raise exception 'FAIL 21: platform owner cannot open the HR organisation'; end if;
+    reset role;
+  end;
 
   raise exception 'HR_TEST_PASSED';
 end $$;

@@ -12,6 +12,8 @@ const eslintConfig = defineConfig([
     "out/**",
     "build/**",
     "next-env.d.ts",
+    // Each product under apps/ has its own lint setup.
+    "apps/**",
   ]),
 ]);
 

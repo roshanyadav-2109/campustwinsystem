@@ -68,7 +68,8 @@ insert into core.product (code, name, unit, status, sort) values
   ('hr',         'Eternity HR',      'employee',     'planned', 20),
   ('finance',    'Eternity Finance', 'organisation', 'planned', 30),
   ('learn',      'Eternity Learn',   'student',      'planned', 40),
-  ('desk',       'Eternity Desk',    'user',         'planned', 50)
+  ('desk',       'Eternity Desk',    'user',         'planned', 50),
+  ('alumni',     'Eternity Alumni',  'user',         'planned', 35)
 on conflict (code) do nothing;
 
 -- Prices are stored in paise per unit per period, so no rounding ever happens.
@@ -195,7 +196,7 @@ insert into core.reserved_name (name) values
   ('www'), ('cdn'), ('console'), ('id'), ('accounts'), ('auth'), ('login'), ('api'), ('status'),
   ('eternity'), ('app'), ('admin'), ('mail'), ('email'), ('help'), ('support'), ('docs'), ('blog'),
   ('static'), ('assets'), ('media'), ('files'),
-  ('hr'), ('hrms'), ('finance'), ('books'), ('learn'), ('desk'), ('campustwin')
+  ('hr'), ('hrms'), ('finance'), ('books'), ('learn'), ('desk'), ('alumni'), ('campustwin')
 on conflict do nothing;
 
 create or replace function core.refuse_reserved_slug() returns trigger

@@ -3,6 +3,11 @@ name: Deploy ERP to Cloudflare
 on:
   push:
     branches: [main]
+    # Other Eternity products and docs live in this repository too; changes
+    # that touch only them never redeploy CampusTwin.
+    paths-ignore:
+      - 'apps/**'
+      - 'docs/**'
   workflow_dispatch:
 
 concurrency:

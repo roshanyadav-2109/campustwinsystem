@@ -170,10 +170,21 @@ language sql stable security definer set search_path = '' as $$
     where s.org_id = p_org and s.product_code = 'hr' and s.status in ('trial', 'active', 'past_due'))
 $$;
 
+-- The Eternity platform owners (public.platform_owner, matched on the sign-in
+-- email) administer HR in every organisation that has it, for support.
+create or replace function hr.is_platform_owner() returns boolean
+language sql stable security definer set search_path = '' as $$
+  select exists (
+    select 1 from public.platform_owner po
+    join auth.users u on lower(u.email) = lower(po.email)
+    where u.id = auth.uid())
+$$;
+
 create or replace function hr.is_admin(p_org uuid) returns boolean
 language sql stable security definer set search_path = '' as $$
   select hr.subscribed(p_org) and (
-    exists (select 1 from core.membership m
+    hr.is_platform_owner()
+    or exists (select 1 from core.membership m
              where m.org_id = p_org and m.user_id = auth.uid()
                and m.status = 'active' and m.role in ('owner', 'admin'))
     or exists (select 1 from hr.team t where t.org_id = p_org and t.user_id = auth.uid()))
@@ -308,6 +319,7 @@ begin
   end if;
   if r.status <> 'pending' then raise exception 'This request has already been decided'; end if;
   select exists (select 1 from core.membership m where m.org_id = r.org_id and m.user_id = auth.uid() and m.role = 'owner')
+         or hr.is_platform_owner()
     into v_owner;
   if exists (select 1 from hr.employee e where e.id = r.employee_id and e.user_id = auth.uid()) and not v_owner then
     raise exception 'You cannot decide your own leave request';
@@ -484,7 +496,7 @@ grant usage, select on all sequences in schema hr to authenticated, service_role
 revoke update, delete on hr.leave_ledger from authenticated;
 revoke update, delete on hr.leave_request from authenticated;
 grant execute on function
-  hr.subscribed(uuid), hr.is_admin(uuid), hr.my_employee(uuid), hr.my_orgs(), hr.manages(bigint),
+  hr.is_platform_owner(), hr.subscribed(uuid), hr.is_admin(uuid), hr.my_employee(uuid), hr.my_orgs(), hr.manages(bigint),
   hr.can_see_employee(uuid, bigint), hr.today(),
   hr.decide_leave(bigint, boolean, text), hr.cancel_leave(bigint), hr.allocate_year(uuid, int),
   hr.check_in(uuid), hr.check_out(uuid), hr.seed_defaults(uuid)
