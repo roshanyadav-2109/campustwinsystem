@@ -57,3 +57,12 @@ Order (owner, 25 Nov): Eternity Finance, then Eternity Alumni, then Eternity Des
 - Lessons: composite foreign keys need named embeds in PostgREST (`alias:table!constraint(cols)`), otherwise related rows silently come back empty; reference links are DEFERRABLE INITIALLY DEFERRED so organisation removal cascades.
 
 Next: Eternity Alumni, then Eternity Desk.
+
+## Status, 25 Nov 2026 (night)
+
+- **Eternity Alumni** live at https://alumni.campustwin.org (Worker `eternity-alumni`, schema `alum`, migration `0057_alumni.sql`). Self-test `scripts/test-alumni.sql` 17/17; end-to-end 21/21 on the live database (fictional Greenfield). Public join link per institution: `/join/<code>`.
+- 80G receipts follow the Income-tax rules (eligible campaign, registration on file and valid, Indian/NRI donor with PAN, no cash above Rs 2,000); foreign citizens need FCRA. Donor report CSV for the annual statement.
+- Shared Google sign-in also admits verified alumni (login created on first sign-in).
+- Lesson: a fresh `npm install` on Windows can leave a damaged copy that fails the build with "Cannot read properties of null (reading 'useContext')" on `/_global-error`; `rm -rf node_modules && npm ci` fixes it.
+
+Next: Eternity Desk.
