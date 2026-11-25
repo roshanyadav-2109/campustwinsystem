@@ -47,3 +47,13 @@ Lessons fixed in code:
 
 ## Products after HR
 Order (owner, 25 Nov): Eternity Finance, then Eternity Alumni, then Eternity Desk; Learn later. Alumni: (directory, events, jobs, donations with 80G receipts, Form 113/114 export, FCRA checks, CSR grants; sold alone or linked to CampusTwin), Learn, Desk.
+
+## Status, 25 Nov 2026 (evening)
+
+- Live database moved to `uiakimzaixtfcklqlwqz` (see scripts/swap-db.mjs); old project kept as backup.
+- **Eternity HR** live at https://hrms.campustwin.org (Google sign-in on). Sample company: Greenfield (fictional).
+- **Eternity Finance** live at https://finance.campustwin.org. Migration `0055_finance.sql`, self-test `scripts/test-finance.sql` 18/18, end-to-end 16/16 on the live database (Greenfield sample). Invoices, bills, receipts matched to invoices, payments, journals, append-only ledger, CGST/SGST/IGST, numbering per financial year, books lock, trial balance, profit and loss, balance sheet, ledger, GST summary, owner/accountant/viewer access.
+- `0056_login_lookup.sql`: the shared Google sign-in admits anyone given access to an Eternity product.
+- Lessons: composite foreign keys need named embeds in PostgREST (`alias:table!constraint(cols)`), otherwise related rows silently come back empty; reference links are DEFERRABLE INITIALLY DEFERRED so organisation removal cascades.
+
+Next: Eternity Alumni, then Eternity Desk.
