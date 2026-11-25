@@ -53,3 +53,4 @@ next-env.d.ts
 .shot.mjs
 .mint.mjs
 .act.mjs
+swap-db.log

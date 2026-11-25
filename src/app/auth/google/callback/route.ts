@@ -92,7 +92,22 @@ export async function GET(request: NextRequest) {
 
   const admin = createAdminClient();
   const record = await findRecord(admin, email);
-  if (!record) return fail("google_not_registered");
+  if (!record) {
+    // Not on any school's records: an employee in Eternity HR may still sign in
+    // (shop, hospital or school staff kept only in HR). Their HR employee record
+    // holds the email; it gets a login the first time, linked by the database.
+    const hrLogin = await hrEmployeeLogin(email, claims.name);
+    if (!hrLogin) return fail("google_not_registered");
+    const supabase = await createClient();
+    const { data, error } = await supabase.auth.signInWithIdToken({ provider: "google", token: tokens.id_token, nonce: saved.nonce });
+    if (error || data.user?.id !== hrLogin) {
+      await supabase.auth.signOut();
+      return fail("google_failed", `hrsignin ${error?.status ?? ""} ${(error?.message ?? "").slice(0, 80)}`);
+    }
+    const res = NextResponse.redirect(new URL(safeNext(saved.next), returnOrigin(saved, request.nextUrl.origin)));
+    res.cookies.delete(clearOauth);
+    return res;
+  }
 
   const loginId = await loginForRecord(admin, record, email, claims.name);
   if (!loginId) return fail("google_failed");
@@ -199,4 +214,47 @@ async function gatherChildren(admin: Admin, record: SchoolRecord) {
   if (missing.length) {
     await admin.from("guardian_student").insert(missing.map((student_id) => ({ guardian_id: record.id, student_id, is_primary: false, school_id: record.schoolId })));
   }
+}
+
+// Eternity HR: the login for an employee whose email is on an HR employee record
+// in an organisation that has HR. Reuses the login the record is already linked
+// to; otherwise links an existing login with that email, or creates one. Linking
+// a login to the employee also makes it a member of the organisation with HR
+// access (done by the database). Returns the login id, or null.
+async function hrEmployeeLogin(email: string, googleName?: string): Promise<string | null> {
+  const key = process.env.SUPABASE_SERVICE_ROLE_KEY;
+  const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
+  if (!key || !url) return null;
+  const { createClient: createJs } = await import("@supabase/supabase-js");
+  const opts = { auth: { autoRefreshToken: false, persistSession: false } };
+  const hr = createJs(url, key, { ...opts, db: { schema: "hr" } });
+  const core = createJs(url, key, { ...opts, db: { schema: "core" } });
+
+  const { data: emps, error } = await hr.from("employee").select("id, org_id, user_id").eq("email", email).neq("status", "left");
+  if (error || !emps?.length) return null;
+  const { data: subs } = await core.from("subscription").select("org_id")
+    .in("org_id", [...new Set(emps.map((e) => e.org_id as string))])
+    .eq("product_code", "hr").in("status", ["trial", "active", "past_due"]);
+  const live = new Set((subs ?? []).map((s) => s.org_id as string));
+  const mine = emps.filter((e) => live.has(e.org_id as string));
+  if (!mine.length) return null;
+
+  const linked = mine.find((e) => e.user_id)?.user_id as string | undefined;
+  if (linked) return linked;
+
+  // Rewriting the email makes the database link an existing login with it.
+  const ids = mine.map((e) => e.id as number);
+  await hr.from("employee").update({ email }).in("id", ids);
+  const { data: again } = await hr.from("employee").select("user_id").in("id", ids).not("user_id", "is", null).limit(1);
+  if (again?.[0]?.user_id) return again[0].user_id as string;
+
+  const admin = createAdminClient();
+  const { data: created, error: createErr } = await admin.auth.admin.createUser({ email, email_confirm: true, user_metadata: { full_name: googleName ?? email } });
+  if (createErr || !created.user) return null;
+  const { error: linkErr } = await hr.from("employee").update({ user_id: created.user.id }).in("id", ids);
+  if (linkErr) {
+    await admin.auth.admin.deleteUser(created.user.id);
+    return null;
+  }
+  return created.user.id;
 }
