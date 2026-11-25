@@ -1,0 +1,17 @@
+{
+  "$schema": "node_modules/wrangler/config-schema.json",
+  "name": "eternity-finance",
+  "main": ".open-next/worker.js",
+  "compatibility_date": "2025-03-01",
+  "compatibility_flags": ["nodejs_compat"],
+  "workers_dev": true,
+  // A specific route wins over CampusTwin's *.campustwin.org/* wildcard.
+  "routes": [
+    { "pattern": "finance.campustwin.org/*", "zone_name": "campustwin.org" }
+  ],
+  "assets": {
+    "binding": "ASSETS",
+    "directory": ".open-next/assets"
+  },
+  "observability": { "enabled": true }
+}

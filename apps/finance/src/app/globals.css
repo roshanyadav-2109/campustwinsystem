@@ -1,0 +1,33 @@
+@import "tailwindcss";
+
+/* Eternity product tokens: the same graphite ramp as the CampusTwin console, so
+   every Eternity product reads as one family. One link colour; status colours
+   only for status. */
+@theme {
+  --color-cx-bar: #0a0a0a;
+  --color-cx-bg: #f6f6f7;
+  --color-cx-side: #f3f3f4;
+  --color-cx-hover: #e9e9eb;
+  --color-cx-sel: #e2e2e5;
+  --color-cx-card: #ffffff;
+  --color-cx-raised: #f1f1f2;
+  --color-cx-line: #e4e4e7;
+  --color-cx-line-strong: #d4d4d8;
+  --color-cx-text: #18181b;
+  --color-cx-text-2: #52525b;
+  --color-cx-muted: #71717a;
+  --color-cx-faint: #a1a1aa;
+  --color-cx-link: #0b57d0;
+  --color-cx-brand: #c8102e;
+  --color-cx-ok: #16a34a;
+  --color-cx-warn: #d97706;
+  --color-cx-bad: #dc2626;
+
+  --font-sans: var(--font-body), "Segoe UI", system-ui, sans-serif;
+}
+
+html, body { background: var(--color-cx-bg); color: var(--color-cx-text); }
+body { font-family: var(--font-sans); -webkit-font-smoothing: antialiased; }
+:focus-visible { outline: 2px solid var(--color-cx-link); outline-offset: 2px; }
+table { border-collapse: collapse; }
+@media (prefers-reduced-motion: reduce) { * { transition: none !important; animation: none !important; } }

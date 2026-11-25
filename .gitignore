@@ -54,3 +54,6 @@ next-env.d.ts
 .mint.mjs
 .act.mjs
 swap-db.log
+.shot-any.mjs
+.school-login.mjs
+.fin-e2e.mjs

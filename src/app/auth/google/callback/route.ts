@@ -96,7 +96,7 @@ export async function GET(request: NextRequest) {
     // Not on any school's records: an employee in Eternity HR may still sign in
     // (shop, hospital or school staff kept only in HR). Their HR employee record
     // holds the email; it gets a login the first time, linked by the database.
-    const hrLogin = await hrEmployeeLogin(email, claims.name);
+    const hrLogin = (await hrEmployeeLogin(email, claims.name)) ?? (await eternityLogin(email));
     if (!hrLogin) return fail("google_not_registered");
     const supabase = await createClient();
     const { data, error } = await supabase.auth.signInWithIdToken({ provider: "google", token: tokens.id_token, nonce: saved.nonce });
@@ -257,4 +257,16 @@ async function hrEmployeeLogin(email: string, googleName?: string): Promise<stri
     return null;
   }
   return created.user.id;
+}
+
+// Anyone whose login has been given access to an Eternity product (organisation
+// member, Finance or HR team). Decided by the database; returns the login id.
+async function eternityLogin(email: string): Promise<string | null> {
+  const key = process.env.SUPABASE_SERVICE_ROLE_KEY;
+  const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
+  if (!key || !url) return null;
+  const { createClient: createJs } = await import("@supabase/supabase-js");
+  const core = createJs(url, key, { auth: { autoRefreshToken: false, persistSession: false }, db: { schema: "core" } });
+  const { data, error } = await core.rpc("login_for_email", { p_email: email });
+  return error || !data ? null : (data as string);
 }
