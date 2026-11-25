@@ -59,3 +59,4 @@ swap-db.log
 .fin-e2e.mjs
 .alum-e2e.mjs
 .shot-local.mjs
+.desk-e2e.mjs
