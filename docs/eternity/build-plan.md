@@ -66,3 +66,13 @@ Next: Eternity Alumni, then Eternity Desk.
 - Lesson: a fresh `npm install` on Windows can leave a damaged copy that fails the build with "Cannot read properties of null (reading 'useContext')" on `/_global-error`; `rm -rf node_modules && npm ci` fixes it.
 
 Next: Eternity Desk.
+
+## Status, 25 Nov 2026 (late night)
+
+- **Eternity Desk** live at https://desk.campustwin.org (Worker `eternity-desk`, schema `desk`, migration `0058_desk.sql`). Self-test `scripts/test-desk.sql` 14/14; end-to-end 24/24 on the live database (fictional Greenfield), both locally and on the live site.
+- What it does: requests, complaints and formal grievances in one queue; reply and resolve deadlines per priority (set by the desk admin); assignment; internal notes the requester never sees; requests logged by phone or at the counter; help-centre articles; reports for the financial year with grievance-redressal figures (accreditation evidence).
+- People without an account use the organisation's public help page `/help/<code>` (articles plus a request form with a bot trap) and get a private tracking link `/t/<token>` to follow and reply. A reply reopens a resolved request; closed requests take no replies; grievances can never be low priority.
+- Not yet: email or SMS alerts when a request arrives or is answered (no email provider chosen yet); links from CampusTwin, HR and Alumni screens to the help page.
+- Disk note: the C: drive filled up during this build. Product installs and build output were cleared (they come back on the next build), so each product needs `npm ci` before its next deploy.
+
+All four Eternity products planned for this round (HR, Finance, Alumni, Desk) are live.
