@@ -27,3 +27,23 @@ Organisation structure, employee records for all staff, attendance and shifts, l
 1. Eternity domain.
 2. HR product name.
 3. Live database access for applying migrations (a Supabase access token for the live project, or the owner runs the SQL in the dashboard).
+
+## Status, 25 Nov 2026
+
+- `0053_eternity_core.sql` (core) and `0054_hr.sql` (HR) applied on staging. Self-tests: `scripts/test-core.sql` 16/16, `scripts/test-hr.sql` 21/21, `scripts/test-isolation.mjs` 14/14.
+- Eternity HR (`apps/hr`, Worker `eternity-hr`) live as a **preview on staging data** at https://hrms.campustwin.org. End-to-end through the real screens: 10/10. Demo data: `scripts/seed-hr-demo.sql` (staging only).
+- Platform owners (`public.platform_owner`, today officeneuralai@gmail.com) administer HR in every organisation that has HR.
+- Reserved sub-addresses (hrms, finance, alumni, learn, desk, id, console ...) are refused for schools and universities by the database.
+
+Lessons fixed in code:
+- On Workers, a server action that calls `redirect()` hangs; actions return `{ go }` and the browser navigates.
+- Sign-in runs in the browser. Library versions are pinned to what CampusTwin runs in production.
+
+### To take HR live (needs a live database token and the owner's go-ahead)
+1. Apply `0053` and `0054` to live; expose `core,hr` in the live API settings.
+2. Point the HR Worker at the live project (build env and `SUPABASE_SERVICE_ROLE_KEY` secret), set `GOOGLE_CLIENT_ID` and `HR_GOOGLE_SIGNIN=1`, drop `NEXT_PUBLIC_HR_PREVIEW`.
+3. In CampusTwin's Google callback, recognise HR employees by email so HR-only staff can use Google (owners already work).
+4. Give the first organisations an HR subscription from the console.
+
+## Products after HR
+Order: Eternity Finance, Eternity Alumni (directory, events, jobs, donations with 80G receipts, Form 113/114 export, FCRA checks, CSR grants; sold alone or linked to CampusTwin), Learn, Desk.
