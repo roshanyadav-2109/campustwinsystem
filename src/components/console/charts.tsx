@@ -93,7 +93,7 @@ export function HourlyLine({ data, unit = "count", scale = "24h", label, height 
           </defs>
           <CartesianGrid stroke={GRID} vertical={false} />
           <XAxis dataKey="hour" tickFormatter={tickFor(scale)} tick={{ fill: TICK, fontSize: 12 }} tickLine={false} axisLine={false} minTickGap={scale === "5h" ? 40 : 28} dy={6} />
-          <YAxis tickFormatter={(v) => fmtVal(v, unit)} tick={{ fill: TICK, fontSize: 12 }} tickLine={false} axisLine={false} width={unit === "bytes" ? 64 : 56} allowDecimals={false} />
+          <YAxis tickFormatter={(v: number) => (unit === "count" && v >= 1000 ? `${+(v / 1000).toFixed(1)}k` : fmtVal(v, unit))} tick={{ fill: TICK, fontSize: 12 }} tickLine={false} axisLine={false} width={unit === "bytes" ? 64 : 56} allowDecimals={false} />
           <Tooltip content={<HourTip unit={unit} scale={scale} label={label} />} cursor={{ stroke: "#d4d4d8", strokeWidth: 1 }} />
           <Area type={scale === "30d" ? "linear" : "monotone"} dataKey="value" stroke={SERIES} strokeWidth={scale === "7d" ? 1.5 : 2} fill={`url(#${id})`} dot={false} connectNulls={false} activeDot={{ r: 4, fill: SERIES, stroke: "#fff", strokeWidth: 2 }} isAnimationActive={false} />
         </AreaChart>

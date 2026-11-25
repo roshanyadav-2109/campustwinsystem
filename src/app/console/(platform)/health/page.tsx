@@ -123,11 +123,17 @@ export default async function HealthPage({ searchParams }: { searchParams: Promi
   for (const r of rows) nameOfHost.set(r.url, r.name);
   const subOf = (host: string) => { const s = host.endsWith(`.${BASE}`) ? host.slice(0, -(BASE.length + 1)) : null; return s && /^[a-z0-9-]+$/.test(s) ? s : null; };
   const q = range === "24h" ? "" : `?range=${range}`;
-  const hostCols: Col<HostRow>[] = [
+  type Row = HostRow & { stray?: string[] };
+  const hostCols: Col<Row>[] = [
     { key: "h", label: "Address", render: (h) => {
+      if (h.stray) return (
+        <div>
+          <span className="font-medium text-cx-text">Unrecognised addresses</span>
+          <div className="text-[12px] text-cx-muted">{h.stray.length} names that are not a portal, mostly automated scanners: <span className="font-mono">{h.stray.slice(0, 4).map((s) => s.split(".")[0]).join(", ")}{h.stray.length > 4 ? ", ..." : ""}</span></div>
+        </div>
+      );
       const sub = subOf(h.host);
-      const label = nameOfHost.get(h.host) ?? "Not an institution";
-      return <div>{sub ? <Link href={`/console/health/${sub}${q}`} className="font-medium text-cx-link hover:underline">{label}</Link> : <span className="font-medium text-cx-text">{label}</span>}<div className="font-mono text-[12px] text-cx-muted">{h.host}</div></div>;
+      return <div>{sub ? <Link href={`/console/health/${sub}${q}`} className="font-medium text-cx-link hover:underline">{nameOfHost.get(h.host)}</Link> : <span className="font-medium text-cx-text">{nameOfHost.get(h.host)}</span>}<div className="font-mono text-[12px] text-cx-muted">{h.host}</div></div>;
     } },
     { key: "r", label: "Requests", align: "right", render: (h) => n(h.requests) },
     { key: "e", label: "Server errors", align: "right", render: (h) => <span className={h.errors ? "font-medium text-cx-bad" : ""}>{n(h.errors)}</span> },
@@ -220,8 +226,13 @@ export default async function HealthPage({ searchParams }: { searchParams: Promi
   const change = (k: keyof typeof tot, goodWhenDown?: boolean): Change =>
     t.prev && t.prev[k] > 0 ? { pct: (100 * (tot[k] - t.prev[k])) / t.prev[k], vs, goodWhenDown } : null;
   const peak = t.hours.reduce((a, h) => (h.requests > a.requests ? h : a), t.hours[0]);
-  const top = t.hosts[0];
-  const worstHost = [...t.hosts].sort((a, b) => b.errors - a.errors)[0];
+  // Real portals first; every other name (port probes, made-up subdomains) folds into one row.
+  const known = t.hosts.filter((h) => nameOfHost.has(h.host));
+  const stray = t.hosts.filter((h) => !nameOfHost.has(h.host));
+  const hostRows: Row[] = [...known];
+  if (stray.length) hostRows.push({ host: "~stray", requests: stray.reduce((s, h) => s + h.requests, 0), errors: stray.reduce((s, h) => s + h.errors, 0), stray: stray.map((h) => h.host) });
+  const top = known[0];
+  const worstHost = [...known].sort((a, b) => b.errors - a.errors)[0];
   const label = (host: string) => nameOfHost.get(host) ?? host;
   const okPct = tot.requests ? (100 * (tot.requests - tot.errors)) / tot.requests : 100;
   const hasLatency = t.hours.some((h) => h.p99 != null);
@@ -295,7 +306,7 @@ export default async function HealthPage({ searchParams }: { searchParams: Promi
       </div>
 
       <Section title="Traffic by address" desc={`Which portal the load and the errors come from, ${R.long}. Open one for its full breakdown`} flush>
-        <ConsoleTable bare columns={hostCols} rows={t.hosts.slice(0, 15)} rowKey={(h) => h.host} empty="No traffic recorded" />
+        <ConsoleTable bare columns={hostCols} rows={hostRows} rowKey={(h) => h.host} empty="No traffic recorded" />
       </Section>
     </div>
   );
