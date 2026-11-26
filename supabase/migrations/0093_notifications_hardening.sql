@@ -57,7 +57,7 @@ grant all on public.notification_event_channel to service_role;
 alter table public.notification_setting add column if not exists daily_limit int check (daily_limit is null or daily_limit between 0 and 1000000);
 revoke insert, update on public.notification_setting from authenticated;
 grant insert (channel, provider, config, daily_limit, updated_at) on public.notification_setting to authenticated;
-grant update (provider, config, daily_limit, updated_at) on public.notification_setting to authenticated;
+grant update (channel, provider, config, daily_limit, updated_at) on public.notification_setting to authenticated;
 
 create or replace function public.check_notification_setting() returns trigger
 language plpgsql set search_path = '' as $$
