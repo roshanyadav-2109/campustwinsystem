@@ -64,3 +64,4 @@ swap-db.log
 .check-alum-dir.mjs
 .test-admit.mjs
 .test-console-login.mjs
+.test-calendar.mjs

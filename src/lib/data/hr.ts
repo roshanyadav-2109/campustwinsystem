@@ -8,7 +8,7 @@ import { untyped, isMissingTable } from "@/lib/data/schedule";
 
 export type LeaveStatus = "pending" | "approved" | "rejected" | "cancelled";
 
-export type LeaveType = { id: number; code: string; name: string; days_per_year: number; is_paid: boolean };
+export type LeaveType = { id: number; code: string; name: string; days_per_year: number; is_paid: boolean; active: boolean };
 
 export type StaffLeave = {
   id: number;
@@ -140,12 +140,12 @@ export function leaveDaysWithin(l: { from_date: string; to_date: string; days: n
 // The leave types. `missing` = migration 0044 has not been applied yet.
 export async function getLeaveTypes(): Promise<{ missing: true } | { missing: false; types: LeaveType[] }> {
   const db = await untyped();
-  const { data, error } = await db.from("staff_leave_type").select("id, code, name, days_per_year, is_paid").order("id");
+  const { data, error } = await db.from("staff_leave_type").select("id, code, name, days_per_year, is_paid, active").order("id");
   if (error) {
     if (isMissingTable(error) || /staff_leave_type/i.test(error.message ?? "")) return { missing: true };
     throw new Error(error.message);
   }
-  return { missing: false, types: ((data ?? []) as LeaveType[]).map((t) => ({ ...t, days_per_year: n(t.days_per_year) })) };
+  return { missing: false, types: ((data ?? []) as LeaveType[]).map((t) => ({ ...t, days_per_year: n(t.days_per_year), active: t.active !== false })) };
 }
 
 // One staff member's leave for a school year, newest first.

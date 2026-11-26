@@ -14,12 +14,13 @@ import {
   type LeaveStatus, type LeaveType, type Payslip, type StaffRef,
 } from "@/lib/data/hr";
 import { ApplyLeaveForm, CancelLeaveButton, LeaveDecision } from "@/components/hr/leave-ui";
+import { LeaveTypesEditor } from "@/components/hr/leave-types";
 import { SalaryTable, type SalaryRow } from "@/components/hr/salary-ui";
 import { PayrollBar, PayslipPdfButton, type RegisterExport } from "@/components/hr/payroll-ui";
 import { fmtAmount, fmtDate, fmtDays, fmtMoney, fmtRange, LEAVE_STATUS_LABEL, monthLabel, roleLabel } from "@/components/hr/format";
 
 type SP = Promise<Record<string, string | string[] | undefined>>;
-type View = "my" | "payslips" | "requests" | "salary" | "payroll";
+type View = "my" | "payslips" | "requests" | "salary" | "payroll" | "types";
 
 const TITLE = "Staff HR";
 const BASE = "/dashboard/hr";
@@ -58,7 +59,7 @@ export default async function HrPage({ searchParams }: { searchParams: SP }) {
   const isAdmin = session.isAdminScope;
   const isOffice = session.staffRole === "office";
   const wanted = strParam(sp.view);
-  const allowed: View[] = isAdmin ? ["my", "payslips", "requests", "salary", "payroll"] : ["my", "payslips"];
+  const allowed: View[] = isAdmin ? ["my", "payslips", "requests", "salary", "payroll", "types"] : ["my", "payslips"];
   const view: View = allowed.includes(wanted as View) ? (wanted as View) : "my";
 
   const tabs: { view: View; label: string }[] = [
@@ -68,6 +69,7 @@ export default async function HrPage({ searchParams }: { searchParams: SP }) {
       { view: "requests", label: "Leave requests" },
       { view: "salary", label: "Salary setup" },
       { view: "payroll", label: "Payroll" },
+      { view: "types", label: "Leave types" },
     ] as { view: View; label: string }[]) : []),
   ];
 
@@ -77,6 +79,7 @@ export default async function HrPage({ searchParams }: { searchParams: SP }) {
     requests: "Leave asked for by staff, and who is away today.",
     salary: isOffice ? "The monthly salary structure of every staff member." : "The monthly salary structure of every staff member. Only the office can change it.",
     payroll: isOffice ? "Prepare the month's payslips, check them, then finalise." : "The month's payslips as prepared by the office.",
+    types: "The kinds of leave staff can take, and how many days a year each allows.",
   };
 
   return (
@@ -95,6 +98,7 @@ export default async function HrPage({ searchParams }: { searchParams: SP }) {
       {view === "requests" && <Requests staffId={staffId} yearId={year.id} types={types} status={strParam(sp.status)} />}
       {view === "salary" && <SalarySetup canEdit={isOffice} />}
       {view === "payroll" && <Payroll canEdit={isOffice} month={strParam(sp.month)} />}
+      {view === "types" && <LeaveTypesEditor canEdit={isOffice} types={types.map((t) => ({ id: t.id, code: t.code, name: t.name, daysPerYear: t.days_per_year, isPaid: t.is_paid, active: t.active }))} />}
     </div>
   );
 }
@@ -112,7 +116,7 @@ async function MyLeave({ staffId, yearId, types }: { staffId: number; yearId: nu
   return (
     <div>
       <div className="mb-5 grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
-        {types.map((t) => {
+        {types.filter((t) => t.active || taken.has(t.id)).map((t) => {
           const used = round1(taken.get(t.id) ?? 0);
           return (
             <Card key={t.id}>
@@ -172,7 +176,7 @@ async function MyLeave({ staffId, yearId, types }: { staffId: number; yearId: nu
           </CardBody>
         </Card>
         <div>
-          <ApplyLeaveForm types={types.map((t) => ({ id: t.id, name: t.name, code: t.code, isPaid: t.is_paid, remaining: remaining(t) }))} />
+          <ApplyLeaveForm types={types.filter((t) => t.active).map((t) => ({ id: t.id, name: t.name, code: t.code, isPaid: t.is_paid, remaining: remaining(t) }))} />
         </div>
       </div>
     </div>

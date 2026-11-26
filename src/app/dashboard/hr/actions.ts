@@ -61,9 +61,10 @@ export async function applyStaffLeave(input: { typeId: number; fromDate: string;
   if (working === 0) return fail("Those dates are Sundays or school holidays, so no leave is needed.");
   const days = halfDay ? 0.5 : working;
 
-  const { data: typeRow } = await db.from("staff_leave_type").select("id, code, name, days_per_year, is_paid").eq("id", typeId).maybeSingle();
+  const { data: typeRow } = await db.from("staff_leave_type").select("id, code, name, days_per_year, is_paid, active").eq("id", typeId).maybeSingle();
   const type = typeRow as LeaveType | null;
   if (!type) return fail("That leave type was not found.");
+  if ((typeRow as { active?: boolean } | null)?.active === false) return fail(`${type.name} is no longer offered. Choose another leave type.`);
 
   const { data: clash, error: clashErr } = await db.from("staff_leave").select("id")
     .eq("staff_id", session.staffId).in("status", ["pending", "approved"])
@@ -314,6 +315,46 @@ export async function finalisePayroll(month: string): Promise<Result> {
     .eq("id", run.id).eq("status", "draft").select("id");
   if (error) return fail("Payroll could not be finalised. Please try again.");
   if (!data?.length) return fail("This month is already finalised.");
+  revalidatePath(PATH);
+  return { ok: true };
+}
+
+// ---------------------------------------------------------------------------
+// Leave types (office)
+// ---------------------------------------------------------------------------
+
+export type LeaveTypeInput = { id: number | null; code: string; name: string; daysPerYear: number; isPaid: boolean };
+
+export async function saveLeaveType(input: LeaveTypeInput): Promise<Result> {
+  const session = await getSession();
+  if (session?.staffRole !== "office") return fail("Only the school office can change leave types.");
+  const name = text(input?.name, 60);
+  const code = text(input?.code, 8).toUpperCase().replace(/[^A-Z0-9]/g, "");
+  const days = Number(input?.daysPerYear);
+  if (!name) return fail("Give the leave type a name, like Casual leave.");
+  if (!code) return fail("Give it a short code, like CL.");
+  if (!Number.isFinite(days) || days < 0 || days > 366) return fail("Days per year should be a number from 0 to 366.");
+  const row = { name, code, days_per_year: Math.round(days * 2) / 2, is_paid: input?.isPaid !== false };
+  const db = await untyped();
+  const { data: clash } = await db.from("staff_leave_type").select("id").eq("code", code);
+  if ((clash ?? []).some((c: { id: number }) => c.id !== input?.id)) return fail(`The code ${code} is already used by another leave type.`);
+  const res = input?.id
+    ? await db.from("staff_leave_type").update(row).eq("id", input.id).select("id")
+    : await db.from("staff_leave_type").insert(row).select("id");
+  if (res.error || !res.data?.length) return fail("The leave type could not be saved. Please try again.");
+  revalidatePath(PATH);
+  return { ok: true };
+}
+
+// Switched-off types stay on past requests but can no longer be applied for.
+export async function setLeaveTypeActive(id: number, active: boolean): Promise<Result> {
+  const session = await getSession();
+  if (session?.staffRole !== "office") return fail("Only the school office can change leave types.");
+  const typeId = posInt(id);
+  if (!typeId) return fail("That leave type was not found.");
+  const db = await untyped();
+  const { data, error } = await db.from("staff_leave_type").update({ active: active === true }).eq("id", typeId).select("id");
+  if (error || !data?.length) return fail("This could not be saved. Please try again.");
   revalidatePath(PATH);
   return { ok: true };
 }
