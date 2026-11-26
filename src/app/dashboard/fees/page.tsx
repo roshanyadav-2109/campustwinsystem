@@ -10,12 +10,13 @@ import { Field, Input, Select } from "@/components/ui/field";
 import { getStaffScope } from "@/lib/data/scope";
 import { getMyChildren } from "@/lib/data/analytics";
 import {
-  FeesNotReady, getConcessionTypes, getDues, getFeeHeads, getFeeOverview, getFeeStructure, getInstalments, getLateRule, getRecentPayments,
+  FeesNotReady, getConcessionTypes, getDues, getFeeLetters, getFeeHeads, getFeeOverview, getFeeStructure, getInstalments, getLateRule, getRecentPayments,
   getStudentBrief, getStudentConcessions, getStudentLedger, searchStudents,
 } from "@/lib/data/fees";
 import { ConcessionTypesManager, HeadOptions, InstalmentPlanner, InstalmentRaise, LateFeeCard, StudentConcessions } from "@/components/fees/fees-plan";
 import { createClient } from "@/lib/supabase/server";
 import { FeeHeadsManager, FeeStructureGrid, InvoiceActions, RaiseFeesForm } from "@/components/fees/fees-office";
+import { FamilyFeeLetters, OfficeFeeLetters } from "@/components/fees/fees-letters";
 import { DemandNoticesButton, DuesExcelButton, TuitionCertificateButton } from "@/components/fees/fees-downloads";
 import { InvoiceTable, OverviewView, PaymentTable, SegLinks, Stat } from "@/components/fees/fees-views";
 import { TD, TD_R, TH, TH_R, fmtDay, fmtMoney } from "@/components/fees/shared";
@@ -31,6 +32,7 @@ const VIEWS = [
   { key: "collect", label: "Collect", officeOnly: true },
   { key: "dues", label: "Dues list", officeOnly: false },
   { key: "receipts", label: "Receipts", officeOnly: false },
+  { key: "letters", label: "Fee letters", officeOnly: true },
 ] as const;
 type ViewKey = (typeof VIEWS)[number]["key"];
 
@@ -75,7 +77,10 @@ async function ownerScreen(session: Session, sp: SP) {
   const student = studentId && year ? await getStudentBrief(studentId, year.id) : null;
   if (!student) return (<div><PageHeader title="Fees" /><EmptyState title="Nothing to show yet" /></div>);
 
-  const { invoices, payments } = await getStudentLedger(student, { includeCancelled: false });
+  const [{ invoices, payments }, letters] = await Promise.all([
+    getStudentLedger(student, { includeCancelled: false }),
+    getFeeLetters({ studentId: student.id, limit: 20 }),
+  ]);
   const totalDue = invoices.reduce((n, i) => n + i.balance, 0);
   const overdue = invoices.filter((i) => i.overdue);
   const nextDue = invoices.filter((i) => i.balance > 0).map((i) => i.dueDate).sort()[0];
@@ -108,6 +113,7 @@ async function ownerScreen(session: Session, sp: SP) {
           <CardHeader title="Payment history" />
           <CardBody><PaymentTable payments={payments} empty="No payments have been recorded yet." /></CardBody>
         </Card>
+        <FamilyFeeLetters studentId={student.id} letters={letters} />
       </div>
     </div>
   );
@@ -123,7 +129,8 @@ async function adminScreen(session: Session, sp: SP) {
   const view: ViewKey = views.find((v) => v.key === asked)?.key ?? "overview";
 
   const [year, scope] = await Promise.all([getCurrentYear(), getStaffScope()]);
-  const tabs = <SegLinks label="Fees sections" items={views.map((v) => ({ href: `${BASE}?view=${v.key}`, label: v.label, active: v.key === view }))} />;
+  const waitingLetters = isOffice ? (await getFeeLetters({ limit: 200 })).filter((l) => l.status === "pending").length : 0;
+  const tabs = <SegLinks label="Fees sections" items={views.map((v) => ({ href: `${BASE}?view=${v.key}`, label: v.key === "letters" && waitingLetters ? `${v.label} (${waitingLetters})` : v.label, active: v.key === view }))} />;
   const frame = (body: React.ReactNode, actions?: React.ReactNode) => (
     <div>
       <PageHeader title="Fees" description={isOffice ? undefined : "View only. Fee records are kept by the school office."} actions={actions} />
@@ -321,6 +328,8 @@ async function adminScreen(session: Session, sp: SP) {
       </div>,
     );
   }
+
+  if (view === "letters") return frame(<OfficeFeeLetters letters={await getFeeLetters({ limit: 200 })} />);
 
   // Receipts
   const payments = await getRecentPayments(200);

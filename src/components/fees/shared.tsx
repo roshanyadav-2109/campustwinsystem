@@ -3,15 +3,34 @@
 import type { PdfDoc } from "@/lib/pdf";
 import type { Status } from "@/components/ui/status";
 
-export type FeeMode = "cash" | "upi" | "card" | "bank" | "cheque";
+export type FeeMode = "cash" | "upi" | "card" | "bank" | "cheque" | "loan";
 export type InvoiceStatus = "due" | "part" | "paid" | "cancelled";
 
-export const FEE_MODES: FeeMode[] = ["cash", "upi", "card", "bank", "cheque"];
+export const FEE_MODES: FeeMode[] = ["cash", "upi", "card", "bank", "cheque", "loan"];
 export const MODE_LABEL: Record<FeeMode, string> = {
-  cash: "Cash", upi: "UPI", card: "Card", bank: "Bank transfer", cheque: "Cheque",
+  cash: "Cash", upi: "UPI", card: "Card", bank: "Bank transfer", cheque: "Cheque", loan: "Education loan",
 };
 
 export type FeeHead = { id: number; name: string; is_active: boolean; charge: "split" | "once"; is_tuition: boolean };
+export type FeeLetterContent = {
+  student: { name: string; admissionNo: string; dob: string | null; classLabel: string };
+  parents: string[];
+  year: { name: string; start: string; end: string };
+  heads: { name: string; amount: number; tuition: boolean }[];
+  transport: { label: string; amount: number } | null;
+  concessions: { name: string; amount: number }[];
+  total: number; paid: number; balance: number;
+  instalments: { name: string; dueDate: string; amount: number }[];
+};
+export type FeeLetterPurpose = "education_loan" | "visa" | "scholarship" | "employer" | "other";
+export const PURPOSE_LABEL: Record<FeeLetterPurpose, string> = {
+  education_loan: "Education loan", visa: "Visa or passport", scholarship: "Scholarship", employer: "Employer reimbursement", other: "Something else",
+};
+export type FeeLetterRequest = {
+  id: number; studentId: number; studentName: string; classLabel: string; purpose: FeeLetterPurpose; addressedTo: string | null; note: string | null;
+  requestedName: string | null; status: "pending" | "issued" | "declined"; officeNote: string | null; letterNo: string | null;
+  content: FeeLetterContent | null; createdAt: string; decidedAt: string | null;
+};
 export type LateRule = { enabled: boolean; grace_days: number; kind: "once" | "per_week" | "per_month"; amount: number; max_amount: number | null; applies_from: string | null };
 export type Instalment = { id: number; seq: number; name: string; due_date: string; share_pct: number; raised: number };
 export type ConcessionType = { id: number; name: string; kind: "percent" | "amount"; value: number; head_ids: number[] | null; auto_rule: "sibling" | null; active: boolean };
@@ -155,3 +174,28 @@ export const TH = "pb-2 pr-3 text-left text-[12px] font-semibold text-muted";
 export const TH_R = "pb-2 pl-3 text-right text-[12px] font-semibold text-muted";
 export const TD = "py-2 pr-3 text-ink-700";
 export const TD_R = "py-2 pl-3 text-right tabular text-ink-900";
+
+// A fee letter as a printable document (letterhead added by the PDF writer).
+export function feeLetterPdf(r: { letterNo: string; issuedOn: string; purpose: FeeLetterPurpose; addressedTo: string | null; content: FeeLetterContent }): PdfDoc {
+  const c = r.content;
+  const rows: [string, string][] = c.heads.map((h) => [h.name, pdfMoney(h.amount)]);
+  if (c.transport) rows.push([c.transport.label, pdfMoney(c.transport.amount)]);
+  for (const k of c.concessions) rows.push([`Less: ${k.name}`, `- ${pdfMoney(k.amount)}`]);
+  rows.push(["Total fees for the year", pdfMoney(c.total)]);
+  const purpose = r.purpose === "education_loan" ? "an education loan" : r.purpose === "visa" ? "a visa or passport application" : r.purpose === "scholarship" ? "a scholarship application" : r.purpose === "employer" ? "reimbursement by the employer" : "the purpose stated by the parent";
+  const span = c.year.start && c.year.end ? ` (${fmtDay(c.year.start)} to ${fmtDay(c.year.end)})` : "";
+  return {
+    filename: `Fee letter ${r.letterNo} ${c.student.name}`,
+    title: "Fee letter",
+    meta: [`Letter no. ${r.letterNo}`, `Date: ${fmtDay(r.issuedOn)}`],
+    blocks: [
+      ...(r.addressedTo ? [{ kind: "text" as const, lines: ["To,", "The Manager,", r.addressedTo] }] : [{ kind: "text" as const, lines: ["To whom it may concern"] }]),
+      { kind: "text", lines: [`This is to certify that ${c.student.name}${c.parents.length ? `, child of ${c.parents.join(" and ")},` : ""} is a student of class ${c.student.classLabel} in the academic year ${c.year.name}${span}. The fees for the year are as follows. This letter is issued at the parent's request for ${purpose}.`] },
+      { kind: "facts", items: [["Student", c.student.name], ["Admission no.", c.student.admissionNo], ["Class", c.student.classLabel], ...(c.student.dob ? [["Date of birth", fmtDay(c.student.dob)] as [string, string]] : [])] },
+      { kind: "table", heading: `Fees for ${c.year.name}`, headers: ["Fee", "Amount"], right: [1], rows },
+      ...(c.instalments.length ? [{ kind: "table" as const, heading: "When the fees are due", headers: ["Instalment", "Due date", "Amount"], right: [2], rows: c.instalments.map((i) => [i.name, fmtDay(i.dueDate), pdfMoney(i.amount)]) }] : []),
+      { kind: "facts", heading: "Paid so far", items: [["Paid this year", pdfMoney(c.paid)], ["Still to pay", pdfMoney(c.balance)]] },
+      { kind: "text", lines: ["Payments may be made to the school's account. Please quote the student's admission number with every payment.", "", "Principal / Accounts office"] },
+    ],
+  };
+}

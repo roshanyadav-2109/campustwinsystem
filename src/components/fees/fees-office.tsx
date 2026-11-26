@@ -286,7 +286,7 @@ function PaymentDialog({ invoice, refund, onClose }: { invoice: InvoiceView; ref
   const [pending, start] = useTransition();
 
   const value = Number(amount);
-  const valid = amount.trim() !== "" && Number.isFinite(value) && value > 0 && value <= limit && !!paidOn;
+  const valid = amount.trim() !== "" && Number.isFinite(value) && value > 0 && value <= limit && !!paidOn && (mode !== "loan" || !!reference.trim());
 
   function submit() {
     setError(null);
@@ -323,7 +323,7 @@ function PaymentDialog({ invoice, refund, onClose }: { invoice: InvoiceView; ref
                 {FEE_MODES.map((m) => (<option key={m} value={m}>{MODE_LABEL[m]}</option>))}
               </Select>
             </Field>
-            <Field label="Reference" hint="UPI, cheque or bank reference, if any">
+            <Field label={mode === "loan" ? "Lender and loan number" : "Reference"} hint={mode === "loan" ? "For example, SBI 12345678" : "UPI, cheque or bank reference, if any"}>
               <Input value={reference} maxLength={80} onChange={(e) => setReference(e.target.value)} />
             </Field>
           </div>

@@ -3,7 +3,7 @@ import { untyped, getNames } from "@/lib/data/schedule";
 import type { SectionOpt } from "@/lib/data/scope";
 import {
   FEE_MODES, fmtMoney, round2, todayIST,
-  type ConcessionType, type DueRow, type FeeHead, type Instalment, type LateRule, type StudentConcession, type FeeLine, type FeeMode, type FeeOverview, type InvoiceStatus,
+  type ConcessionType, type DueRow, type FeeHead, type FeeLetterContent, type FeeLetterPurpose, type FeeLetterRequest, type Instalment, type LateRule, type StudentConcession, type FeeLine, type FeeMode, type FeeOverview, type InvoiceStatus,
   type InvoiceView, type PaymentView, type StructureRow, type StudentBrief,
 } from "@/components/fees/shared";
 
@@ -358,4 +358,30 @@ export async function getDues(yearId: number, sectionIds: number[] | null): Prom
       items: a.items.sort((x, y) => x.dueDate.localeCompare(y.dueDate)),
     };
   }).sort((x, y) => x.classLabel.localeCompare(y.classLabel, undefined, { numeric: true }) || x.name.localeCompare(y.name));
+}
+
+type LetterRow = {
+  id: number; student_id: number; purpose: FeeLetterPurpose; addressed_to: string | null; note: string | null; requested_name: string | null;
+  status: FeeLetterRequest["status"]; office_note: string | null; letter_no: string | null; content: FeeLetterContent | null; created_at: string; decided_at: string | null;
+  student: { full_name: string } | null;
+};
+// Fee letter requests: the office sees the school's; a family sees its own (row rules).
+export async function getFeeLetters(opts: { studentId?: number; limit?: number } = {}): Promise<FeeLetterRequest[]> {
+  const db = await untyped();
+  let q = db.from("fee_letter_request").select("id, student_id, purpose, addressed_to, note, requested_name, status, office_note, letter_no, content, created_at, decided_at, student(full_name)")
+    .order("created_at", { ascending: false }).limit(opts.limit ?? 200);
+  if (opts.studentId) q = q.eq("student_id", opts.studentId);
+  const { data, error } = await q;
+  check(error);
+  const rows = (data ?? []) as unknown as LetterRow[];
+  const { data: en } = rows.length
+    ? await db.from("student_enrollment").select("student_id, section(name, class(name))").in("student_id", [...new Set(rows.map((r) => r.student_id))]).neq("status", "transferred")
+    : { data: [] };
+  const cls = new Map(((en ?? []) as unknown as { student_id: number; section: { name: string; class: { name: string } | null } | null }[])
+    .map((e) => [e.student_id, e.section ? `${e.section.class?.name ?? ""}-${e.section.name}` : ""]));
+  return rows.map((r) => ({
+    id: r.id, studentId: r.student_id, studentName: r.student?.full_name ?? "Student", classLabel: cls.get(r.student_id) ?? "",
+    purpose: r.purpose, addressedTo: r.addressed_to, note: r.note, requestedName: r.requested_name, status: r.status,
+    officeNote: r.office_note, letterNo: r.letter_no, content: r.content, createdAt: r.created_at, decidedAt: r.decided_at,
+  }));
 }

@@ -4,6 +4,7 @@ import { createClient } from "@/lib/supabase/server";
 import { getSession, getCurrentYear } from "@/lib/session";
 import { untyped } from "@/lib/data/schedule";
 import { fetchAll, inChunks } from "@/lib/data/fees";
+import { buildFeeLetter } from "@/lib/data/fee-letter";
 import { FEE_MODES, fmtMoney, round2, statusOf, todayIST, type FeeMode } from "@/components/fees/shared";
 
 // Every write on the Fees page. Only the office may change fee records; the
@@ -195,6 +196,7 @@ export async function recordPayment(input: {
   const amount = money(input.amount);
   if (amount === null) return fail("Enter an amount greater than zero.");
   if (!FEE_MODES.includes(input.mode as FeeMode)) return fail("Choose how the money was paid.");
+  if (input.mode === "loan" && !text(input.reference, 80)) return fail("Enter the lender and the loan number.");
   if (!isDate(input.paidOn)) return fail("Choose the date.");
   if (input.paidOn > todayIST()) return fail("The date cannot be in the future.");
   const isRefund = input.isRefund === true;
@@ -471,4 +473,60 @@ export async function getTuitionCertificate(input: { studentId: number; fyStartY
     fy: `${input.fyStartYear}-${String((input.fyStartYear + 1) % 100).padStart(2, "0")}`,
     paid: Number(t?.paid ?? 0), tuition: Number(t?.tuition ?? 0),
   };
+}
+
+// ---------------------------------------------------------------------------
+// Fee letters: the family asks, the office issues or declines
+// ---------------------------------------------------------------------------
+const PURPOSES = ["education_loan", "visa", "scholarship", "employer", "other"];
+
+export async function requestFeeLetter(input: { studentId: number; purpose: string; addressedTo?: string; note?: string }) {
+  const session = await getSession();
+  if (!session || (session.role !== "guardian" && session.role !== "student")) return fail("Fee letters are asked for by parents from their fees page.");
+  const year = await getCurrentYear();
+  if (!year) return fail("No academic year is set as current.");
+  if (!isId(input?.studentId) || !PURPOSES.includes(input.purpose)) return fail("Choose what the letter is for.");
+  const addressedTo = text(input.addressedTo, 120) || null;
+  if (input.purpose === "education_loan" && !addressedTo) return fail("Enter the name of the bank or loan company.");
+  const db = await untyped();
+  const { error } = await db.from("fee_letter_request").insert({ student_id: input.studentId, academic_year_id: year.id, purpose: input.purpose, addressed_to: addressedTo, note: text(input.note, 500) || null });
+  if (error) return fail(error.code === "23505" ? "A request for this child is already with the school office." : TRY_AGAIN);
+  done();
+  return { ok: true as const };
+}
+
+export async function previewFeeLetter(id: number) {
+  if (!(await office())) return fail(NOT_ALLOWED);
+  if (!isId(id)) return fail(TRY_AGAIN);
+  const db = await untyped();
+  const { data } = await db.from("fee_letter_request").select("student_id, academic_year_id, status").eq("id", id).maybeSingle();
+  const r = data as { student_id: number; academic_year_id: number; status: string } | null;
+  if (!r) return fail("That request could not be found.");
+  const content = await buildFeeLetter(r.student_id, r.academic_year_id);
+  if (!content) return fail("This student is not enrolled in the year asked for.");
+  return { ok: true as const, content };
+}
+
+export async function decideFeeLetter(input: { id: number; issue: boolean; officeNote?: string }) {
+  const session = await office();
+  if (!session) return fail(NOT_ALLOWED);
+  if (!isId(input?.id)) return fail(TRY_AGAIN);
+  const officeNote = text(input.officeNote, 500) || null;
+  if (!input.issue && !officeNote) return fail("Say why, so the parent knows what to do.");
+  const db = await untyped();
+  const { data } = await db.from("fee_letter_request").select("student_id, academic_year_id, status").eq("id", input.id).maybeSingle();
+  const r = data as { student_id: number; academic_year_id: number; status: string } | null;
+  if (!r) return fail("That request could not be found.");
+  if (r.status !== "pending") return fail("This request has already been dealt with.");
+  const patch: Record<string, unknown> = { status: input.issue ? "issued" : "declined", office_note: officeNote, decided_by: session.staffId };
+  if (input.issue) {
+    const content = await buildFeeLetter(r.student_id, r.academic_year_id);
+    if (!content) return fail("This student is not enrolled in the year asked for.");
+    if (!content.heads.length) return fail("Set this class's fees in Fee setup before issuing a letter.");
+    patch.content = content;
+  }
+  const { error } = await db.from("fee_letter_request").update(patch).eq("id", input.id).eq("status", "pending");
+  if (error) return fail(TRY_AGAIN);
+  done();
+  return { ok: true as const };
 }
