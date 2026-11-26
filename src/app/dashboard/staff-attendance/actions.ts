@@ -27,11 +27,11 @@ export async function saveStaffAttendance(date: string, marks: StaffMark[]): Pro
   return { ok: true, message: `Saved for ${rows.length} staff.` };
 }
 
-export async function scanCard(token: string): Promise<{ ok: boolean; message: string; student: string | null; cls: string | null; status: string | null }> {
+export async function scanCard(token: string): Promise<{ ok: boolean; message: string; student: string | null; cls: string | null; status: string | null; photo?: string | null }> {
   const supabase = await createClient();
   const { data, error } = await supabase.rpc("scan_student_card" as never, { p_token: token.slice(0, 300) } as never);
   if (error) return { ok: false, message: error.message.includes("Only the office") ? "You cannot scan cards." : "Could not read the card.", student: null, cls: null, status: null };
-  const r = ((data ?? []) as unknown as { ok: boolean; message: string; student_name: string | null; class_label: string | null; status: string | null }[])[0];
+  const r = ((data ?? []) as unknown as { ok: boolean; message: string; student_name: string | null; class_label: string | null; status: string | null; photo: string | null }[])[0];
   revalidatePath("/dashboard/attendance");
-  return r ? { ok: r.ok, message: r.message, student: r.student_name, cls: r.class_label, status: r.status } : { ok: false, message: "Could not read the card.", student: null, cls: null, status: null };
+  return r ? { ok: r.ok, message: r.message, student: r.student_name, cls: r.class_label, status: r.status, photo: r.photo } : { ok: false, message: "Could not read the card.", student: null, cls: null, status: null };
 }

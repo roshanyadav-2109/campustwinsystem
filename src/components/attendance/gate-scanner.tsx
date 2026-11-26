@@ -5,7 +5,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/field";
 import { scanCard } from "@/app/dashboard/staff-attendance/actions";
 
-type Hit = { at: string; ok: boolean; message: string; student: string | null; cls: string | null };
+type Hit = { at: string; ok: boolean; message: string; student: string | null; cls: string | null; photo?: string | null };
 type Detector = { detect: (s: CanvasImageSource) => Promise<{ rawValue: string }[]> };
 
 // Uses the phone's camera with the browser's own QR reader (Chrome on Android
@@ -27,7 +27,7 @@ export function GateScanner() {
     last.current = { code, at: now };
     start(async () => {
       const r = await scanCard(code);
-      setHits((h) => [{ at: new Date().toLocaleTimeString("en-IN", { hour: "2-digit", minute: "2-digit", second: "2-digit" }), ok: r.ok, message: r.message, student: r.student, cls: r.cls }, ...h].slice(0, 50));
+      setHits((h) => [{ at: new Date().toLocaleTimeString("en-IN", { hour: "2-digit", minute: "2-digit", second: "2-digit" }), ok: r.ok, message: r.message, student: r.student, cls: r.cls, photo: r.photo }, ...h].slice(0, 50));
       if (typeof navigator !== "undefined" && "vibrate" in navigator) navigator.vibrate(r.ok ? 60 : [80, 60, 80]);
     });
   };
@@ -73,6 +73,14 @@ export function GateScanner() {
         </CardBody>
       </Card>
       <Card>
+        {hits[0]?.student && (
+          <div className="flex items-center gap-4 border-b border-hair p-4">
+            {/* eslint-disable-next-line @next/next/no-img-element -- the school's own photo */}
+            {hits[0].photo ? <img src={hits[0].photo} alt={`Photo of ${hits[0].student}`} className="h-32 w-24 rounded-md object-cover" /> : <div className="flex h-32 w-24 items-center justify-center rounded-md bg-panel text-[11px] text-ink-500">No photo</div>}
+            <div><p className="text-[18px] font-semibold text-ink-900">{hits[0].student}</p><p className="text-[13px] text-ink-700">{hits[0].cls}</p>
+              <p className="mt-1 text-[12px] text-ink-500">Check the face matches before letting the child in. A photo on a phone screen can be a screenshot.</p></div>
+          </div>
+        )}
         <CardHeader title="Scanned" action={<span className="text-[12px] text-ink-500">{hits.filter((h) => h.ok).length} marked</span>} />
         <CardBody className="p-0">
           {hits.length === 0 ? <p className="px-4 py-3 text-[13px] text-ink-500">Nothing scanned yet.</p> : (

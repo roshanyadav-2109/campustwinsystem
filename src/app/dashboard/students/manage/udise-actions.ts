@@ -22,6 +22,7 @@ export async function udiseRows(sectionId: number | null): Promise<{ ok: true; r
     const page = (data ?? []) as unknown as UdiseRow[];
     rows.push(...page);
     if (page.length < 1000) break;
+    if (from + 1000 >= 20000) return { ok: false, error: "More than 20,000 students: export one section at a time." };
   }
   return { ok: true, rows };
 }

@@ -17,7 +17,8 @@ const STATUS = [
 const ROLE: Record<string, string> = { principal: "Principal", office: "Office", subject_teacher: "Teacher", class_teacher: "Class teacher", transport: "Transport" };
 
 export function StaffRegister({ date, today, rows }: { date: string; today: string; rows: RegisterRow[] }) {
-  const [marks, setMarks] = useState(() => Object.fromEntries(rows.map((r) => [r.staff_id, { status: r.status ?? "", inTime: r.in_time?.slice(0, 5) ?? "", outTime: r.out_time?.slice(0, 5) ?? "", note: r.note ?? "" }])));
+  const initial = Object.fromEntries(rows.map((r) => [r.staff_id, { status: r.status ?? "", inTime: r.in_time?.slice(0, 5) ?? "", outTime: r.out_time?.slice(0, 5) ?? "", note: r.note ?? "" }]));
+  const [marks, setMarks] = useState(initial);
   const [msg, setMsg] = useState<{ ok: boolean; text: string } | null>(null);
   const [pending, start] = useTransition();
   const router = useRouter();
@@ -62,7 +63,9 @@ export function StaffRegister({ date, today, rows }: { date: string; today: stri
         </div>
         <div className="flex flex-wrap items-center gap-3 border-t border-hair px-4 py-2.5">
           <Button disabled={pending} onClick={() => start(async () => {
-            const r = await saveStaffAttendance(date, rows.map((x) => ({ staffId: x.staff_id, ...marks[x.staff_id] })));
+            // only rows changed here (or prefilled and never saved): another person's edits are not overwritten
+            const changed = rows.filter((x) => !x.saved || JSON.stringify(marks[x.staff_id]) !== JSON.stringify(initial[x.staff_id]));
+            const r = await saveStaffAttendance(date, changed.map((x) => ({ staffId: x.staff_id, ...marks[x.staff_id] })));
             setMsg(r.ok ? { ok: true, text: r.message ?? "Saved." } : { ok: false, text: r.error });
             if (r.ok) router.refresh();
           })}>{pending ? "Saving…" : "Save register"}</Button>

@@ -38,7 +38,7 @@ export function UdiseExport({ sections }: { sections: { id: number; label: strin
     <Card>
       <CardHeader title="UDISE+ student data" />
       <CardBody className="space-y-2">
-        <p className="text-[13px] text-ink-700">Download the students in the order the UDISE+ portal asks, with a list of details still missing. Aadhaar appears only as its last four digits.</p>
+        <p className="text-[13px] text-ink-700">Download the students with the fields the UDISE+ portal asks for, and a list of details still missing. Aadhaar appears only as its last four digits; the portal also asks for some details CampusTwin does not hold yet (for example the name as on Aadhaar, minority group, EWS and RTE admission).</p>
         <div className="flex flex-wrap items-center gap-2">
           <Select className="h-9 w-44 text-[13px]" aria-label="Section for UDISE+" value={sectionId} onChange={(e) => setSectionId(e.target.value ? Number(e.target.value) : "")}>
             <option value="">Whole school</option>{sections.map((s) => <option key={s.id} value={s.id}>{s.label}</option>)}</Select>
@@ -52,6 +52,7 @@ export function UdiseExport({ sections }: { sections: { id: number; label: strin
             {summary.missing.length > 0 && (
               <ul className="mt-1 max-h-48 overflow-auto rounded-sm border border-hair text-[12px]">
                 {summary.missing.slice(0, 100).map((m, i) => <li key={i} className="border-b border-hair px-3 py-1 last:border-b-0">{m.name} ({m.cls}): {m.what.join(", ")}</li>)}
+                {summary.missing.length > 100 && <li className="px-3 py-1 text-ink-500">and {summary.missing.length - 100} more (all are in the Excel, sheet Missing details)</li>}
               </ul>
             )}
           </div>

@@ -20,8 +20,8 @@ export async function assign(date: string, slotId: number, staffId: number): Pro
   const s = await admin();
   if (!s || !day(date)) return { ok: false, error: "Only the office or the principal can assign substitutions." };
   const supabase = await createClient();
-  await supabase.from("substitution" as never).delete().eq("on_date", date).eq("slot_id", slotId);
-  const { error } = await supabase.from("substitution" as never).insert({ on_date: date, slot_id: slotId, substitute_staff_id: staffId, created_by: s.staffId } as never);
+  const { error } = await supabase.from("substitution" as never)
+    .upsert({ on_date: date, slot_id: slotId, substitute_staff_id: staffId, created_by: s.staffId } as never, { onConflict: "on_date,slot_id" });
   if (error) return { ok: false, error: error.message.length < 120 ? error.message : "Could not assign." };
   revalidatePath("/dashboard/substitutions");
   return { ok: true, message: "Assigned. The teacher is told." };
