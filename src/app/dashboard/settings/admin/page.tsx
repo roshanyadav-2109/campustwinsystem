@@ -90,7 +90,7 @@ async function Overview({ schoolId }: { schoolId: number }) {
         {stat("Logins", loginRows.length.toLocaleString("en-IN"), `${active30} used in the last 30 days`)}
         {stat("Plan", current?.name ?? me?.plan ?? "—", current && current.price_paise ? `${rupees(current.price_paise)} per student a year` : undefined)}
       </div>
-      <div className="grid items-start gap-5 lg:grid-cols-[1fr_360px]">
+      <div className="grid items-start gap-5 2xl:grid-cols-[1fr_340px]">
         <Card>
           <CardHeader title="What each plan includes" />
           <CardBody className="overflow-x-auto pt-1">
