@@ -56,6 +56,7 @@ const gu: PartialMessages = {
     transportRiders: "બસમાં જતા વિદ્યાર્થીઓ",
     schedule: "સમયપત્રક",
     manage: "સ્કૂલ સંચાલન",
+    schoolAdmin: "શાળા એડમિન",
     details: "વ્યક્તિગત વિગતો",
     fees: "ફી",
     library: "લાઇબ્રેરી",

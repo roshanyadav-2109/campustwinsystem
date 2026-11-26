@@ -68,3 +68,4 @@ swap-db.log
 .test-leave-types.mjs
 .test-transport.mjs
 .test-imports.mjs
+.test-plans.mjs

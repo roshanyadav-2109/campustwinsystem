@@ -56,6 +56,7 @@ const pa: PartialMessages = {
     transportRiders: "ਬੱਸ ਵਾਲੇ ਵਿਦਿਆਰਥੀ",
     schedule: "ਸਮਾਂ-ਸਾਰਣੀ",
     manage: "ਸਕੂਲ ਪ੍ਰਬੰਧ",
+    schoolAdmin: "ਸਕੂਲ ਐਡਮਿਨ",
     details: "ਨਿੱਜੀ ਵੇਰਵੇ",
     fees: "ਫੀਸ",
     library: "ਲਾਇਬ੍ਰੇਰੀ",

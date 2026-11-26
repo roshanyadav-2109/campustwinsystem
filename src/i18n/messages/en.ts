@@ -55,6 +55,7 @@ const en = {
     transportRiders: "Bus Riders",
     schedule: "Schedule",
     manage: "Manage School",
+    schoolAdmin: "School Admin",
     details: "Personal details",
     fees: "Fees",
     library: "Library",

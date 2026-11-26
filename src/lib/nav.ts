@@ -46,6 +46,7 @@ export const NAV: NavItem[] = [
   { href: "/dashboard/allotments", icon: AllotmentIcon, labelKey: "nav.allotments", roles: ["principal", "office"] },
   { href: "/dashboard/promotion", icon: PromotionIcon, labelKey: "nav.promotion", roles: ["office", "principal", "class_teacher"] },
   { href: "/dashboard/manage", icon: ManageIcon, labelKey: "nav.manage", roles: ["office"] },
+  { href: "/dashboard/admin", icon: ReportIcon, labelKey: "nav.schoolAdmin", roles: ["office", "principal"] },
   { href: "/dashboard/details", icon: RoleStudentIcon, labelKey: "nav.details", roles: ["student"] },
 ];
 

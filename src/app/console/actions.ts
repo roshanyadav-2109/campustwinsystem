@@ -245,3 +245,24 @@ export async function grantSchoolLogin(_prev: LoginResult, formData: FormData): 
   revalidatePath(`/console/school/${schoolId}/access`);
   return { ok: true, message: `${name} can now sign in with Google as ${email}.` };
 }
+
+// ------------------------------------------------------------------ upgrade requests
+// Approving moves the school (or, for a campus, its university) to the
+// requested plan; the database then switches the modules.
+export async function decidePlanRequest(formData: FormData) {
+  const admin = await guard();
+  const id = Number(formData.get("id"));
+  const decision = String(formData.get("decision")) === "approve" ? "approved" : "declined";
+  if (!id) return;
+  const { data: req } = await admin.from("plan_request" as never).select("id, school_id, requested_plan, status").eq("id", id).maybeSingle();
+  const r = req as { id: number; school_id: number; requested_plan: string; status: string } | null;
+  if (!r || r.status !== "pending") return;
+  if (decision === "approved") {
+    const { data: s } = await admin.from("school").select("university_id").eq("id", r.school_id).single();
+    if (s?.university_id) await admin.from("university").update({ plan: r.requested_plan }).eq("id", s.university_id);
+    else await admin.from("school").update({ plan: r.requested_plan }).eq("id", r.school_id);
+  }
+  await admin.from("plan_request" as never).update({ status: decision, decided_at: new Date().toISOString() } as never).eq("id", id);
+  refreshBrand();
+  revalidatePath("/console");
+}
