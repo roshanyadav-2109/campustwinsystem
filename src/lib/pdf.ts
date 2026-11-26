@@ -19,7 +19,7 @@ export type PdfBlock =
   /** Label / value pairs shown as two columns (student details, totals). */
   | { kind: "facts"; heading?: string; items: [string, string][] }
   /** A plain table. `right` lists the column indexes to right-align (numbers). */
-  | { kind: "table"; heading?: string; headers: string[]; rows: PdfCell[][]; right?: number[]; widths?: Record<number, number> }
+  | { kind: "table"; heading?: string; headers: string[]; rows: PdfCell[][]; right?: number[]; widths?: Record<number, number>; compact?: boolean }
   /** One table split into groups, each with a shaded heading row (class / section). */
   | { kind: "grouped"; heading?: string; headers: string[]; groups: { label: string; rows: PdfCell[][] }[]; right?: number[]; widths?: Record<number, number> }
   /** Short lines of text (e.g. notices sent). */
@@ -171,7 +171,9 @@ function drawDoc({ doc, autoTable, qr }: Lib, spec: PdfDoc, first: number) {
       for (const i of right) columnStyles[i] = { halign: "right" };
       for (const [i, w] of Object.entries(b.widths ?? {})) columnStyles[Number(i)] = { ...columnStyles[Number(i)], cellWidth: w };
       // Long lists (whole school) use a tighter row so more pupils fit on a page.
-      const compact = b.kind === "grouped";
+      const compact = b.kind === "grouped" || (b.kind === "table" && !!b.compact);
+      // A table whose headings are all empty is drawn without a heading row.
+      const noHead = b.headers.every((h) => !h);
       // Remember which body cells get the low-attendance triangle.
       const low = new Set<string>();
       type BodyRow = (string | { content: string; colSpan: number; styles: Record<string, unknown> })[];
@@ -190,10 +192,10 @@ function drawDoc({ doc, autoTable, qr }: Lib, spec: PdfDoc, first: number) {
       autoTable(doc, {
         ...baseTable, startY: y,
         styles: compact ? { ...baseTable.styles, fontSize: 8.5, cellPadding: 1.1 } : baseTable.styles,
-        head: [b.headers.map(clean)],
+        head: noHead ? undefined : [b.headers.map(clean)],
         body,
         columnStyles,
-        showHead: "everyPage",
+        showHead: noHead ? "never" : "everyPage",
         didParseCell: (d) => { if (d.section === "head" && right.has(d.column.index)) d.cell.styles.halign = "right"; },
         didDrawCell: (d) => {
           if (d.section !== "body" || !low.has(`${d.row.index}:${d.column.index}`)) return;

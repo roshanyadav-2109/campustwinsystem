@@ -29,7 +29,7 @@ export function certificatePdf(c: { number: string; issuedOn: string; token: str
   if (c.cancelled) blocks.push({ kind: "banner", text: "CANCELLED" });
   else if (c.duplicate) blocks.push({ kind: "banner", text: "DUPLICATE" });
   if (c.content.header.length) blocks.push({ kind: "facts", items: c.content.header });
-  if (c.content.rows.length) blocks.push({ kind: "table", headers: ["", ""], rows: c.content.rows.map(([k, v]) => [k, v || "-"]), widths: { 0: 92 } });
+  if (c.content.rows.length) blocks.push({ kind: "table", headers: ["", ""], rows: c.content.rows.map(([k, v]) => [k, v || "-"]), widths: { 0: 98 }, compact: true });
   if (c.content.paragraphs.length) blocks.push({ kind: "text", lines: c.content.paragraphs });
   if (c.content.footnote) blocks.push({ kind: "text", lines: [c.content.footnote] });
   blocks.push({ kind: "signatures", labels: c.content.signatures });
