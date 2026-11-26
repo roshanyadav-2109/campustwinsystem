@@ -456,6 +456,13 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
+      directory: {
+        Args: { p_org: string; p_q?: string; p_batch?: number; p_city?: string; p_limit?: number; p_offset?: number }
+        Returns: {
+          id: number; full_name: string; batch_year: number | null; programme: string | null; company: string | null
+          job_title: string | null; higher_studies: string | null; city: string | null; linkedin_url: string | null; total: number
+        }[]
+      }
       fy: { Args: { d: string }; Returns: string }
       is_staff: { Args: { p_org: string }; Returns: boolean }
       my_member: { Args: { p_org: string }; Returns: number }

@@ -15,13 +15,12 @@ export default async function Directory({ searchParams }: { searchParams: Promis
   const batch = /^\d{4}$/.test(sp.batch ?? "") ? Number(sp.batch) : null;
   const page = Math.max(1, Number(sp.page) || 1);
 
-  let query = db.from("member").select("id, full_name, batch_year, programme, company, job_title, higher_studies, city, linkedin_url", { count: "exact" })
-    .eq("org_id", org.id).eq("status", "verified");
-  if (q) query = query.or(`full_name.ilike.%${q}%,company.ilike.%${q}%,programme.ilike.%${q}%,job_title.ilike.%${q}%`);
-  if (batch) query = query.eq("batch_year", batch);
-  if (city) query = query.ilike("city", `%${city}%`);
-  const { data: rows, count } = await query.order("batch_year", { ascending: false, nullsFirst: false }).order("full_name").range((page - 1) * PAGE, page * PAGE - 1);
-  const total = count ?? 0;
+  // Public fields only: contact details never leave the database for the directory.
+  const { data: rows } = await db.rpc("directory", {
+    p_org: org.id, p_q: q || undefined, p_batch: batch ?? undefined, p_city: city || undefined,
+    p_limit: PAGE, p_offset: (page - 1) * PAGE,
+  });
+  const total = Number(rows?.[0]?.total ?? 0);
   const link = (p: number) => `/directory?${new URLSearchParams({ ...(q && { q }), ...(batch && { batch: String(batch) }), ...(city && { city }), page: String(p) })}`;
 
   return (
