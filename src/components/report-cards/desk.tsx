@@ -165,7 +165,7 @@ export function FamilyCards({ cards }: { cards: { id: number; snapshot: Record<s
               <p className="text-[14px] font-medium text-ink-900">{s.student.name}: {s.term_name}</p>
               <p className="text-[12px] text-ink-500">{[s.class, s.year].filter(Boolean).join(", ")}
                 {s.percent != null && s.scheme.show_percent ? ` · ${fmt(s.percent)}%` : ""}{s.grade && s.scheme.show_grades ? ` · Grade ${s.grade}` : ""}
-                {" · "}published {new Date(c.publishedAt).toLocaleDateString("en-IN", { day: "numeric", month: "short", year: "numeric" })}</p>
+                {" · "}published {c.publishedAt}</p>
             </div>
             <Button size="sm" variant="subtle" disabled={pending} onClick={() => start(async () => { await downloadPdf(reportCardPdf(s, base + c.token)); })}>Download PDF</Button>
           </li>
