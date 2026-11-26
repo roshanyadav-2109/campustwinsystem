@@ -30,6 +30,7 @@ export function AppShell({
   roleLabel,
   modules,
   edition,
+  institutions = [],
   brand,
   university,
   children,
@@ -39,6 +40,8 @@ export function AppShell({
   roleLabel: string;
   modules?: Record<string, boolean>;
   edition: Edition;
+  /** Every institution this person belongs to (more than one = a switcher). */
+  institutions?: { name: string; slug: string; role: string; current: boolean }[];
   brand?: { name: string; place: string | null; logo: string | null; monogram: string | null };
   university?: { name: string; activeCampusName: string | null } | null;
   children: React.ReactNode;
@@ -154,6 +157,21 @@ export function AppShell({
       <div className="mb-2 block text-center text-[11px] text-ink-500">
         Powered by <span className="font-semibold text-ink-700">CampusTwin</span>
       </div>
+      {institutions.length > 1 && (
+        <details className="mb-2 rounded-md border border-hair">
+          <summary className="cursor-pointer list-none px-3 py-2 text-[13px] text-ink-700 hover:bg-panel">Switch institution ({institutions.length})</summary>
+          <ul className="border-t border-hair py-1">
+            {institutions.map((i) => (
+              <li key={`${i.slug}-${i.role}`}>
+                <a href={`https://${i.slug}.${process.env.NEXT_PUBLIC_BASE_DOMAIN || "campustwin.org"}/dashboard`} aria-current={i.current ? "true" : undefined}
+                  className={cn("block px-3 py-1.5 text-[13px] hover:bg-panel", i.current ? "font-semibold text-ink-900" : "text-[#0F6CBD]")}>
+                  {i.name}<span className="block text-[11px] font-normal text-ink-500">{i.role === "staff" ? "Staff" : i.role === "guardian" ? "Parent" : "Student"}{i.current ? " · here now" : ""}</span>
+                </a>
+              </li>
+            ))}
+          </ul>
+        </details>
+      )}
       <button
         onClick={() => { setOpen(false); setMenuOpen(true); }}
         aria-haspopup="dialog"

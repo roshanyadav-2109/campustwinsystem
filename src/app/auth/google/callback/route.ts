@@ -4,6 +4,8 @@ import { createAdminClient } from "@/lib/supabase/admin";
 import { safeNext } from "@/lib/safe-next";
 import { cookieDomainForHost } from "@/lib/supabase/cookie-domain";
 import { isOwnerEmail } from "@/lib/owner";
+import { resolveLogin } from "@/lib/auth/resolve-login";
+import { slugFromHost } from "@/lib/host-slug";
 
 const BASE = process.env.NEXT_PUBLIC_BASE_DOMAIN || "campustwin.org";
 
@@ -22,21 +24,16 @@ function returnOrigin(saved: Saved | null, reqOrigin: string): string {
   return reqOrigin;
 }
 type GoogleClaims = { email?: string; email_verified?: boolean; name?: string; aud?: string };
-type Kind = "staff" | "guardian" | "student";
-type SchoolRecord = { kind: Kind; id: number; name: string; schoolId: number; otherGuardianIds: number[] };
-type Admin = ReturnType<typeof createAdminClient>;
 
-const LINK_COLUMN = { staff: "staff_id", guardian: "guardian_id", student: "student_id" } as const;
 
 // Step 2 of "Continue with Google": Google sends the person back here with a
 // one-time code. We swap it (with our secret) for Google's signed ID token and
 // hand that to Supabase, which checks Google's signature and opens the session.
 //
-// Access follows the email on the school's records, worked out afresh at every
-// sign-in: whichever staff, parent or student record holds this Google email
-// is the account they get. The login for that record is created the first time,
-// re-pointed if the office changed the record's email, and taken off any other
-// record that used to hold the email. No record with this email: no entry.
+// Access follows the email on the institutions' records, worked out afresh at
+// every sign-in: every staff, parent or student record holding this Google
+// email, at any institution, becomes a membership of one login (see
+// src/lib/auth/resolve-login.ts). No record with this email: no entry.
 export async function GET(request: NextRequest) {
   const cookieDomain = cookieDomainForHost(request.headers.get("host"));
   const clearOauth = { name: "g_oauth", path: "/auth/google", ...(cookieDomain ? { domain: cookieDomain } : {}) };
@@ -91,8 +88,11 @@ export async function GET(request: NextRequest) {
   }
 
   const admin = createAdminClient();
-  const record = await findRecord(admin, email);
-  if (!record) {
+  // The institution whose website they started from decides where they open.
+  let startSlug: string | null = null;
+  try { startSlug = slugFromHost(saved.origin ? new URL(saved.origin).hostname : null); } catch { startSlug = null; }
+  const resolved = await resolveLogin(admin, email, startSlug, claims.name);
+  if (!resolved) {
     // Not on any school's records: an employee in Eternity HR may still sign in
     // (shop, hospital or school staff kept only in HR). Their HR employee record
     // holds the email; it gets a login the first time, linked by the database.
@@ -109,9 +109,7 @@ export async function GET(request: NextRequest) {
     return res;
   }
 
-  const loginId = await loginForRecord(admin, record, email, claims.name);
-  if (!loginId) return fail("google_failed");
-  if (record.kind === "guardian") await gatherChildren(admin, record);
+  const loginId = resolved.userId;
 
   // Nobody else may keep this Google account or email, so Supabase links the
   // Google sign-in to exactly this record's login.
@@ -137,82 +135,6 @@ function readClaims(idToken: string): GoogleClaims | null {
     return JSON.parse(Buffer.from(idToken.split(".")[1], "base64url").toString("utf8"));
   } catch {
     return null;
-  }
-}
-
-// The school record holding this email. Staff first, then parent, then student,
-// so a teacher who is also a parent lands on their staff dashboard. A parent
-// whose email is on more than one parent record (one per child, say) gets the
-// one that already has a login, or the earliest.
-async function findRecord(admin: Admin, email: string): Promise<SchoolRecord | null> {
-  const exact = email.replace(/[\\%_]/g, (c) => `\\${c}`);
-  const [{ data: staff }, { data: guardians }, { data: students }] = await Promise.all([
-    admin.from("staff").select("id, full_name, school_id").ilike("email", exact).order("id"),
-    admin.from("guardian").select("id, full_name, school_id").ilike("email", exact).order("id"),
-    admin.from("student").select("id, full_name, school_id").ilike("email", exact).order("id"),
-  ]);
-  if (staff?.length) return { kind: "staff", id: staff[0].id, name: staff[0].full_name, schoolId: staff[0].school_id, otherGuardianIds: [] };
-  if (guardians?.length) {
-    const ids = guardians.map((g) => g.id);
-    const { data: linked } = await admin.from("profile").select("guardian_id").in("guardian_id", ids);
-    const chosen = guardians.find((g) => linked?.some((l) => l.guardian_id === g.id)) ?? guardians[0];
-    return { kind: "guardian", id: chosen.id, name: chosen.full_name, schoolId: chosen.school_id, otherGuardianIds: ids.filter((i) => i !== chosen.id) };
-  }
-  if (students?.length) return { kind: "student", id: students[0].id, name: students[0].full_name, schoolId: students[0].school_id, otherGuardianIds: [] };
-  return null;
-}
-
-// The login (auth user) for this record, with this email on it. Uses the
-// record's existing login when it has one — changing its email if the office
-// has since changed the record's — or creates one. Returns its id, or null.
-async function loginForRecord(admin: Admin, record: SchoolRecord, email: string, googleName?: string): Promise<string | null> {
-  const column = LINK_COLUMN[record.kind];
-  const { data: profile } = await admin.from("profile").select("id").eq(column, record.id).maybeSingle();
-
-  if (profile) {
-    const { data: got } = await admin.auth.admin.getUserById(profile.id);
-    if (got.user && (got.user.email ?? "").toLowerCase() !== email) {
-      await admin.rpc("release_login_email" as never, { p_email: email, p_keep: profile.id } as never);
-      const { error } = await admin.auth.admin.updateUserById(profile.id, { email, email_confirm: true });
-      if (error) return null;
-    }
-    return profile.id;
-  }
-
-  // First sign-in for this record: free the email from any old login, then
-  // create the login and link it to the record.
-  await admin.rpc("release_login_email" as never, { p_email: email, p_keep: "00000000-0000-0000-0000-000000000000" } as never);
-  const name = record.name || googleName || email;
-  const { data: created, error } = await admin.auth.admin.createUser({ email, email_confirm: true, user_metadata: { full_name: name } });
-  if (error || !created.user) return null;
-  const { error: profileErr } = await admin.from("profile").insert({
-    id: created.user.id,
-    role: record.kind,
-    full_name: name,
-    school_id: record.schoolId,
-    staff_id: record.kind === "staff" ? record.id : null,
-    guardian_id: record.kind === "guardian" ? record.id : null,
-    student_id: record.kind === "student" ? record.id : null,
-  });
-  if (profileErr) {
-    await admin.auth.admin.deleteUser(created.user.id);
-    return null;
-  }
-  return created.user.id;
-}
-
-// A parent's email on several parent records (often one per child): link every
-// one of those children to the record they sign in as, so they see them all.
-async function gatherChildren(admin: Admin, record: SchoolRecord) {
-  if (!record.otherGuardianIds.length) return;
-  const [{ data: others }, { data: mine }] = await Promise.all([
-    admin.from("guardian_student").select("student_id").in("guardian_id", record.otherGuardianIds),
-    admin.from("guardian_student").select("student_id").eq("guardian_id", record.id),
-  ]);
-  const have = new Set((mine ?? []).map((l) => l.student_id));
-  const missing = [...new Set((others ?? []).map((l) => l.student_id))].filter((s) => !have.has(s));
-  if (missing.length) {
-    await admin.from("guardian_student").insert(missing.map((student_id) => ({ guardian_id: record.id, student_id, is_primary: false, school_id: record.schoolId })));
   }
 }
 

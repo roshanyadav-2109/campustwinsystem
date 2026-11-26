@@ -1,3 +1,5 @@
+import { headers } from "next/headers";
+import { slugFromHost } from "@/lib/host-slug";
 import { cache } from "react";
 import { editionOf, isHigherEd, type Edition } from "@/core/edition";
 import { createClient } from "@/lib/supabase/server";
@@ -78,6 +80,9 @@ export type SchoolBrand = {
 // data helpers all ask for the session. The identity comes from getClaims(),
 // which verifies the JWT locally against the cached signing key — no auth-server
 // round trip (the proxy has already refreshed the cookie if it had expired).
+// The school, staff, parent and student details read with a login or membership.
+const PROFILE_JOINS = "school:school_id(slug, name, short_name, place, monogram, logo_url, login_image_url, login_video_id, primary_color, modules, status, institution_type, university_id), staff:staff_id(role, email, teacher_allotment(academic_year_id, is_class_teacher)), guardian:guardian_id(email), student:student_id(email)";
+
 export const getSession = cache(async (): Promise<Session | null> => {
   const supabase = await createClient();
   const { data: claimsData } = await supabase.auth.getClaims();
@@ -89,15 +94,38 @@ export const getSession = cache(async (): Promise<Session | null> => {
   // The profile and the current year do not depend on each other, and the year
   // is wanted by nearly every page anyway (getCurrentYear caches it per request),
   // so fetch them together rather than one after the other.
-  const [{ data }, year] = await Promise.all([
+  const [{ data: profileRow }, year] = await Promise.all([
     supabase
       .from("profile")
-      .select("id, role, full_name, locale, school_id, staff_id, guardian_id, student_id, university_id, active_campus_id, school:school_id(slug, name, short_name, place, monogram, logo_url, login_image_url, login_video_id, primary_color, modules, status, institution_type, university_id), staff:staff_id(role, email, teacher_allotment(academic_year_id, is_class_teacher)), guardian:guardian_id(email), student:student_id(email)")
+      .select(`id, role, full_name, locale, school_id, staff_id, guardian_id, student_id, university_id, active_campus_id, ${PROFILE_JOINS}`)
       .eq("id", user.id)
       .single(),
     getCurrentYear(),
   ]);
-  if (!data) return null;
+  if (!profileRow) return null;
+  let data = profileRow;
+
+  // One person may belong to several institutions (0078). On an institution's
+  // own website they act as their membership there: staff before parent before
+  // student. University central admins keep their campus switching instead.
+  const hostSlug = slugFromHost((await headers()).get("host"));
+  const homeSlug = (data.school as { slug?: string } | null)?.slug;
+  if (hostSlug && hostSlug !== "console" && hostSlug !== homeSlug && !data.university_id) {
+    const { data: mems } = await supabase
+      .from("person_membership" as never)
+      .select(`role, school_id, staff_id, guardian_id, student_id, ${PROFILE_JOINS}`)
+      .eq("user_id", user.id);
+    const order: Record<string, number> = { staff: 1, guardian: 2, student: 3 };
+    const here = ((mems ?? []) as unknown as (typeof data & { school: { slug: string } | null })[])
+      .filter((m) => m.school?.slug === hostSlug)
+      .sort((a, b) => (order[a.role as string] ?? 9) - (order[b.role as string] ?? 9))[0];
+    if (here) {
+      data = { ...data, role: here.role, school_id: here.school_id, staff_id: here.staff_id, guardian_id: here.guardian_id, student_id: here.student_id,
+        active_campus_id: null, school: here.school, staff: here.staff, guardian: here.guardian, student: here.student } as typeof data;
+      // Remember it as the last used, so background work follows too.
+      await supabase.rpc("use_membership" as never, { p_school: here.school_id } as never);
+    }
+  }
 
   // Google sign-in follows the email on the school record: once the office
   // changes or removes it, a Google login stops working straight away.

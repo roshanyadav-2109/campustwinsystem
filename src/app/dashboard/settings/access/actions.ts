@@ -186,3 +186,19 @@ export async function parentsOf(studentIds: number[]): Promise<ParentOption[]> {
   }
   return [...byId.values()];
 }
+
+// Who may sign in: when set, only emails at these domains (for example
+// college.edu.in) can sign in to this institution. Empty = any email.
+export async function saveSignInDomains(raw: string): Promise<Result> {
+  const session = await getSession();
+  if (!session?.staffId || session.staffRole !== "office") return { ok: false, error: "Only the office can change who may sign in." };
+  const domains = [...new Set((raw ?? "").split(/[\s,;]+/).map((d) => d.trim().toLowerCase().replace(/^@/, "")).filter(Boolean))];
+  if (domains.length > 10) return { ok: false, error: "Enter at most 10 domains." };
+  const bad = domains.find((d) => !/^[a-z0-9-]+(\.[a-z0-9-]+)+$/.test(d));
+  if (bad) return { ok: false, error: `"${bad}" is not an email domain. Write it like college.edu.in` };
+  const { createAdminClient } = await import("@/lib/supabase/admin");
+  const { error } = await createAdminClient().from("school").update({ allowed_email_domains: domains.length ? domains : null } as never).eq("id", session.schoolId);
+  if (error) return { ok: false, error: "That could not be saved. Please try again." };
+  revalidatePath("/dashboard/settings/access");
+  return { ok: true, message: domains.length ? `Only ${domains.map((d) => `@${d}`).join(", ")} emails can sign in now.` : "Any email on a record can sign in." };
+}

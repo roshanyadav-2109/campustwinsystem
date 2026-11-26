@@ -1,3 +1,5 @@
+import { SignInDomains } from "@/components/manage/access/signin-domains";
+import { getSession } from "@/lib/session";
 import { guardTab } from "@/lib/access";
 import { PageHeader } from "@/components/ui/page-header";
 import { createClient } from "@/lib/supabase/server";
@@ -21,11 +23,11 @@ async function ManageAccessPageBody() {
     supabase.from("staff").select("id, full_name, role, email, phone").order("full_name"),
     supabase.from("guardian").select("id, full_name, relation, email, phone, guardian_student(student:student_id(full_name))").not("email", "is", null).order("full_name"),
     supabase.from("student").select("id, full_name, admission_no, email, phone").not("email", "is", null).order("full_name"),
-    supabase.from("profile").select("staff_id, guardian_id, student_id"),
+    supabase.from("person_membership" as never).select("staff_id, guardian_id, student_id"),
     getStaffScope(),
   ]);
 
-  const logins = loginRes.data ?? [];
+  const logins = (loginRes.data ?? []) as { staff_id: number | null; guardian_id: number | null; student_id: number | null }[];
   const has = (k: "staff_id" | "guardian_id" | "student_id", id: number) => logins.some((p) => p[k] === id);
 
   const rows: AccessRow[] = [
@@ -48,7 +50,15 @@ async function ManageAccessPageBody() {
     .map((s) => ({ id: s.id, name: s.full_name, role: STAFF_LABEL[s.role] ?? s.role }));
   const sections: SectionOption[] = scope.sections.map((s) => ({ id: s.id, label: `${s.class_name}-${s.name}` }));
 
-  return <AccessAdmin rows={rows} staff={staff} sections={sections} />;
+  const session = await getSession();
+  const { data: sch } = await supabase.from("school").select("allowed_email_domains" as never).eq("id", session?.schoolId ?? 0).maybeSingle();
+  const domains = ((sch as { allowed_email_domains: string[] | null } | null)?.allowed_email_domains) ?? [];
+  return (
+    <div className="space-y-5">
+      <AccessAdmin rows={rows} staff={staff} sections={sections} />
+      <SignInDomains domains={domains} higherEd={!!session?.school.higherEd} />
+    </div>
+  );
 }
 
 // Guarded on its own address, so a shared link cannot open it for the wrong role.
