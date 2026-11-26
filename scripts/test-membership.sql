@@ -23,6 +23,8 @@ begin
   if public.current_school_id() <> 12 then raise exception 'FAIL Lakeview header gave %', public.current_school_id(); end if;
   if app.is_office() or app.my_role()::text <> 'guardian' then raise exception 'FAIL role on Lakeview is % office %', app.my_role(), app.is_office(); end if;
   if not app.owns_student(v_kid) then raise exception 'FAIL parent does not own their Lakeview child'; end if;
+  select count(*) into n from public.profile where id = u; if n <> 1 then raise exception 'FAIL own login row hidden on Lakeview'; end if;
+  select count(*) into n from public.profile where id <> u and school_id = 8; if n <> 0 then raise exception 'FAIL Greenfield logins visible on Lakeview'; end if;
   select count(*) into n from public.student where school_id = 8; if n <> 0 then raise exception 'FAIL Greenfield students visible on Lakeview (%)', n; end if;
 
   -- on Greenfield: office again, and no Lakeview children

@@ -1,4 +1,3 @@
-import "server-only";
 import type { createAdminClient } from "@/lib/supabase/admin";
 
 // Who an email is, across every institution on CampusTwin, and the one login
