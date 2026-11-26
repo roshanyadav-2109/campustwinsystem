@@ -4,7 +4,7 @@ import { useRouter } from "next/navigation";
 import { Card, CardBody, CardHeader } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Field, Input, Select } from "@/components/ui/field";
-import { addDepartment, addProgramme, addCourse, removeFromProgramme } from "@/app/dashboard/settings/programmes/actions";
+import { addDepartment, addProgramme, addCourse, removeFromProgramme, setCurrentSemester, addSemester } from "@/app/dashboard/settings/programmes/actions";
 
 export type DeptView = { id: number; code: string; name: string };
 export type ProgrammeView = { id: number; department_id: number | null; code: string; name: string; level: string; regulation: string; years: number; semesters: number; total_credits: number | null;
@@ -116,5 +116,35 @@ export function ProgrammesAdmin({ departments, programmes, canEdit }: { departme
         </Card>
       )}
     </div>
+  );
+}
+
+export type SemesterView = { id: number; kind: string; starts_on: string; ends_on: string; is_current: boolean };
+const dmy = (d: string) => d.split("-").reverse().join("/");
+
+export function Semesters({ semesters, canEdit }: { semesters: SemesterView[]; canEdit: boolean }) {
+  const uid = useId();
+  const [f, setF] = useState({ kind: "even", startsOn: "", endsOn: "" });
+  const { msg, pending, run } = useAct();
+  return (
+    <Card>
+      <CardHeader title="Semesters this year" action={<Msg m={msg} />} />
+      <CardBody className="space-y-2">
+        <ul className="text-[13px]">{semesters.map((s) => (
+          <li key={s.id} className="flex items-center gap-3 py-1">
+            <span className="w-20 font-medium capitalize">{s.kind}</span><span className="tabular text-ink-700">{dmy(s.starts_on)} to {dmy(s.ends_on)}</span>
+            {s.is_current ? <span className="text-up">Current</span> : canEdit && <Button size="sm" variant="ghost" disabled={pending} onClick={() => run(() => setCurrentSemester(s.id))}>Make current</Button>}
+          </li>))}
+        </ul>
+        {canEdit && (
+          <div className="flex flex-wrap items-end gap-2 border-t border-hair pt-2">
+            <Field label="Kind" htmlFor={`${uid}-k`}><Select id={`${uid}-k`} value={f.kind} onChange={(e) => setF({ ...f, kind: e.target.value })}><option value="odd">Odd</option><option value="even">Even</option><option value="summer">Summer</option></Select></Field>
+            <Field label="Starts" htmlFor={`${uid}-s`}><Input id={`${uid}-s`} type="date" value={f.startsOn} onChange={(e) => setF({ ...f, startsOn: e.target.value })} /></Field>
+            <Field label="Ends" htmlFor={`${uid}-e`}><Input id={`${uid}-e`} type="date" value={f.endsOn} onChange={(e) => setF({ ...f, endsOn: e.target.value })} /></Field>
+            <Button size="sm" variant="subtle" disabled={pending} onClick={() => run(() => addSemester(f.kind, f.startsOn, f.endsOn))}>Add semester</Button>
+          </div>
+        )}
+      </CardBody>
+    </Card>
   );
 }

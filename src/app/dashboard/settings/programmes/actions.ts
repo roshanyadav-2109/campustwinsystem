@@ -50,3 +50,26 @@ export async function removeFromProgramme(id: number): Promise<R> {
   if (error) return { ok: false, error: "Could not remove." };
   revalidatePath(PATH); return { ok: true, message: "Removed." };
 }
+
+// The current semester decides registration, the register and the timetable.
+export async function setCurrentSemester(id: number): Promise<R> {
+  if (!(await office())) return { ok: false, error: "Only the office can change the semester." };
+  const supabase = await createClient();
+  const { error: e1 } = await supabase.from("semester" as never).update({ is_current: false } as never).eq("is_current", true);
+  const { error } = e1 ? { error: e1 } : await supabase.from("semester" as never).update({ is_current: true } as never).eq("id", id);
+  if (error) return { ok: false, error: "Could not change the semester." };
+  revalidatePath(PATH); revalidatePath("/dashboard/courses");
+  return { ok: true, message: "Current semester changed." };
+}
+
+export async function addSemester(kind: string, startsOn: string, endsOn: string): Promise<R> {
+  if (!(await office())) return { ok: false, error: "Only the office can change the semester." };
+  if (!["odd", "even", "summer"].includes(kind) || !/^\d{4}-\d{2}-\d{2}$/.test(startsOn) || !/^\d{4}-\d{2}-\d{2}$/.test(endsOn) || endsOn <= startsOn) return { ok: false, error: "Give the kind and both dates." };
+  const { getCurrentYear } = await import("@/lib/session");
+  const year = await getCurrentYear();
+  if (!year) return { ok: false, error: "No current year." };
+  const supabase = await createClient();
+  const { error } = await supabase.from("semester" as never).insert({ academic_year_id: year.id, kind, starts_on: startsOn, ends_on: endsOn } as never);
+  if (error) return { ok: false, error: msg(error, "Could not add.") };
+  revalidatePath(PATH); return { ok: true, message: "Semester added." };
+}
