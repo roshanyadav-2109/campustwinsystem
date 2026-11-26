@@ -1,5 +1,5 @@
 "use client";
-import { useState, useTransition } from "react";
+import { useId, useState, useTransition } from "react";
 import { Card, CardBody, CardHeader } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Field, Input, Select } from "@/components/ui/field";
@@ -148,6 +148,7 @@ type Draft = { id?: number; name: string; kind: "percent" | "amount"; value: str
 const blank: Draft = { name: "", kind: "percent", value: "", heads: [], sibling: false, active: true };
 
 export function ConcessionTypesManager({ types, heads }: { types: ConcessionType[]; heads: FeeHead[] }) {
+  const uid = useId();
   const [draft, setDraft] = useState<Draft | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [pending, start] = useTransition();
@@ -183,14 +184,14 @@ export function ConcessionTypesManager({ types, heads }: { types: ConcessionType
         {draft && (
           <div className="space-y-3 rounded-sm border border-hair p-3">
             <div className="grid gap-3 sm:grid-cols-[1fr_150px_130px]">
-              <Field label="Name"><Input value={draft.name} maxLength={60} placeholder="For example, Sibling discount" onChange={(e) => setDraft({ ...draft, name: e.target.value })} /></Field>
-              <Field label="Type">
-                <Select value={draft.kind} onChange={(e) => setDraft({ ...draft, kind: e.target.value as Draft["kind"] })}>
+              <Field label="Name" htmlFor={`${uid}-f1`}><Input id={`${uid}-f1`} value={draft.name} maxLength={60} placeholder="For example, Sibling discount" onChange={(e) => setDraft({ ...draft, name: e.target.value })} /></Field>
+              <Field label="Type" htmlFor={`${uid}-f2`}>
+                <Select id={`${uid}-f2`} value={draft.kind} onChange={(e) => setDraft({ ...draft, kind: e.target.value as Draft["kind"] })}>
                   <option value="percent">Percentage off</option>
                   <option value="amount">Amount off a year</option>
                 </Select>
               </Field>
-              <Field label={draft.kind === "percent" ? "Percent" : "Rupees a year"}><Input inputMode="decimal" value={draft.value} onChange={(e) => setDraft({ ...draft, value: e.target.value })} /></Field>
+              <Field label={draft.kind === "percent" ? "Percent" : "Rupees a year"} htmlFor={`${uid}-f3`}><Input id={`${uid}-f3`} inputMode="decimal" value={draft.value} onChange={(e) => setDraft({ ...draft, value: e.target.value })} /></Field>
             </div>
             <fieldset>
               <legend className="mb-1 text-[13px] font-medium text-ink-700">Applies to</legend>
@@ -222,6 +223,7 @@ export function ConcessionTypesManager({ types, heads }: { types: ConcessionType
 // Raise an instalment
 // ---------------------------------------------------------------------------
 export function InstalmentRaise({ instalments, classes, sections, enrolled }: { instalments: Instalment[]; classes: ClassOpt[]; sections: SectionOpt[]; enrolled: number }) {
+  const uid = useId();
   const next = instalments.find((i) => i.raised < enrolled) ?? instalments[0];
   const [insId, setInsId] = useState<number | "">(next?.id ?? "");
   const [classId, setClassId] = useState<number | "">("");
@@ -255,16 +257,16 @@ export function InstalmentRaise({ instalments, classes, sections, enrolled }: { 
           ))}
         </ul>
         <div className="flex flex-wrap items-end gap-3">
-          <div className="w-48"><Field label="Instalment">
-            <Select value={insId} onChange={(e) => setInsId(Number(e.target.value) || "")}>{instalments.map((i) => <option key={i.id} value={i.id}>{i.name}</option>)}</Select>
+          <div className="w-48"><Field label="Instalment" htmlFor={`${uid}-f4`}>
+            <Select id={`${uid}-f4`} value={insId} onChange={(e) => setInsId(Number(e.target.value) || "")}>{instalments.map((i) => <option key={i.id} value={i.id}>{i.name}</option>)}</Select>
           </Field></div>
-          <div className="w-40"><Field label="Class">
-            <Select value={classId} onChange={(e) => { setClassId(Number(e.target.value) || ""); setSectionId(""); }}>
+          <div className="w-40"><Field label="Class" htmlFor={`${uid}-f5`}>
+            <Select id={`${uid}-f5`} value={classId} onChange={(e) => { setClassId(Number(e.target.value) || ""); setSectionId(""); }}>
               <option value="">Whole school</option>{classes.map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}
             </Select>
           </Field></div>
-          {classId !== "" && <div className="w-40"><Field label="Section">
-            <Select value={sectionId} onChange={(e) => setSectionId(Number(e.target.value) || "")}>
+          {classId !== "" && <div className="w-40"><Field label="Section" htmlFor={`${uid}-f6`}>
+            <Select id={`${uid}-f6`} value={sectionId} onChange={(e) => setSectionId(Number(e.target.value) || "")}>
               <option value="">All sections</option>{sections.filter((s) => s.class_id === classId).map((s) => <option key={s.id} value={s.id}>{s.name}</option>)}
             </Select>
           </Field></div>}
@@ -281,6 +283,7 @@ export function InstalmentRaise({ instalments, classes, sections, enrolled }: { 
 // A student's concessions (Collect)
 // ---------------------------------------------------------------------------
 export function StudentConcessions({ studentId, granted, types }: { studentId: number; granted: StudentConcession[]; types: ConcessionType[] }) {
+  const uid = useId();
   const available = types.filter((t) => t.active && !granted.some((g) => g.typeId === t.id));
   const [typeId, setTypeId] = useState<number | "">(available[0]?.id ?? "");
   const [note, setNote] = useState("");
@@ -306,10 +309,10 @@ export function StudentConcessions({ studentId, granted, types }: { studentId: n
         )}
         {available.length > 0 && (
           <div className="flex flex-wrap items-end gap-2">
-            <div className="w-56"><Field label="Give a concession">
-              <Select value={typeId} onChange={(e) => setTypeId(Number(e.target.value) || "")}>{available.map((t) => <option key={t.id} value={t.id}>{t.name}</option>)}</Select>
+            <div className="w-56"><Field label="Give a concession" htmlFor={`${uid}-f7`}>
+              <Select id={`${uid}-f7`} value={typeId} onChange={(e) => setTypeId(Number(e.target.value) || "")}>{available.map((t) => <option key={t.id} value={t.id}>{t.name}</option>)}</Select>
             </Field></div>
-            <div className="min-w-0 flex-1"><Field label="Reason (optional)"><Input value={note} maxLength={300} onChange={(e) => setNote(e.target.value)} /></Field></div>
+            <div className="min-w-0 flex-1"><Field label="Reason (optional)" htmlFor={`${uid}-f8`}><Input id={`${uid}-f8`} value={note} maxLength={300} onChange={(e) => setNote(e.target.value)} /></Field></div>
             <Button disabled={pending || !typeId} onClick={() => typeId && run(() => grantConcession({ studentId, typeId, note }), () => setNote(""))}>Give</Button>
           </div>
         )}

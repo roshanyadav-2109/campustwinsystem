@@ -71,3 +71,4 @@ swap-db.log
 .test-plans.mjs
 .test-school-admin.mjs
 .dbg-req.mjs
+.test-fees-instalments.mjs
