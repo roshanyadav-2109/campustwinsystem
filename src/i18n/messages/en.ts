@@ -33,6 +33,7 @@ const en = {
     noAccess: "You don't have access to this page.",
   },
   nav: {
+    lectures: "Lectures",
     courses: "Courses",
     hostel: "Hostel",
     inventory: "Inventory",

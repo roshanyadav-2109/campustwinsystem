@@ -1,0 +1,51 @@
+import Link from "next/link";
+import { guardTab } from "@/lib/access";
+import { getSession, getCurrentYear } from "@/lib/session";
+import { PageHeader } from "@/components/ui/page-header";
+import { EmptyState } from "@/components/ui/empty";
+import { createClient } from "@/lib/supabase/server";
+import { getStaffScope, getSectionStudents } from "@/lib/data/scope";
+import { LectureMarker, AttendanceShortage, MyAttendance, type AttRow } from "@/components/courses/lectures";
+
+type SP = Promise<Record<string, string | string[] | undefined>>;
+const one = (v: string | string[] | undefined) => (Array.isArray(v) ? v[0] : v);
+
+// Lecture attendance and the 75% rule (colleges and universities).
+export default async function LecturesPage({ searchParams }: { searchParams: SP }) {
+  const denied = await guardTab("/dashboard/lectures");
+  if (denied) return denied;
+  const [session, year, sp] = await Promise.all([getSession(), getCurrentYear(), searchParams]);
+  const supabase = await createClient();
+  const { data: semData } = await supabase.from("semester" as never).select("id, kind, starts_on, ends_on").eq("is_current", true).maybeSingle();
+  const sem = semData as unknown as { id: number; kind: string; starts_on: string; ends_on: string } | null;
+  if (!session || !year || !sem) return (<div><PageHeader title="Lectures" /><EmptyState art="nothing-yet" title="No current semester" /></div>);
+  const { data: sch } = await supabase.from("school").select("attendance_minimum" as "id").eq("id", session.schoolId).maybeSingle();
+  const minimum = Number((sch as unknown as { attendance_minimum: number } | null)?.attendance_minimum ?? 75);
+
+  if (session.role === "student" && session.studentId) {
+    const { data } = await supabase.rpc("course_attendance" as never, { p_section: null, p_student: session.studentId } as never);
+    return (<div className="space-y-4"><PageHeader title="My attendance" description={`This semester, per course. At least ${minimum}% is needed to sit the exam.`} /><MyAttendance rows={(data ?? []) as unknown as AttRow[]} minimum={minimum} /></div>);
+  }
+
+  const scope = await getStaffScope();
+  const metas = scope.isAdmin ? scope.sectionMeta.length ? scope.sectionMeta : [] : scope.sectionMeta;
+  const sections = (scope.isAdmin ? scope.sections.map((s) => ({ id: s.id, label: `${s.class_name}-${s.name}`, subjects: scope.subjectsByClass[s.class_id] ?? [] }))
+    : metas.map((m) => ({ id: m.id, label: m.label, subjects: m.subjects })));
+  if (!sections.length) return (<div><PageHeader title="Lectures" /><EmptyState art="no-sections" title="No sections to show" /></div>);
+  const sectionId = Number(one(sp.section)) || sections[0].id;
+  const section = sections.find((s) => s.id === sectionId) ?? sections[0];
+  const [roster, att] = await Promise.all([
+    getSectionStudents(section.id, year.id),
+    supabase.rpc("course_attendance" as never, { p_section: section.id, p_student: null } as never),
+  ]);
+  return (
+    <div className="space-y-4">
+      <PageHeader title="Lectures" description={`${sem.kind === "odd" ? "Odd" : "Even"} semester. Mark each lecture; percentages below ${minimum}% are a shortage.`} />
+      <div className="flex flex-wrap gap-1.5">{sections.map((s) => (
+        <Link key={s.id} href={`?section=${s.id}`} className={`rounded-sm border px-2.5 py-1 text-[13px] ${s.id === section.id ? "border-ink-900 bg-ink-900 text-white" : "border-hair bg-white text-ink-700 hover:bg-panel"}`}>{s.label}</Link>))}
+      </div>
+      <LectureMarker key={section.id} sectionId={section.id} subjects={section.subjects.map((x) => ({ id: x.id, name: x.name }))} roster={roster.map((r) => ({ id: r.id, name: r.name, roll: r.roll }))} />
+      <AttendanceShortage rows={(att.data ?? []) as unknown as AttRow[]} minimum={minimum} semesterId={sem.id} canCondone={session.staffRole === "office"} />
+    </div>
+  );
+}

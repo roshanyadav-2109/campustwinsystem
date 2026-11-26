@@ -9,12 +9,12 @@ begin
   -- two students of the same class
   select e.student_id into k1 from public.student_enrollment e join public.section sec on sec.id = e.section_id join public.class c on c.id = sec.class_id
    where e.school_id = 11 and e.status = 'active' and c.programme_id is not null order by e.student_id limit 1;
+  perform set_config('request.jwt.claims', json_build_object('sub', of, 'role', 'authenticated')::text, true);
+  set local role authenticated;
   select p.programme_id, p.semester_no into v_prog, v_semno from public.student_semester(k1, v_sem) p;
   select e.student_id into k2 from public.student_enrollment e join public.section sec on sec.id = e.section_id join public.class c on c.id = sec.class_id
    where e.school_id = 11 and e.status = 'active' and c.programme_id = v_prog and e.student_id <> k1
      and (select semester_no from public.student_semester(e.student_id, v_sem)) = v_semno order by e.student_id limit 1;
-  perform set_config('request.jwt.claims', json_build_object('sub', of, 'role', 'authenticated')::text, true);
-  set local role authenticated;
   -- core courses for everyone
   n := public.register_core_courses(v_sem);
   if n = 0 or not exists (select 1 from public.course_registration where student_id = k1 and semester_id = v_sem) then raise exception 'FAIL core registration %', n; end if;

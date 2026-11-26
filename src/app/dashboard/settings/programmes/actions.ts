@@ -18,18 +18,19 @@ export async function addDepartment(code: string, name: string): Promise<R> {
   revalidatePath(PATH); return { ok: true, message: "Department added." };
 }
 
-export async function addProgramme(input: { departmentId: number | null; code: string; name: string; level: string; regulation: string; years: string; semesters: string; credits: string }): Promise<R> {
+export async function addProgramme(input: { departmentId: number | null; code: string; name: string; level: string; regulation: string; years: string; semesters: string; credits: string; maxPerSem?: string }): Promise<R> {
   if (!(await office())) return { ok: false, error: "Only the office can change programmes." };
   if (!input.code.trim() || !input.name.trim() || !/^\d$/.test(input.years) || !/^\d{1,2}$/.test(input.semesters)) return { ok: false, error: "Give code, name, years and semesters." };
   const supabase = await createClient();
   const { error } = await supabase.from("programme" as never).insert({ department_id: input.departmentId, code: input.code.trim().toUpperCase().slice(0, 16), name: input.name.trim().slice(0, 100),
     level: ["diploma", "ug", "pg", "phd"].includes(input.level) ? input.level : "ug", regulation: input.regulation.trim().slice(0, 20) || "R2024",
-    years: Number(input.years), semesters: Number(input.semesters), total_credits: input.credits ? Number(input.credits) : null } as never);
+    years: Number(input.years), semesters: Number(input.semesters), total_credits: input.credits ? Number(input.credits) : null,
+    max_credits_per_semester: input.maxPerSem && Number(input.maxPerSem) > 0 ? Number(input.maxPerSem) : null } as never);
   if (error) return { ok: false, error: msg(error, "Could not add.") };
   revalidatePath(PATH); return { ok: true, message: "Programme added." };
 }
 
-export async function addCourse(input: { programmeId: number; semester: string; code: string; name: string; kind: string; l: string; t: string; p: string; credits: string; group: string }): Promise<R> {
+export async function addCourse(input: { programmeId: number; semester: string; code: string; name: string; kind: string; l: string; t: string; p: string; credits: string; group: string; seats?: string }): Promise<R> {
   if (!(await office())) return { ok: false, error: "Only the office can change programmes." };
   if (!input.code.trim() || !input.name.trim() || !/^\d{1,2}(\.\d)?$/.test(input.credits) || !/^\d{1,2}$/.test(input.semester)) return { ok: false, error: "Give code, name, credits and semester." };
   const supabase = await createClient();
@@ -38,8 +39,12 @@ export async function addCourse(input: { programmeId: number; semester: string; 
     code: input.code.trim().toUpperCase().slice(0, 16), name: input.name.trim().slice(0, 120), kind: input.kind,
     lecture: Number(input.l) || 0, tutorial: Number(input.t) || 0, practical: Number(input.p) || 0, credits: Number(input.credits) } as never).select("id").single();
   if (error || !c) return { ok: false, error: msg(error, "Could not add the course.") };
-  const { error: e2 } = await supabase.from("programme_course" as never).insert({ programme_id: input.programmeId, course_id: (c as { id: number }).id, semester_no: Number(input.semester), elective_group: input.group.trim().slice(0, 30) || null } as never);
-  if (e2) return { ok: false, error: msg(e2, "Could not place the course.") };
+  const seats = input.seats && /^\d{1,4}$/.test(input.seats) ? Number(input.seats) : null;
+  const { error: e2 } = await supabase.from("programme_course" as never).insert({ programme_id: input.programmeId, course_id: (c as { id: number }).id, semester_no: Number(input.semester), elective_group: input.group.trim().slice(0, 30) || null, seat_limit: seats } as never);
+  if (e2) {
+    await supabase.from("course" as never).delete().eq("id", (c as { id: number }).id);   // no orphan course
+    return { ok: false, error: msg(e2, "Could not place the course.") };
+  }
   revalidatePath(PATH); return { ok: true, message: "Course added." };
 }
 
@@ -55,21 +60,20 @@ export async function removeFromProgramme(id: number): Promise<R> {
 export async function setCurrentSemester(id: number): Promise<R> {
   if (!(await office())) return { ok: false, error: "Only the office can change the semester." };
   const supabase = await createClient();
-  const { error: e1 } = await supabase.from("semester" as never).update({ is_current: false } as never).eq("is_current", true);
-  const { error } = e1 ? { error: e1 } : await supabase.from("semester" as never).update({ is_current: true } as never).eq("id", id);
+  const { error } = await supabase.rpc("set_current_semester" as never, { p_semester: id } as never);
   if (error) return { ok: false, error: "Could not change the semester." };
   revalidatePath(PATH); revalidatePath("/dashboard/courses");
   return { ok: true, message: "Current semester changed." };
 }
 
-export async function addSemester(kind: string, startsOn: string, endsOn: string): Promise<R> {
+export async function addSemester(kind: string, startsOn: string, endsOn: string, closes = ""): Promise<R> {
   if (!(await office())) return { ok: false, error: "Only the office can change the semester." };
   if (!["odd", "even", "summer"].includes(kind) || !/^\d{4}-\d{2}-\d{2}$/.test(startsOn) || !/^\d{4}-\d{2}-\d{2}$/.test(endsOn) || endsOn <= startsOn) return { ok: false, error: "Give the kind and both dates." };
   const { getCurrentYear } = await import("@/lib/session");
   const year = await getCurrentYear();
   if (!year) return { ok: false, error: "No current year." };
   const supabase = await createClient();
-  const { error } = await supabase.from("semester" as never).insert({ academic_year_id: year.id, kind, starts_on: startsOn, ends_on: endsOn } as never);
+  const { error } = await supabase.from("semester" as never).insert({ academic_year_id: year.id, kind, starts_on: startsOn, ends_on: endsOn, registration_closes: /^\d{4}-\d{2}-\d{2}$/.test(closes) ? closes : null } as never);
   if (error) return { ok: false, error: msg(error, "Could not add.") };
   revalidatePath(PATH); return { ok: true, message: "Semester added." };
 }

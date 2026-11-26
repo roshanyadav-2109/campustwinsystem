@@ -33,7 +33,7 @@ const semCredits = (p: ProgrammeView, sem: number) => {
 
 function Programme({ p, canEdit }: { p: ProgrammeView; canEdit: boolean }) {
   const uid = useId();
-  const blank = { semester: "1", code: "", name: "", kind: "core", l: "3", t: "1", p: "0", credits: "4", group: "" };
+  const blank = { semester: "1", code: "", name: "", kind: "core", l: "3", t: "1", p: "0", credits: "4", group: "", seats: "" };
   const [c, setC] = useState(blank);
   const [open, setOpen] = useState(false);
   const { msg, pending, run } = useAct();
@@ -70,6 +70,7 @@ function Programme({ p, canEdit }: { p: ProgrammeView; canEdit: boolean }) {
             <Field label="P" htmlFor={`${uid}-p`}><Input id={`${uid}-p`} inputMode="numeric" value={c.p} onChange={(e) => setC({ ...c, p: e.target.value })} /></Field>
             <Field label="Credits" htmlFor={`${uid}-cr`}><Input id={`${uid}-cr`} inputMode="decimal" value={c.credits} onChange={(e) => setC({ ...c, credits: e.target.value })} /></Field>
             <Field label="Choice group" htmlFor={`${uid}-g`}><Input id={`${uid}-g`} placeholder="for electives" value={c.group} onChange={(e) => setC({ ...c, group: e.target.value })} /></Field>
+            <Field label="Seats" htmlFor={`${uid}-st`}><Input id={`${uid}-st`} inputMode="numeric" placeholder="no limit" value={c.seats} onChange={(e) => setC({ ...c, seats: e.target.value })} /></Field>
             <Button disabled={pending} onClick={() => run(() => addCourse({ programmeId: p.id, ...c }), () => setC({ ...blank, semester: c.semester }))}>Add course</Button>
             <div className="col-span-full"><Msg m={msg} /></div>
           </div>
@@ -82,7 +83,7 @@ function Programme({ p, canEdit }: { p: ProgrammeView; canEdit: boolean }) {
 export function ProgrammesAdmin({ departments, programmes, canEdit }: { departments: DeptView[]; programmes: ProgrammeView[]; canEdit: boolean }) {
   const uid = useId();
   const [d, setD] = useState({ code: "", name: "" });
-  const [p, setP] = useState<{ departmentId: number | null; code: string; name: string; level: string; regulation: string; years: string; semesters: string; credits: string }>({ departmentId: departments[0]?.id ?? null, code: "", name: "", level: "ug", regulation: "R2024", years: "3", semesters: "6", credits: "" });
+  const [p, setP] = useState<{ departmentId: number | null; code: string; name: string; level: string; regulation: string; years: string; semesters: string; credits: string; maxPerSem: string }>({ maxPerSem: "", departmentId: departments[0]?.id ?? null, code: "", name: "", level: "ug", regulation: "R2024", years: "3", semesters: "6", credits: "" });
   const { msg, pending, run } = useAct();
   return (
     <div className="space-y-4">
@@ -110,6 +111,7 @@ export function ProgrammesAdmin({ departments, programmes, canEdit }: { departme
               <Field label="Years" htmlFor={`${uid}-py`}><Input id={`${uid}-py`} className="w-16" value={p.years} onChange={(e) => setP({ ...p, years: e.target.value })} /></Field>
               <Field label="Semesters" htmlFor={`${uid}-ps`}><Input id={`${uid}-ps`} className="w-16" value={p.semesters} onChange={(e) => setP({ ...p, semesters: e.target.value })} /></Field>
               <Field label="Total credits" htmlFor={`${uid}-pt`}><Input id={`${uid}-pt`} className="w-20" value={p.credits} onChange={(e) => setP({ ...p, credits: e.target.value })} /></Field>
+              <Field label="Max credits a semester" htmlFor={`${uid}-pm`}><Input id={`${uid}-pm`} className="w-20" value={p.maxPerSem} onChange={(e) => setP({ ...p, maxPerSem: e.target.value })} /></Field>
               <Button disabled={pending} onClick={() => run(() => addProgramme(p), () => setP({ ...p, code: "", name: "", credits: "" }))}>Add programme</Button>
             </div>
           </CardBody>
@@ -124,7 +126,7 @@ const dmy = (d: string) => d.split("-").reverse().join("/");
 
 export function Semesters({ semesters, canEdit }: { semesters: SemesterView[]; canEdit: boolean }) {
   const uid = useId();
-  const [f, setF] = useState({ kind: "even", startsOn: "", endsOn: "" });
+  const [f, setF] = useState({ kind: "even", startsOn: "", endsOn: "", closes: "" });
   const { msg, pending, run } = useAct();
   return (
     <Card>
@@ -141,7 +143,8 @@ export function Semesters({ semesters, canEdit }: { semesters: SemesterView[]; c
             <Field label="Kind" htmlFor={`${uid}-k`}><Select id={`${uid}-k`} value={f.kind} onChange={(e) => setF({ ...f, kind: e.target.value })}><option value="odd">Odd</option><option value="even">Even</option><option value="summer">Summer</option></Select></Field>
             <Field label="Starts" htmlFor={`${uid}-s`}><Input id={`${uid}-s`} type="date" value={f.startsOn} onChange={(e) => setF({ ...f, startsOn: e.target.value })} /></Field>
             <Field label="Ends" htmlFor={`${uid}-e`}><Input id={`${uid}-e`} type="date" value={f.endsOn} onChange={(e) => setF({ ...f, endsOn: e.target.value })} /></Field>
-            <Button size="sm" variant="subtle" disabled={pending} onClick={() => run(() => addSemester(f.kind, f.startsOn, f.endsOn))}>Add semester</Button>
+            <Field label="Registration closes" htmlFor={`${uid}-c`}><Input id={`${uid}-c`} type="date" value={f.closes} onChange={(e) => setF({ ...f, closes: e.target.value })} /></Field>
+            <Button size="sm" variant="subtle" disabled={pending} onClick={() => run(() => addSemester(f.kind, f.startsOn, f.endsOn, f.closes))}>Add semester</Button>
           </div>
         )}
       </CardBody>
