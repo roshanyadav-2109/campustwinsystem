@@ -1,4 +1,5 @@
 import { cache } from "react";
+import { editionOf, isHigherEd, type Edition } from "@/core/edition";
 import { createClient } from "@/lib/supabase/server";
 import type { Database } from "@/lib/database.types";
 import { getReference } from "@/lib/data/reference";
@@ -66,6 +67,8 @@ export type SchoolBrand = {
   primaryColor: string;
   modules: SchoolModules;
   status: string;
+  /** School, college or university: decides menus, words and rules. */
+  edition: Edition;
   /** College or university campus: higher-education features apply. */
   higherEd: boolean;
 };
@@ -137,7 +140,8 @@ export const getSession = cache(async (): Promise<Session | null> => {
     primaryColor: sc?.primary_color ?? "#0F6CBD",
     modules: (sc?.modules as SchoolModules) ?? {},
     status: sc?.status ?? "active",
-    higherEd: sc?.institution_type === "college" || !!sc?.university_id,
+    edition: editionOf({ institution_type: sc?.institution_type, university_id: sc?.university_id }),
+    higherEd: isHigherEd(editionOf({ institution_type: sc?.institution_type, university_id: sc?.university_id })),
   };
 
   const universityId = (data as { university_id: number | null }).university_id ?? null;
@@ -158,7 +162,8 @@ export const getSession = cache(async (): Promise<Session | null> => {
         slug: a.slug, name: a.name, shortName: a.short_name, place: a.place, monogram: a.monogram,
         logoUrl: a.logo_url, loginImageUrl: a.login_image_url, loginVideoId: a.login_video_id,
         primaryColor: a.primary_color ?? "#0F6CBD", modules: (a.modules as SchoolModules) ?? {}, status: a.status ?? "active",
-        higherEd: a.institution_type === "college" || !!a.university_id,
+        edition: editionOf(a),
+        higherEd: isHigherEd(editionOf(a)),
       };
     }
   }

@@ -24,6 +24,8 @@ jobs:
           node-version: 22
           cache: npm
       - run: npm ci
+      - name: Check edition boundaries (school, college, university stay separate)
+        run: node scripts/arch/check-boundaries.mjs
       - name: Write build env (NEXT_PUBLIC_* are inlined at build)
         run: |
           cat > .env.production.local <<'ENV'

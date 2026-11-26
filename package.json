@@ -6,7 +6,8 @@
     "dev": "next dev",
     "build": "next build",
     "start": "next start",
-    "lint": "eslint"
+    "lint": "eslint",
+    "check:boundaries": "node scripts/arch/check-boundaries.mjs"
   },
   "dependencies": {
     "@supabase/ssr": "^0.12.0",

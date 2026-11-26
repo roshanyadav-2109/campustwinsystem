@@ -7,6 +7,7 @@ import { SearchBox } from "@/components/search-box";
 import { NavProgress } from "@/components/nav-progress";
 import { cn } from "@/lib/utils";
 import { navFor, type NavRole } from "@/lib/nav";
+import type { Edition } from "@/core/edition";
 import { useT } from "@/i18n/provider";
 import { SchoolEmblem } from "@/components/brand";
 import { SCHOOL } from "@/lib/school";
@@ -27,6 +28,7 @@ export function AppShell({
   role,
   roleLabel,
   modules,
+  edition,
   brand,
   university,
   children,
@@ -35,6 +37,7 @@ export function AppShell({
   role: NavRole;
   roleLabel: string;
   modules?: Record<string, boolean>;
+  edition?: Edition;
   brand?: { name: string; place: string | null; logo: string | null; monogram: string | null };
   university?: { name: string; activeCampusName: string | null } | null;
   children: React.ReactNode;
@@ -49,7 +52,7 @@ export function AppShell({
   const pathname = usePathname();
   const [open, setOpen] = useState(false);
   const [menuOpen, setMenuOpen] = useState(false);
-  const items = navFor(role, modules);
+  const items = navFor(role, modules, edition);
 
   // Desktop side menu can be hidden from the top bar for more room.
   const [collapsed, setCollapsed] = useState(false);

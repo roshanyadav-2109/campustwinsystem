@@ -46,7 +46,7 @@ export function InstalmentPlanner({ instalments, yearStart, yearName }: { instal
   const locked = rows.filter((r) => r.locked);
   const total = Math.round(rows.reduce((n, r) => n + (Number(r.share) || 0), 0) * 1000) / 1000;
   const set = (key: string, patch: Partial<Row>) => setRows((rs) => rs.map((r) => (r.key === key ? { ...r, ...patch } : r)));
-  const usePreset = (p: (typeof PRESETS)[number]) => {
+  const applyPreset = (p: (typeof PRESETS)[number]) => {
     if (locked.length) return;
     setRows(p.build(yearStart).map((r, i) => ({ key: `n${Date.now()}${i}`, name: r.name, dueDate: r.dueDate, share: String(r.share), locked: false })));
     setMsg(null);
@@ -65,7 +65,7 @@ export function InstalmentPlanner({ instalments, yearStart, yearName }: { instal
         {!locked.length && (
           <div className="flex flex-wrap items-center gap-2">
             <span className="text-[13px] text-ink-700">Start from</span>
-            {PRESETS.map((p) => <Button key={p.label} size="sm" variant="subtle" onClick={() => usePreset(p)}>{p.label}</Button>)}
+            {PRESETS.map((p) => <Button key={p.label} size="sm" variant="subtle" onClick={() => applyPreset(p)}>{p.label}</Button>)}
           </div>
         )}
         {rows.length === 0 ? <p className="text-[13px] text-ink-500">No instalments yet. Choose one of the starting points above.</p> : (
