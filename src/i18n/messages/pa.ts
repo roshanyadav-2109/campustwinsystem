@@ -34,6 +34,7 @@ const pa: PartialMessages = {
     noAccess: "ਤੁਹਾਨੂੰ ਇਹ ਪੰਨਾ ਵੇਖਣ ਦੀ ਇਜਾਜ਼ਤ ਨਹੀਂ ਹੈ।",
   },
   nav: {
+    examTimetable: "ਪ੍ਰੀਖਿਆ ਸਮਾਂ-ਸਾਰਣੀ",
     reportCards: "ਰਿਪੋਰਟ ਕਾਰਡ",
     notifications: "ਸੂਚਨਾਵਾਂ",
     settings: "ਸੈਟਿੰਗਾਂ",

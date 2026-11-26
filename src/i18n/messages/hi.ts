@@ -34,6 +34,7 @@ const hi: PartialMessages = {
     noAccess: "आपको इस पृष्ठ तक पहुँच नहीं है।",
   },
   nav: {
+    examTimetable: "परीक्षा समय-सारिणी",
     reportCards: "रिपोर्ट कार्ड",
     notifications: "सूचनाएँ",
     settings: "सेटिंग्स",

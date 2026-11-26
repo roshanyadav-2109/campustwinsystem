@@ -8,6 +8,7 @@ export const dynamic = "force-dynamic";
 
 type Card = { student_name: string; class_label: string | null; school_name: string; school_place: string | null; year_name: string; valid: boolean; reason: string | null };
 type Report = { valid: boolean; reason: string; student_name: string; class_label: string | null; term_name: string | null; year_name: string | null; school_name: string; published_on: string };
+type Admit = { valid: boolean; student_name: string; class_label: string | null; exam_name: string; school_name: string };
 type Cert = { kind: string; number: string | null; student_name: string; admission_no: string; issued_on: string; school_name: string; school_place: string | null; status: string };
 
 function Facts({ rows }: { rows: [string, string][] }) {
@@ -24,11 +25,12 @@ export default async function VerifyPage({ params }: { params: Promise<{ token: 
   const { token } = await params;
   const ok = /^[a-f0-9]{32,64}$/.test(token);
   const anon = createClient(SUPABASE_URL, SUPABASE_ANON_KEY, { auth: { persistSession: false } });
-  const [{ data: cardData }, { data: certData }, { data: repData }] = ok
+  const [{ data: cardData }, { data: certData }, { data: repData }, { data: admData }] = ok
     ? await Promise.all([anon.rpc("verify_id_card" as never, { p_token: token } as never), anon.rpc("verify_certificate" as never, { p_token: token } as never),
-        anon.rpc("verify_report_card" as never, { p_token: token } as never)])
-    : [{ data: null }, { data: null }, { data: null }];
+        anon.rpc("verify_report_card" as never, { p_token: token } as never), anon.rpc("verify_admit_card" as never, { p_token: token } as never)])
+    : [{ data: null }, { data: null }, { data: null }, { data: null }];
   const report = ((repData ?? []) as Report[])[0];
+  const admit = ((admData ?? []) as Admit[])[0];
   const card = ((cardData ?? []) as Card[])[0];
   const cert = ((certData ?? []) as Cert[])[0];
   const day = (iso: string) => iso.split("-").reverse().join("/");
@@ -50,6 +52,11 @@ export default async function VerifyPage({ params }: { params: Promise<{ token: 
           {!report.valid && <p className="mt-1 text-[14px] text-ink-900">{report.reason}</p>}
           <Facts rows={[["Student", report.student_name], ["Class", report.class_label ?? ""], ["Report", [report.term_name, report.year_name].filter(Boolean).join(", ")], ["Institution", report.school_name], ["Published", day(report.published_on)]]} />
           <p className="mt-4 text-[12px] text-ink-500">Marks are not shown here. Compare the printed card with the one in the parent&apos;s CampusTwin account.</p>
+        </>
+      ) : admit ? (
+        <>
+          <h1 className={`mt-2 text-[22px] font-semibold ${admit.valid ? "text-up" : "text-down"}`}>{admit.valid ? "Valid admit card" : "This student is no longer enrolled"}</h1>
+          <Facts rows={[["Student", admit.student_name], ["Class", admit.class_label ?? ""], ["Exam", admit.exam_name], ["Institution", admit.school_name]]} />
         </>
       ) : cert ? (
         <>
