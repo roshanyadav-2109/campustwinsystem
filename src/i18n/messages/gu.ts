@@ -509,6 +509,7 @@ const gu: PartialMessages = {
     staff: "સ્ટાફ",
   },
   settings: {
+    institution: "સંસ્થાની વિગતો",
     title: "સેટિંગ્સ",
     classes: "વર્ગો અને વિષયો",
     teachers: "શિક્ષકો અને સોંપણી",

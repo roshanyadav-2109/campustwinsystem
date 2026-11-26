@@ -6,7 +6,7 @@ import { cookieDomainForHost } from "@/lib/supabase/cookie-domain";
 
 // Next 16 renamed `middleware` -> `proxy`. Runs before render: refreshes the
 // Supabase session cookie and gates unauthenticated users to /login.
-const PUBLIC_PATHS = ["/login", "/auth", "/apply"];
+const PUBLIC_PATHS = ["/login", "/auth", "/apply", "/verify"];
 
 export async function proxy(request: NextRequest) {
   let response = NextResponse.next({ request });

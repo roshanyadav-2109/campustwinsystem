@@ -1,3 +1,4 @@
+import { CertificateRegisterUpload } from "@/components/manage/students/certificate-register-upload";
 import { DetailsUpload } from "@/components/manage/students/details-upload";
 import { guardTab } from "@/lib/access";
 import { PageHeader } from "@/components/ui/page-header";
@@ -43,7 +44,10 @@ async function ManageStudentsPageBody({ searchParams }: { searchParams: SP }) {
         sections={sections}
         yearName={year.name}
       />
-      <DetailsUpload />
+      <div className="grid items-start gap-5 xl:grid-cols-2">
+        <DetailsUpload />
+        <CertificateRegisterUpload />
+      </div>
     </div>
   );
 }

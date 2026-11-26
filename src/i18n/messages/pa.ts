@@ -509,6 +509,7 @@ const pa: PartialMessages = {
     staff: "ਸਟਾਫ",
   },
   settings: {
+    institution: "ਸੰਸਥਾ ਦੀ ਜਾਣਕਾਰੀ",
     title: "ਸੈਟਿੰਗਾਂ",
     classes: "ਜਮਾਤਾਂ ਅਤੇ ਵਿਸ਼ੇ",
     teachers: "ਅਧਿਆਪਕ ਅਤੇ ਜ਼ਿੰਮੇਵਾਰੀਆਂ",

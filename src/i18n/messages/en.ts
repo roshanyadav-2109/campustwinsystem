@@ -508,6 +508,7 @@ const en = {
     staff: "Staff",
   },
   settings: {
+    institution: "Institution profile",
     title: "Settings",
     classes: "Classes and subjects",
     teachers: "Teachers and assignments",

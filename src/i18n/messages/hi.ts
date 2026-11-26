@@ -340,6 +340,7 @@ const hi: PartialMessages = {
     staff: "स्टाफ",
   },
   settings: {
+    institution: "संस्था की जानकारी",
     title: "सेटिंग्स",
     classes: "कक्षाएँ और विषय",
     teachers: "शिक्षक और ज़िम्मेदारियाँ",

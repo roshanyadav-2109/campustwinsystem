@@ -7,6 +7,8 @@ import { Card, CardBody, CardHeader } from "@/components/ui/card";
 import { EMPTY_IDENTITY, EMPTY_PROFILE, getStudentRecord } from "@/lib/data/student-record";
 import { EditIdentityButton, EditProfileButton } from "@/components/students/student-profile-edit";
 import { fmtDay } from "@/components/fees/shared";
+import { CertificatesPanel, type CertRow } from "@/components/students/certificates-panel";
+import { untyped } from "@/lib/data/schedule";
 
 // One student, everything in one place: admission, address, family,
 // medical and, for the office and principal, identity and category.
@@ -38,6 +40,16 @@ export default async function StudentPage({ params }: { params: Promise<{ id: st
   const p = s.profile ?? EMPTY_PROFILE;
   const canEdit = admin || !!session?.isClassTeacher;
   const address = [p.address_line, p.city, p.state, p.pincode].filter(Boolean).join(", ");
+  let certs: CertRow[] = [];
+  if (admin) {
+    const db = await untyped();
+    const { data } = await db.from("certificate")
+      .select("id, kind, number, issued_on, source, status, copies, file_key, verify_token, content, cancel_reason")
+      .eq("student_id", s.id).order("issued_at", { ascending: false });
+    certs = ((data ?? []) as { id: number; kind: CertRow["kind"]; number: string; issued_on: string; source: CertRow["source"]; status: CertRow["status"]; copies: number; file_key: string | null; verify_token: string; content: CertRow["content"]; cancel_reason: string | null }[])
+      .map((c) => ({ id: c.id, kind: c.kind, number: c.number, issuedOn: c.issued_on, source: c.source, status: c.status, copies: c.copies,
+        hasFile: !!c.file_key, token: c.verify_token, content: c.source === "issued" ? c.content : null, cancelReason: c.cancel_reason }));
+  }
 
   return (
     <div>
@@ -95,6 +107,13 @@ export default async function StudentPage({ params }: { params: Promise<{ id: st
             <Facts rows={[["Allergies", p.allergies], ["Medical notes", p.medical_notes], ["Emergency contact", p.emergency_name], ["Emergency phone", p.emergency_phone]]} />
           </CardBody>
         </Card>
+        {admin && (
+          <div className="xl:col-span-2">
+            <CertificatesPanel studentId={s.id} rows={certs} canIssue={session?.staffRole === "office"}
+              schoolName={[session?.school.name, session?.school.place].filter(Boolean).join(", ")}
+              kinds={session?.school.edition === "school" ? ["transfer", "bonafide", "character"] : []} />
+          </div>
+        )}
         {admin && (() => {
           const idn = s.identity ?? EMPTY_IDENTITY;
           return (

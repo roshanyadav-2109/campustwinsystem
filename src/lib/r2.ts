@@ -125,3 +125,17 @@ export async function presignPut(key: string, expiresSec = 300): Promise<string>
   const signed = await client().sign(u.toString(), { method: "PUT", aws: { signQuery: true } });
   return signed.url;
 }
+
+// A short-lived link to read a private file (certificates and other personal
+// documents are opened this way, after the app has checked who is asking).
+export async function presignGet(key: string, expiresSec = 120): Promise<string> {
+  const u = new URL(`${ENDPOINT}/${key}`);
+  u.searchParams.set("X-Amz-Expires", String(expiresSec));
+  const signed = await client().sign(u.toString(), { method: "GET", aws: { signQuery: true } });
+  return signed.url;
+}
+
+// Certificates and other student documents: students/<id>/certificates/<uuid>.<ext>
+export function certificateFileKey(prefix: string, studentId: number, contentType: string): string {
+  return `${prefix}/students/${studentId}/certificates/${crypto.randomUUID()}.${extFromType(contentType)}`;
+}

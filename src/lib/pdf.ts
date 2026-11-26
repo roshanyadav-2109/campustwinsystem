@@ -23,7 +23,13 @@ export type PdfBlock =
   /** One table split into groups, each with a shaded heading row (class / section). */
   | { kind: "grouped"; heading?: string; headers: string[]; groups: { label: string; rows: PdfCell[][] }[]; right?: number[]; widths?: Record<number, number> }
   /** Short lines of text (e.g. notices sent). */
-  | { kind: "text"; heading?: string; lines: string[] };
+  | { kind: "text"; heading?: string; lines: string[] }
+  /** A QR code (drawn as squares, sharp at any size) with short lines beside it. */
+  | { kind: "qr"; heading?: string; data: string; lines: string[] }
+  /** Lines to sign on, side by side, each with its label under it. */
+  | { kind: "signatures"; heading?: string; labels: string[] }
+  /** A large marking across the top, e.g. "DUPLICATE". */
+  | { kind: "banner"; heading?: string; text: string };
 
 export type PdfDoc = {
   filename: string;
@@ -46,6 +52,7 @@ const RED: [number, number, number] = [196, 49, 75];
 
 // The built-in PDF fonts cover Western characters only; swap the few
 // typographic ones we use and drop anything else so nothing prints as junk.
+export const pdfClean = (s: string) => clean(s);
 const clean = (s: string) =>
   s.replace(/[–—−]/g, "-").replace(/[‘’]/g, "'").replace(/[“”]/g, '"')
     .replace(/…/g, "...").replace(/[★☆]/g, "").replace(/[^\x09\x0A\x0D\x20-\x7E\xA0-\xFF]/g, "");
@@ -55,11 +62,13 @@ const cellText = (c: PdfCell): string =>
 
 const safeFile = (s: string) => clean(s).replace(/[\\/:*?"<>|]+/g, "-").replace(/\s+/g, " ").trim() || "report";
 
-type Lib = { doc: import("jspdf").jsPDF; autoTable: typeof import("jspdf-autotable").default };
+type QrFactory = (typeNumber: 0, level: "L" | "M" | "Q" | "H") => { addData: (d: string) => void; make: () => void; getModuleCount: () => number; isDark: (r: number, c: number) => boolean };
+type Lib = { doc: import("jspdf").jsPDF; autoTable: typeof import("jspdf-autotable").default; qr: QrFactory };
 
 async function openPdf(orientation: PdfDoc["orientation"]): Promise<Lib> {
-  const [{ jsPDF }, { default: autoTable }] = await Promise.all([import("jspdf"), import("jspdf-autotable")]);
-  return { doc: new jsPDF({ orientation: orientation ?? "portrait", unit: "mm", format: "a4", compress: true }), autoTable };
+  const [{ jsPDF }, { default: autoTable }, qrMod] = await Promise.all([import("jspdf"), import("jspdf-autotable"), import("qrcode-generator")]);
+  const qr = ((qrMod as unknown as { default?: QrFactory }).default ?? (qrMod as unknown as QrFactory));
+  return { doc: new jsPDF({ orientation: orientation ?? "portrait", unit: "mm", format: "a4", compress: true }), autoTable, qr };
 }
 
 export async function downloadPdf(spec: PdfDoc) {
@@ -83,7 +92,7 @@ export async function downloadPdfBook(specs: PdfDoc[], filename: string) {
 }
 
 // Draws one document starting on page `first` (already the current page).
-function drawDoc({ doc, autoTable }: Lib, spec: PdfDoc, first: number) {
+function drawDoc({ doc, autoTable, qr }: Lib, spec: PdfDoc, first: number) {
   const pageW = doc.internal.pageSize.getWidth();
   const pageH = doc.internal.pageSize.getHeight();
   const M = 14;
@@ -126,7 +135,29 @@ function drawDoc({ doc, autoTable }: Lib, spec: PdfDoc, first: number) {
 
   for (const b of spec.blocks) {
     heading(b.heading);
-    if (b.kind === "facts") {
+    let drawnTo: number | null = null;
+    if (b.kind === "qr") {
+      const size = 26;
+      if (y + size > pageH - margin.bottom) { doc.addPage(); y = margin.top; }
+      const code = qr(0, "M"); code.addData(b.data); code.make();
+      const n = code.getModuleCount(), cell = size / n;
+      doc.setFillColor(...INK);
+      for (let r = 0; r < n; r++) for (let c = 0; c < n; c++) if (code.isDark(r, c)) doc.rect(M + c * cell, y + r * cell, cell, cell, "F");
+      doc.setFont("helvetica", "normal"); doc.setFontSize(8.5); doc.setTextColor(...MUTED);
+      b.lines.forEach((l, i) => doc.text(clean(l), M + size + 5, y + 5 + i * 4.5));
+      drawnTo = y + size;
+    } else if (b.kind === "signatures") {
+      if (y + 24 > pageH - margin.bottom) { doc.addPage(); y = margin.top; }
+      const n = Math.max(1, b.labels.length), gap = 8, w = (pageW - 2 * M - gap * (n - 1)) / n, ly = y + 16;
+      doc.setDrawColor(...INK); doc.setLineWidth(0.3);
+      doc.setFont("helvetica", "normal"); doc.setFontSize(8.5); doc.setTextColor(...MUTED);
+      b.labels.forEach((l, i) => { const x = M + i * (w + gap); doc.line(x, ly, x + w, ly); doc.text(clean(l), x, ly + 4.5); });
+      drawnTo = ly + 6;
+    } else if (b.kind === "banner") {
+      doc.setFont("helvetica", "bold"); doc.setFontSize(15); doc.setTextColor(...RED);
+      doc.text(clean(b.text), pageW / 2, y + 4, { align: "center" });
+      drawnTo = y + 6;
+    } else if (b.kind === "facts") {
       autoTable(doc, {
         ...baseTable, startY: y, theme: "plain",
         body: b.items.map(([k, v]) => [clean(k), clean(v || "-")]),
@@ -173,7 +204,7 @@ function drawDoc({ doc, autoTable }: Lib, spec: PdfDoc, first: number) {
         },
       });
     }
-    y = lastY() + 7;
+    y = (drawnTo ?? lastY()) + 7;
   }
 
   // ---- Running header (its pages 2+) and footer with page numbers ----
