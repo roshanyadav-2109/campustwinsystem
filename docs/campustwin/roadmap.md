@@ -126,3 +126,12 @@ CBCS, semesters and registration, OBE and accreditation reports, evaluation, men
 - **SMS / WhatsApp:** provider decided later. Build the notification engine with in-app notices first and a pluggable channel adapter; write templates as fixed text with variables so they pass DLT approval later.
 - **Email:** later (code already uses Resend; no key yet).
 - **Report cards:** no fixed board. Each school picks the formats it needs, and one school can run several boards (for example a CBSE section and a state-board section), so the board/format is set per class or section. Build a report-card format system, with CBSE, ICSE and state formats as presets the school can choose.
+
+## 5. Progress log
+- 26 Nov 2026, live and tested on Greenfield:
+  - New schools and campuses get the current April-March academic year (no fixed 2025-26).
+  - Console gives a school its first principal or office login (duplicate emails refused with a clear message).
+  - Approved student leave marks attendance as leave (past and future days); the register pre-selects leave; withdrawing approval restores absent (0060, self-test scripts/test-leave-attendance.sql).
+  - Admissions: Admit creates student, parent (Google sign-in ready) and class place in one step, with the next admission number suggested in the school's own pattern; never twice (0061, end-to-end test apps/desk/.test-admit.mjs, 11/11).
+  - Alumni directory no longer exposes contact details (0059).
+- Next: in-app notification inbox and bell, with every event written to it (Phase 1.1-1.2).

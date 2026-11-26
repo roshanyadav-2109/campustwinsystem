@@ -62,3 +62,5 @@ swap-db.log
 .desk-e2e.mjs
 .shot-eternity.mjs
 .check-alum-dir.mjs
+.test-admit.mjs
+.test-console-login.mjs
