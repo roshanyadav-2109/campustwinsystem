@@ -196,6 +196,7 @@ export async function recordPayment(input: {
   const amount = money(input.amount);
   if (amount === null) return fail("Enter an amount greater than zero.");
   if (!FEE_MODES.includes(input.mode as FeeMode)) return fail("Choose how the money was paid.");
+  if (input.mode === "loan" && !session.school.higherEd) return fail("Choose how the money was paid.");
   if (input.mode === "loan" && !text(input.reference, 80)) return fail("Enter the lender and the loan number.");
   if (!isDate(input.paidOn)) return fail("Choose the date.");
   if (input.paidOn > todayIST()) return fail("The date cannot be in the future.");
@@ -482,7 +483,8 @@ const PURPOSES = ["education_loan", "visa", "scholarship", "employer", "other"];
 
 export async function requestFeeLetter(input: { studentId: number; purpose: string; addressedTo?: string; note?: string }) {
   const session = await getSession();
-  if (!session || (session.role !== "guardian" && session.role !== "student")) return fail("Fee letters are asked for by parents from their fees page.");
+  if (!session || (session.role !== "guardian" && session.role !== "student")) return fail("Fee letters are asked for by students or parents from their fees page.");
+  if (!session.school.higherEd) return fail("Fee letters on request are for colleges and universities.");
   const year = await getCurrentYear();
   if (!year) return fail("No academic year is set as current.");
   if (!isId(input?.studentId) || !PURPOSES.includes(input.purpose)) return fail("Choose what the letter is for.");

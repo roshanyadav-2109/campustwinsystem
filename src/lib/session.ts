@@ -66,6 +66,8 @@ export type SchoolBrand = {
   primaryColor: string;
   modules: SchoolModules;
   status: string;
+  /** College or university campus: higher-education features apply. */
+  higherEd: boolean;
 };
 
 // Load the signed-in user's profile (RLS: self-read). Returns null if signed out.
@@ -87,7 +89,7 @@ export const getSession = cache(async (): Promise<Session | null> => {
   const [{ data }, year] = await Promise.all([
     supabase
       .from("profile")
-      .select("id, role, full_name, locale, school_id, staff_id, guardian_id, student_id, university_id, active_campus_id, school:school_id(slug, name, short_name, place, monogram, logo_url, login_image_url, login_video_id, primary_color, modules, status), staff:staff_id(role, email, teacher_allotment(academic_year_id, is_class_teacher)), guardian:guardian_id(email), student:student_id(email)")
+      .select("id, role, full_name, locale, school_id, staff_id, guardian_id, student_id, university_id, active_campus_id, school:school_id(slug, name, short_name, place, monogram, logo_url, login_image_url, login_video_id, primary_color, modules, status, institution_type, university_id), staff:staff_id(role, email, teacher_allotment(academic_year_id, is_class_teacher)), guardian:guardian_id(email), student:student_id(email)")
       .eq("id", user.id)
       .single(),
     getCurrentYear(),
@@ -121,6 +123,7 @@ export const getSession = cache(async (): Promise<Session | null> => {
     slug: string; name: string; short_name: string | null; place: string | null; monogram: string | null;
     logo_url: string | null; login_image_url: string | null; login_video_id: string | null;
     primary_color: string; modules: SchoolModules | null; status: string;
+    institution_type?: string | null; university_id?: number | null;
   } | null;
   let school: SchoolBrand = {
     slug: sc?.slug ?? "",
@@ -134,6 +137,7 @@ export const getSession = cache(async (): Promise<Session | null> => {
     primaryColor: sc?.primary_color ?? "#0F6CBD",
     modules: (sc?.modules as SchoolModules) ?? {},
     status: sc?.status ?? "active",
+    higherEd: sc?.institution_type === "college" || !!sc?.university_id,
   };
 
   const universityId = (data as { university_id: number | null }).university_id ?? null;
@@ -145,7 +149,7 @@ export const getSession = cache(async (): Promise<Session | null> => {
   if (activeCampusId && activeCampusId !== data.school_id) {
     const { data: ac } = await supabase
       .from("school")
-      .select("slug, name, short_name, place, monogram, logo_url, login_image_url, login_video_id, primary_color, modules, status")
+      .select("slug, name, short_name, place, monogram, logo_url, login_image_url, login_video_id, primary_color, modules, status, institution_type, university_id")
       .eq("id", activeCampusId)
       .maybeSingle();
     const a = ac as unknown as typeof sc;
@@ -154,6 +158,7 @@ export const getSession = cache(async (): Promise<Session | null> => {
         slug: a.slug, name: a.name, shortName: a.short_name, place: a.place, monogram: a.monogram,
         logoUrl: a.logo_url, loginImageUrl: a.login_image_url, loginVideoId: a.login_video_id,
         primaryColor: a.primary_color ?? "#0F6CBD", modules: (a.modules as SchoolModules) ?? {}, status: a.status ?? "active",
+        higherEd: a.institution_type === "college" || !!a.university_id,
       };
     }
   }

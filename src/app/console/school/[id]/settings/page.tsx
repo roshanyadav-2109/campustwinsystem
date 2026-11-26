@@ -38,6 +38,14 @@ export default async function SettingsZone({ params }: { params: Promise<{ id: s
               <div className="grid gap-4 sm:grid-cols-2">
                 <div><label className={labelCls} htmlFor="b-name">Name</label><input id="b-name" name="name" defaultValue={s.name} className={inputCls} /></div>
                 <div><label className={labelCls} htmlFor="b-place">Town or city</label><input id="b-place" name="place" defaultValue={s.place ?? ""} className={inputCls} /></div>
+                {!campus && (
+                  <div><label className={labelCls} htmlFor="b-type">Type of institution</label>
+                    <select id="b-type" name="institution_type" defaultValue={s.institution_type ?? "school"} className={inputCls}>
+                      <option value="school">School</option>
+                      <option value="college">College</option>
+                    </select>
+                  </div>
+                )}
                 <div>
                   <label className={labelCls} htmlFor="b-color">Brand colour</label>
                   <div className="flex items-center gap-2">

@@ -9,7 +9,7 @@ export async function loadSchool(id: string | number) {
   const admin = createAdminClient();
   const { data } = await admin
     .from("school")
-    .select("id, name, slug, place, status, plan, modules, module_overrides, university_id, logo_url, primary_color")
+    .select("id, name, slug, place, status, plan, modules, module_overrides, university_id, logo_url, primary_color, institution_type")
     .eq("id", Number(id))
     .maybeSingle();
   if (!data) notFound();

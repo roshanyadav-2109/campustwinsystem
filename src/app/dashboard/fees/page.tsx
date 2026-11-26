@@ -79,7 +79,7 @@ async function ownerScreen(session: Session, sp: SP) {
 
   const [{ invoices, payments }, letters] = await Promise.all([
     getStudentLedger(student, { includeCancelled: false }),
-    getFeeLetters({ studentId: student.id, limit: 20 }),
+    session.school.higherEd ? getFeeLetters({ studentId: student.id, limit: 20 }) : Promise.resolve([]),
   ]);
   const totalDue = invoices.reduce((n, i) => n + i.balance, 0);
   const overdue = invoices.filter((i) => i.overdue);
@@ -113,7 +113,7 @@ async function ownerScreen(session: Session, sp: SP) {
           <CardHeader title="Payment history" />
           <CardBody><PaymentTable payments={payments} empty="No payments have been recorded yet." /></CardBody>
         </Card>
-        <FamilyFeeLetters studentId={student.id} letters={letters} />
+        {session.school.higherEd && <FamilyFeeLetters studentId={student.id} letters={letters} />}
       </div>
     </div>
   );
@@ -124,12 +124,12 @@ async function ownerScreen(session: Session, sp: SP) {
 // ---------------------------------------------------------------------------
 async function adminScreen(session: Session, sp: SP) {
   const isOffice = session.staffRole === "office";
-  const views = VIEWS.filter((v) => isOffice || !v.officeOnly);
+  const views = VIEWS.filter((v) => (isOffice || !v.officeOnly) && (v.key !== "letters" || session.school.higherEd));
   const asked = strParam(sp.view);
   const view: ViewKey = views.find((v) => v.key === asked)?.key ?? "overview";
 
   const [year, scope] = await Promise.all([getCurrentYear(), getStaffScope()]);
-  const waitingLetters = isOffice ? (await getFeeLetters({ limit: 200 })).filter((l) => l.status === "pending").length : 0;
+  const waitingLetters = isOffice && session.school.higherEd ? (await getFeeLetters({ limit: 200 })).filter((l) => l.status === "pending").length : 0;
   const tabs = <SegLinks label="Fees sections" items={views.map((v) => ({ href: `${BASE}?view=${v.key}`, label: v.key === "letters" && waitingLetters ? `${v.label} (${waitingLetters})` : v.label, active: v.key === view }))} />;
   const frame = (body: React.ReactNode, actions?: React.ReactNode) => (
     <div>
@@ -234,7 +234,7 @@ async function adminScreen(session: Session, sp: SP) {
               <CardHeader eyebrow={student.name} title={[student.classLabel, student.admissionNo].filter(Boolean).join(" · ")}
                 action={<span className="flex flex-wrap items-center gap-3"><TuitionCertificateButton studentId={student.id} /><span className="text-[13px] text-ink-700">Total due <span className="font-semibold tabular text-ink-900">{fmtMoney(due)}</span></span></span>} />
               <CardBody>
-                <InvoiceTable invoices={ledger.invoices} action={(inv) => <InvoiceActions key={inv.id} invoice={inv} />} />
+                <InvoiceTable invoices={ledger.invoices} action={(inv) => <InvoiceActions key={inv.id} invoice={inv} loans={session.school.higherEd} />} />
               </CardBody>
             </Card>
             <Card>

@@ -2608,6 +2608,7 @@ export type Database = {
       }
       school: {
         Row: {
+          institution_type: string
           address: string | null
           code: string | null
           created_at: string
@@ -2632,6 +2633,7 @@ export type Database = {
           university_id: number | null
         }
         Insert: {
+          institution_type?: string
           address?: string | null
           code?: string | null
           created_at?: string
@@ -2656,6 +2658,7 @@ export type Database = {
           university_id?: number | null
         }
         Update: {
+          institution_type?: string
           address?: string | null
           code?: string | null
           created_at?: string

@@ -231,7 +231,7 @@ export function RaiseFeesForm({ classes, sections, classTotals }: { classes: Cla
 // ---------------------------------------------------------------------------
 // Collect: buttons on each invoice row
 // ---------------------------------------------------------------------------
-export function InvoiceActions({ invoice }: { invoice: InvoiceView }) {
+export function InvoiceActions({ invoice, loans = false }: { invoice: InvoiceView; loans?: boolean }) {
   const [open, setOpen] = useState<"pay" | "refund" | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [waiving, setWaiving] = useState(false);
@@ -269,12 +269,12 @@ export function InvoiceActions({ invoice }: { invoice: InvoiceView }) {
         </div>
       )}
       {error && <span role="alert" className="text-[12px] text-down">{error}</span>}
-      {open && <PaymentDialog invoice={invoice} refund={open === "refund"} onClose={() => setOpen(null)} />}
+      {open && <PaymentDialog invoice={invoice} refund={open === "refund"} loans={loans} onClose={() => setOpen(null)} />}
     </div>
   );
 }
 
-function PaymentDialog({ invoice, refund, onClose }: { invoice: InvoiceView; refund: boolean; onClose: () => void }) {
+function PaymentDialog({ invoice, refund, loans, onClose }: { invoice: InvoiceView; refund: boolean; loans: boolean; onClose: () => void }) {
   const uid = useId();
   const limit = refund ? invoice.paid : invoice.balance;
   const [amount, setAmount] = useState(refund ? "" : String(limit));
@@ -321,7 +321,7 @@ function PaymentDialog({ invoice, refund, onClose }: { invoice: InvoiceView; ref
             </Field>
             <Field label="Mode" htmlFor={`${uid}-m`}>
               <Select id={`${uid}-m`} value={mode} onChange={(e) => setMode(e.target.value as FeeMode)}>
-                {FEE_MODES.map((m) => (<option key={m} value={m}>{MODE_LABEL[m]}</option>))}
+                {FEE_MODES.filter((m) => m !== "loan" || loans).map((m) => (<option key={m} value={m}>{MODE_LABEL[m]}</option>))}
               </Select>
             </Field>
             <Field label={mode === "loan" ? "Lender and loan number" : "Reference"} htmlFor={`${uid}-r`} hint={mode === "loan" ? "For example, SBI 12345678" : "UPI, cheque or bank reference, if any"}>

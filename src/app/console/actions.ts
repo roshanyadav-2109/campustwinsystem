@@ -179,6 +179,8 @@ export async function updateBranding(formData: FormData) {
     logo_url: String(formData.get("logo_url") || "").trim() || null,
   };
   if (kind !== "university") patch.place = String(formData.get("place") || "").trim() || null;
+  const type = String(formData.get("institution_type") || "");
+  if (kind !== "university" && (type === "school" || type === "college")) patch.institution_type = type;
   await admin.from(kind === "university" ? "university" : "school").update(patch as never).eq("id", id);
   refreshBrand();
   revalidatePath("/console");
