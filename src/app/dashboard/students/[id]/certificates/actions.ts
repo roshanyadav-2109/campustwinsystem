@@ -29,9 +29,9 @@ export async function signCertificateUpload(studentId: number, contentType: stri
   const session = await office();
   if (!session) return fail("Only the school office can upload certificates.");
   if (!FILE_TYPES.includes(contentType)) return fail("Upload a PDF, JPG or PNG file.");
-  const { certificateFileKey, presignPut, tenantPrefixForSchool } = await import("@/lib/r2");
+  const { certificateFileKey, presignPrivatePut, tenantPrefixForSchool } = await import("@/lib/r2");
   const key = certificateFileKey(await tenantPrefixForSchool(session.schoolId), studentId, contentType);
-  return { ok: true as const, key, uploadUrl: await presignPut(key) };
+  return { ok: true as const, key, uploadUrl: await presignPrivatePut(key) };
 }
 
 async function ownKey(schoolId: number, studentId: number, key: unknown) {

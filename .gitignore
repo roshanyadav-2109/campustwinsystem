@@ -86,3 +86,4 @@ swap-db.log
 .test-id-cards.mjs
 .make-demo-card.mjs
 .rotate-demo.mjs
+.dbg-demo.mjs

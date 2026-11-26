@@ -126,10 +126,21 @@ export async function presignPut(key: string, expiresSec = 300): Promise<string>
   return signed.url;
 }
 
-// A short-lived link to read a private file (certificates and other personal
-// documents are opened this way, after the app has checked who is asking).
+// Personal documents (certificates) live in a separate bucket with NO public
+// address: they can only be read through a short-lived signed link, after the
+// app has checked who is asking.
+const PRIVATE_BUCKET = process.env.R2_PRIVATE_BUCKET || "campustwin-private";
+const PRIVATE_ENDPOINT = `https://${ACCOUNT}.r2.cloudflarestorage.com/${PRIVATE_BUCKET}`;
+
+export async function presignPrivatePut(key: string, expiresSec = 300): Promise<string> {
+  const u = new URL(`${PRIVATE_ENDPOINT}/${key}`);
+  u.searchParams.set("X-Amz-Expires", String(expiresSec));
+  const signed = await client().sign(u.toString(), { method: "PUT", aws: { signQuery: true } });
+  return signed.url;
+}
+
 export async function presignGet(key: string, expiresSec = 120): Promise<string> {
-  const u = new URL(`${ENDPOINT}/${key}`);
+  const u = new URL(`${PRIVATE_ENDPOINT}/${key}`);
   u.searchParams.set("X-Amz-Expires", String(expiresSec));
   const signed = await client().sign(u.toString(), { method: "GET", aws: { signQuery: true } });
   return signed.url;
