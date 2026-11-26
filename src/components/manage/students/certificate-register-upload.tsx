@@ -65,7 +65,7 @@ export function CertificateRegisterUpload() {
       <CardBody className="space-y-3">
         <p className="text-[13px] text-ink-700">Certificates the school issued before using CampusTwin: admission number, certificate (Transfer, Bonafide or Character), its number and date of issue. A scanned copy can be attached later on each student.</p>
         <label htmlFor={inputId} className="inline-flex cursor-pointer items-center gap-2 rounded-sm border border-hair bg-surface px-3 py-2 text-[14px] font-medium text-ink-900 hover:bg-panel"><ExcelIcon size={18} /> Choose an Excel or CSV file</label>
-        <input id={inputId} type="file" accept=".xlsx,.csv,text/csv" className="sr-only" onChange={async (e) => {
+        <input id={inputId} aria-label="Certificate register file" type="file" accept=".xlsx,.csv,text/csv" className="sr-only" onChange={async (e) => {
           setRows(null); setMsg(null);
           const f = e.target.files?.[0];
           if (!f) return;

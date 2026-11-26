@@ -54,7 +54,7 @@ export function DetailsUpload() {
         <label htmlFor={inputId} className="inline-flex cursor-pointer items-center gap-2 rounded-sm border border-hair bg-surface px-3 py-2 text-[14px] font-medium text-ink-900 hover:bg-panel">
           <ExcelIcon size={18} /> Choose an Excel or CSV file
         </label>
-        <input id={inputId} type="file" accept=".xlsx,.csv,text/csv" className="sr-only" onChange={(e) => choose(e.target.files?.[0])} />
+        <input id={inputId} aria-label="File of more student details" type="file" accept=".xlsx,.csv,text/csv" className="sr-only" onChange={(e) => choose(e.target.files?.[0])} />
         {rows && (
           <div className="space-y-2">
             <p className="text-[14px] text-ink-900">{rows.length} {rows.length === 1 ? "row" : "rows"}, {columns.length} {columns.length === 1 ? "column" : "columns"} of details{bad.length ? `, ${bad.length} with problems` : ""}.</p>
