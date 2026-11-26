@@ -51,7 +51,13 @@ export function ReportCardsDesk({ sectionId, term, termLocked, canUnlock, rows, 
     setConfirmAll(false);
     router.refresh();
   });
-  const save = () => run(() => saveEntries({
+  const save = () => {
+    const bad = changed.filter((r) => { const e = edits[r.studentId]; return !!e.present.trim() !== !!e.working.trim(); })
+      .map((r) => (r.report as Rep).student.name);
+    if (bad.length) { setMsg({ ok: false, text: `Give both days present and working days for: ${bad.slice(0, 6).join(", ")}${bad.length > 6 ? ` and ${bad.length - 6} more` : ""}.` }); return; }
+    saveNow();
+  };
+  const saveNow = () => run(() => saveEntries({
     term,
     rows: changed.map((r): EntryRow => {
       const e = edits[r.studentId];
