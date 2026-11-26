@@ -28,6 +28,8 @@ export const SHARED_ROUTES: RouteDef[] = [
   { href: "/dashboard/admissions", icon: AdmissionsIcon, labelKey: "nav.admissions", roles: ["principal", "office"], module: "admissions", group: "students" },
   { href: "/dashboard/hr", icon: StaffHrIcon, labelKey: "nav.hr", roles: ["subject_teacher", "class_teacher", "principal", "office"], module: "hr", group: "staff" },
   { href: "/dashboard/leave", icon: LeaveIcon, labelKey: "nav.leave", roles: ["student", "guardian", "class_teacher"], group: "students" },
+  { href: "/dashboard/staff-attendance", icon: AttendanceIcon, labelKey: "nav.staffAttendance", roles: ["principal", "office"], group: "staff" },
+  { href: "/dashboard/gate-scan", icon: StudentsIcon, labelKey: "nav.gateScan", roles: ["principal", "office", "transport"], group: "campus" },
   { href: "/dashboard/allotments", icon: AllotmentIcon, labelKey: "nav.allotments", roles: ["principal", "office"], group: "staff" },
   { href: "/dashboard/promotion", icon: PromotionIcon, labelKey: "nav.promotion", roles: ["office", "principal", "class_teacher"], group: "students" },
   { href: "/dashboard/details", icon: RoleStudentIcon, labelKey: "nav.details", roles: ["student"], group: "students" },

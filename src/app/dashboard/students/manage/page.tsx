@@ -2,6 +2,7 @@ import { IdCardsForSection } from "@/components/students/id-cards";
 import { CertificateBulkUpload } from "@/components/manage/students/certificate-bulk-upload";
 import { CertificateRegisterUpload } from "@/components/manage/students/certificate-register-upload";
 import { DetailsUpload } from "@/components/manage/students/details-upload";
+import { UdiseExport } from "@/components/manage/students/udise-export";
 import { guardTab } from "@/lib/access";
 import { PageHeader } from "@/components/ui/page-header";
 import { EmptyState } from "@/components/ui/empty";
@@ -51,6 +52,7 @@ async function ManageStudentsPageBody({ searchParams }: { searchParams: SP }) {
         <IdCardsForSection sections={sections.map((x) => ({ id: x.id, label: x.label }))} />
         <CertificateBulkUpload />
         <CertificateRegisterUpload />
+        <UdiseExport sections={sections.map((x) => ({ id: x.id, label: x.label }))} />
       </div>
     </div>
   );

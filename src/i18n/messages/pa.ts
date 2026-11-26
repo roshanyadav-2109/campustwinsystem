@@ -34,6 +34,8 @@ const pa: PartialMessages = {
     noAccess: "ਤੁਹਾਨੂੰ ਇਹ ਪੰਨਾ ਵੇਖਣ ਦੀ ਇਜਾਜ਼ਤ ਨਹੀਂ ਹੈ।",
   },
   nav: {
+    staffAttendance: "ਸਟਾਫ਼ ਹਾਜ਼ਰੀ",
+    gateScan: "ਗੇਟ ਸਕੈਨ",
     idCard: "ਪਛਾਣ ਪੱਤਰ ਅਤੇ ਵੇਰਵੇ",
     examTimetable: "ਪ੍ਰੀਖਿਆ ਸਮਾਂ-ਸਾਰਣੀ",
     reportCards: "ਰਿਪੋਰਟ ਕਾਰਡ",
