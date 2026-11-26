@@ -47,18 +47,19 @@ export async function deleteSession(id: number): Promise<Result> {
   return { ok: true, message: "Removed." };
 }
 
-export async function savePaper(input: { id?: number | null; sessionId: number; classId: number; subjectId: number; date: string; start: string; end: string; max: string; note: string }): Promise<Result> {
+export async function savePaper(input: { id?: number | null; sessionId: number; classId: number; subjectId: number; date: string; start: string; end: string; max: string; note: string; component: string; group: string }): Promise<Result> {
   if (!(await office())) return { ok: false, error: "Only the office can set exams." };
   if (!/^\d{4}-\d{2}-\d{2}$/.test(input.date) || !TIME.test(input.start) || !TIME.test(input.end)) return { ok: false, error: "Give the date and the start and end times." };
   if (input.end <= input.start) return { ok: false, error: "The paper must end after it starts." };
   if (!/^\d{1,4}(\.\d{1,2})?$/.test(input.max) || Number(input.max) <= 0) return { ok: false, error: "Give the maximum marks." };
-  const row = { session_id: input.sessionId, class_id: input.classId, subject_id: input.subjectId, exam_date: input.date,
-    starts_at: input.start, ends_at: input.end, max_marks: Number(input.max), note: input.note.trim().slice(0, 120) || null };
+  const component = input.component.trim().slice(0, 30) || "Theory";
+  const changes = { exam_date: input.date, starts_at: input.start, ends_at: input.end, max_marks: Number(input.max), note: input.note.trim().slice(0, 120) || null,
+    component, optional_group: input.group.trim().slice(0, 30) || null };
   const supabase = await createClient();
   const { error } = input.id
-    ? await supabase.from("exam_paper" as never).update(row as never).eq("id", input.id)
-    : await supabase.from("exam_paper" as never).insert(row as never);
-  if (error) return { ok: false, error: error.message.includes("duplicate") ? "This subject already has a paper in this exam for the class." : err(error, "Could not save the paper.") };
+    ? await supabase.from("exam_paper" as never).update(changes as never).eq("id", input.id)
+    : await supabase.from("exam_paper" as never).insert({ ...changes, session_id: input.sessionId, class_id: input.classId, subject_id: input.subjectId } as never);
+  if (error) return { ok: false, error: error.message.includes("duplicate") ? "This subject already has this paper (theory, practical...) in this exam for the class." : err(error, "Could not save the paper.") };
   revalidatePath(PATH);
   return { ok: true, message: "Saved." };
 }

@@ -5,7 +5,7 @@ import { Card, CardBody, CardHeader } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Field, Input, Select, Textarea } from "@/components/ui/field";
 import { GATEWAY_CHOICES, CONNECTED } from "@/core/payments/choices";
-import { addGateway, saveGatewayKeys, setActiveGateway } from "@/app/dashboard/settings/payments/actions";
+import { addGateway, saveGatewayKeys, setActiveGateway, resolvePayment } from "@/app/dashboard/settings/payments/actions";
 
 export type GatewayRow = { id: number; provider: string; label: string | null; mode: "live" | "test"; active: boolean; hasKeys: boolean; merchantId: string; updated_at: string };
 const name = (id: string) => GATEWAY_CHOICES.find((g) => g.id === id)?.label ?? id;
@@ -81,5 +81,22 @@ export function PaymentGateways({ gateways }: { gateways: GatewayRow[] }) {
         </div>
       </CardBody>
     </Card>
+  );
+}
+
+// The office notes what it did about a payment that needed checking.
+export function ResolvePayment({ orderId }: { orderId: number }) {
+  const [note, setNote] = useState("");
+  const [open, setOpen] = useState(false);
+  const [msg, setMsg] = useState<{ ok: boolean; text: string } | null>(null);
+  const [pending, start] = useTransition();
+  const router = useRouter();
+  if (!open) return <Button size="sm" variant="ghost" className="ml-2" onClick={() => setOpen(true)}>Resolve</Button>;
+  return (
+    <div className="mt-1 flex flex-wrap items-center gap-2">
+      <Input className="h-8 w-80 text-[13px]" aria-label="What was done" placeholder="For example: refunded by bank transfer on 2 Dec" value={note} onChange={(e) => setNote(e.target.value)} />
+      <Button size="sm" disabled={pending || !note.trim()} onClick={() => start(async () => { const r = await resolvePayment(orderId, note); setMsg(r.ok ? { ok: true, text: r.message ?? "" } : { ok: false, text: r.error }); router.refresh(); })}>Save</Button>
+      <Msg m={msg} />
+    </div>
   );
 }

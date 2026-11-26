@@ -3,7 +3,7 @@ import { getSession } from "@/lib/session";
 import { PageHeader } from "@/components/ui/page-header";
 import { Card, CardBody, CardHeader } from "@/components/ui/card";
 import { createClient } from "@/lib/supabase/server";
-import { PaymentGateways, type GatewayRow } from "@/components/settings/payment-gateways";
+import { PaymentGateways, ResolvePayment, type GatewayRow } from "@/components/settings/payment-gateways";
 
 type OrderRow = { id: number; created_at: string; amount: number; status: string; mode: string; provider: string; failure_reason: string | null;
   refund_due: number; refunded_amount: number; method: string | null; student: { full_name: string } | null; fee_payment: { receipt_no: string } | null };
@@ -15,15 +15,17 @@ export default async function PaymentSettingsPage() {
   if (denied) return denied;
   const session = await getSession();
   const supabase = await createClient();
-  const [gwRes, ordRes] = await Promise.all([
+  const [gwRes, ordRes, attRes] = await Promise.all([
     supabase.from("payment_gateway" as never).select("id, provider, label, mode, active, config, secret_id, updated_at").order("id"),
     supabase.from("payment_order" as never).select("id, created_at, amount, status, mode, provider, failure_reason, refund_due, refunded_amount, method, student:student_id(full_name), fee_payment:fee_payment_id(receipt_no)")
       .order("created_at", { ascending: false }).limit(100),
+    supabase.from("payment_order" as never).select("id, created_at, amount, status, mode, provider, failure_reason, refund_due, refunded_amount, method, student:student_id(full_name), fee_payment:fee_payment_id(receipt_no)")
+      .or("status.eq.review,refund_due.gt.0").order("created_at").limit(500),
   ]);
   const gateways: GatewayRow[] = ((gwRes.data ?? []) as unknown as (Omit<GatewayRow, "hasKeys" | "merchantId"> & { secret_id: string | null; config: { merchant_id?: string } })[])
     .map((g) => ({ id: g.id, provider: g.provider, label: g.label, mode: g.mode, active: g.active, hasKeys: !!g.secret_id, merchantId: g.config?.merchant_id ?? "", updated_at: g.updated_at }));
   const orders = (ordRes.data ?? []) as unknown as OrderRow[];
-  const attention = orders.filter((o) => o.status === "review" || Number(o.refund_due) > 0);
+  const attention = (attRes.data ?? []) as unknown as OrderRow[];
   const money = (v: number) => `Rs ${Number(v).toLocaleString("en-IN", { minimumFractionDigits: 2 })}`;
 
   return (
@@ -38,6 +40,7 @@ export default async function PaymentSettingsPage() {
               <li key={o.id} className="border-b border-hair px-4 py-2 text-[13px] last:border-b-0">
                 <span className="font-medium">{o.student?.full_name}</span>, {money(o.amount)}: {o.failure_reason ?? "check this payment"}
                 {Number(o.refund_due) > 0 && <span className="text-down"> · refund due {money(o.refund_due)}</span>}
+                {session?.staffRole === "office" && <ResolvePayment orderId={o.id} />}
               </li>))}
             </ul>
           </CardBody>

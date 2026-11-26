@@ -42,10 +42,11 @@ export async function finishTestPayment(form: FormData) {
   if (!mine) redirect("/dashboard/fees");
   const order = await orderForGateway(publicId);
   if (!order || order.provider !== "test" || order.mode !== "test") redirect("/dashboard/fees");
+  if (order.status !== "created") redirect(`/dashboard/fees/payment/${publicId}`);   // a second click changes nothing
   const admin = createAdminClient();
   if (outcome === "pay") {
     await admin.rpc("complete_payment_order" as never, {
-      p_public_id: publicId, p_provider_payment_id: `test_${publicId.slice(0, 10)}_${Date.now().toString(36)}`, p_amount: order.amount,
+      p_public_id: publicId, p_provider_payment_id: `test_${publicId}`, p_amount: order.amount,
       p_method: "test",
     } as never);
   } else {

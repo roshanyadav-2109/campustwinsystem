@@ -19,7 +19,7 @@ export async function addGateway(input: { provider: string; mode: "live" | "test
     provider: input.provider, mode, label: input.label.trim().slice(0, 60) || null,
     config: input.merchantId.trim() ? { merchant_id: input.merchantId.trim().slice(0, 80) } : {},
   } as never);
-  if (error) return { ok: false, error: error.message.includes("duplicate") ? "This gateway is already added in this mode." : "Could not add the gateway." };
+  if (error) return { ok: false, error: error.message.includes("duplicate") ? "This gateway is already added in this mode." : error.message.includes("demo institutions") ? "The test gateway is only for demo institutions. Add your school's own gateway." : "Could not add the gateway." };
   revalidatePath(PATH);
   return { ok: true, message: "Added." };
 }
@@ -39,19 +39,23 @@ export async function saveGatewayKeys(gatewayId: number, keysJson: string): Prom
 export async function setActiveGateway(gatewayId: number | null): Promise<Result> {
   if (!(await office())) return { ok: false, error: "Only the office can change payment settings." };
   const supabase = await createClient();
-  if (gatewayId) {
-    const { data } = await supabase.from("payment_gateway" as never).select("provider, secret_id").eq("id", gatewayId).maybeSingle();
-    const g = data as unknown as { provider: string; secret_id: string | null } | null;
-    if (!g) return { ok: false, error: "Unknown gateway." };
-    if (!CONNECTED.has(g.provider)) return { ok: false, error: "CampusTwin connects this gateway for you once your merchant account and keys are ready. Until then, use the test gateway or pay at the office." };
-  }
-  const { error: offErr } = await supabase.from("payment_gateway" as never).update({ active: false, updated_at: new Date().toISOString() } as never).eq("active", true);
-  if (offErr) return { ok: false, error: "Could not change the gateway." };
-  if (gatewayId) {
-    const { error } = await supabase.from("payment_gateway" as never).update({ active: true, updated_at: new Date().toISOString() } as never).eq("id", gatewayId);
-    if (error) return { ok: false, error: "Could not switch it on." };
+  const { error } = await supabase.rpc("set_active_gateway" as never, { p_gateway: gatewayId, p_connected: [...CONNECTED] } as never);
+  if (error) {
+    if (error.message.includes("not connected")) return { ok: false, error: "CampusTwin connects this gateway for you once your merchant account and keys are ready. Until then, parents pay at the office." };
+    if (error.message.includes("keys first")) return { ok: false, error: "Save the gateway keys first." };
+    return { ok: false, error: "Could not change the gateway." };
   }
   revalidatePath(PATH);
   revalidatePath("/dashboard/fees");
   return { ok: true, message: gatewayId ? "Online payment is on. Parents see Pay buttons on their bills." : "Online payment is off." };
+}
+
+export async function resolvePayment(orderId: number, note: string): Promise<Result> {
+  if (!(await office())) return { ok: false, error: "Only the office can resolve payments." };
+  if (!note.trim()) return { ok: false, error: "Write what was done (for example: refunded by bank transfer on 2 Dec)." };
+  const supabase = await createClient();
+  const { error } = await supabase.rpc("resolve_payment_order" as never, { p_order: orderId, p_note: note.trim().slice(0, 300) } as never);
+  if (error) return { ok: false, error: "Could not save." };
+  revalidatePath(PATH);
+  return { ok: true, message: "Marked as resolved." };
 }

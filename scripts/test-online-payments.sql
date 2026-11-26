@@ -32,7 +32,12 @@ begin
   -- the office adds the test gateway and keys
   perform set_config('request.jwt.claims', json_build_object('sub', of, 'role', 'authenticated')::text, true);
   set local role authenticated;
-  insert into public.payment_gateway (provider, mode, active) values ('test', 'test', true) returning id into v_gw;
+  insert into public.payment_gateway (provider, mode) values ('test', 'test') returning id into v_gw;
+  ok := false; begin update public.payment_gateway set active = true where id = v_gw; exception when insufficient_privilege then ok := true; end;
+  if not ok then raise exception 'FAIL office switched a gateway on directly'; end if;
+  ok := false; begin perform public.set_active_gateway(v_gw, array['razorpay']); exception when others then ok := sqlerrm like '%not connected%'; end;
+  if not ok then raise exception 'FAIL gateway without a connector switched on'; end if;
+  perform public.set_active_gateway(v_gw, array['test']);
   perform public.set_payment_gateway_secret(v_gw, '{"key":"QA"}');
   ok := false; begin update public.payment_gateway set secret_id = gen_random_uuid() where id = v_gw; exception when insufficient_privilege then ok := true; end;
   if not ok then raise exception 'FAIL office set secret_id'; end if;
@@ -112,6 +117,9 @@ begin
   if r.ok then raise exception 'FAIL refund above received'; end if;
   reset role;
   if (select paid_amount from public.fee_invoice where id = v_inv3) <> 600 then raise exception 'FAIL refund not on the bill: %', (select paid_amount from public.fee_invoice where id = v_inv3); end if;
+  -- a real school cannot use the test gateway
+  ok := false; begin insert into public.payment_gateway (school_id, provider, mode) values (1, 'test', 'test'); exception when others then ok := sqlerrm like '%demo institutions%'; end;
+  if not ok then raise exception 'FAIL test gateway at a real school'; end if;
   -- the log cannot be changed
   ok := false; begin update public.payment_event set kind = 'x' where school_id = 8; exception when others then ok := true; end;
   if not ok then raise exception 'FAIL payment log changed'; end if;

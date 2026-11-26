@@ -33,6 +33,23 @@ begin
   -- marks columns exist in every section of the class
   select count(*) into c from public.assessment where exam_paper_id in (p1, p2);
   if c <> 2 * (select count(*) from public.section where class_id = v_class) then raise exception 'FAIL % marks columns', c; end if;
+  -- optional papers in the same group may share a slot
+  insert into public.exam_paper (session_id, class_id, subject_id, exam_date, starts_at, ends_at, max_marks, optional_group, component)
+    values (v_sess, v_class, s2, '2026-12-12', '09:00', '12:00', 80, 'Language', 'Oral');
+  insert into public.exam_paper (session_id, class_id, subject_id, exam_date, starts_at, ends_at, max_marks, optional_group, component)
+    values (v_sess, v_class, s1, '2026-12-12', '09:00', '12:00', 20, 'Language', 'Practical');
+  -- a paper cannot move to another subject
+  ok := false; begin update public.exam_paper set subject_id = s2 where id = p1; exception when others then ok := sqlerrm like '%cannot move%'; end;
+  if not ok then raise exception 'FAIL paper moved to another subject'; end if;
+  -- renaming the exam renames its marks columns (practical keeps its label)
+  update public.exam_session set name = 'QA Half-Yearly Renamed' where id = v_sess;
+  if exists (select 1 from public.assessment a join public.exam_paper p on p.id = a.exam_paper_id where p.session_id = v_sess and a.name not like 'QA Half-Yearly Renamed%') then raise exception 'FAIL rename not in step'; end if;
+  if not exists (select 1 from public.assessment a join public.exam_paper p on p.id = a.exam_paper_id where p.session_id = v_sess and a.name = 'QA Half-Yearly Renamed (Practical)') then raise exception 'FAIL practical column name'; end if;
+  -- a section added later gets the columns
+  reset role;
+  insert into public.section (class_id, name, school_id) values (v_class, 'QZ', 8);
+  if (select count(*) from public.assessment a join public.section sec on sec.id = a.section_id where sec.name = 'QZ' and sec.class_id = v_class and a.exam_paper_id is not null) <> 4 then raise exception 'FAIL new section has no exam columns'; end if;
+  set local role authenticated;
   -- moving the paper moves the columns
   update public.exam_paper set exam_date = '2026-12-11', max_marks = 70 where id = p1;
   if exists (select 1 from public.assessment where exam_paper_id = p1 and (assessed_on <> '2026-12-11' or max_marks <> 70)) then raise exception 'FAIL columns not in step'; end if;
@@ -52,9 +69,14 @@ begin
     values (v_kid, v_sec, v_year, 'QA overdue', 500, 0, '2026-11-01', 'due', 8);
   perform set_config('request.jwt.claims', json_build_object('sub', pa, 'role', 'authenticated')::text, true);
   set local role authenticated;
-  if (select count(*) from public.exam_paper where session_id = v_sess) <> 2 then raise exception 'FAIL parent cannot see the date sheet'; end if;
+  if (select count(*) from public.exam_paper where session_id = v_sess) <> 4 then raise exception 'FAIL parent cannot see the date sheet'; end if;
   select * into r from public.prepare_admit_cards(v_sess, v_sec, v_kid);
-  if not r.withheld or r.reason not like 'Fees overdue%' then raise exception 'FAIL not withheld: %', r; end if;
+  if not r.withheld or r.reason not like 'Fees overdue%' or r.verify_token is not null then raise exception 'FAIL not withheld: %', r; end if;
+  reset role;
+  delete from public.fee_invoice where student_id = v_kid and title = 'QA overdue';
+  set local role authenticated;
+  select * into r from public.prepare_admit_cards(v_sess, v_sec, v_kid);
+  if r.withheld or r.verify_token is null then raise exception 'FAIL still withheld after paying'; end if;
   v_tok := r.verify_token;
   ok := false; begin perform public.prepare_admit_cards(v_sess, v_sec, v_other); exception when others then ok := true; end;
   if not ok then raise exception 'FAIL parent printed another child''s admit card'; end if;

@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { createClient } from "@/lib/supabase/server";
 import { PageHeader } from "@/components/ui/page-header";
+import { AutoRefresh } from "@/components/fees/auto-refresh";
 
 // Where the payer lands after the gateway: what happened to this payment.
 export const dynamic = "force-dynamic";
@@ -24,6 +25,8 @@ export default async function PaymentResultPage({ params }: { params: Promise<{ 
       <div className="rounded-md border border-hair bg-white p-6">
         <h1 className={`text-[20px] font-semibold ${view.tone}`}>{view.title}</h1>
         <p className="mt-2 text-[14px] text-ink-700">{view.text}</p>
+        {o?.status === "paid" && o.fee_payment && <p className="mt-2 text-[13px] text-ink-500">Download the receipt from Fees, Payment history.</p>}
+        {o?.status === "pending" && <AutoRefresh seconds={10} />}
         <Link href="/dashboard/fees" className="mt-5 inline-block text-[14px] font-medium text-[#0F6CBD] hover:underline">Back to Fees</Link>
       </div>
     </div>
