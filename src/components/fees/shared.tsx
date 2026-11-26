@@ -11,9 +11,14 @@ export const MODE_LABEL: Record<FeeMode, string> = {
   cash: "Cash", upi: "UPI", card: "Card", bank: "Bank transfer", cheque: "Cheque",
 };
 
-export type FeeHead = { id: number; name: string; is_active: boolean };
+export type FeeHead = { id: number; name: string; is_active: boolean; charge: "split" | "once"; is_tuition: boolean };
+export type Instalment = { id: number; seq: number; name: string; due_date: string; share_pct: number; raised: number };
+export type ConcessionType = { id: number; name: string; kind: "percent" | "amount"; value: number; head_ids: number[] | null; auto_rule: "sibling" | null; active: boolean };
+export type StudentConcession = { id: number; typeId: number; name: string; detail: string; isAuto: boolean; note: string | null };
 export type StructureRow = { class_id: number; fee_head_id: number; amount: number };
 
+// A line on an invoice. Concessions are shown as negative amounts; a waived
+// late fee is shown with a zero amount and "(waived)".
 export type FeeLine = { name: string; amount: number };
 
 export type InvoiceView = {

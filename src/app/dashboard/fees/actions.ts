@@ -245,3 +245,129 @@ export async function cancelInvoice(invoiceId: number) {
   done();
   return { ok: true as const };
 }
+
+// ---------------------------------------------------------------------------
+// Instalments, concessions and head options
+// ---------------------------------------------------------------------------
+export async function saveFeeHeadOptions(input: { id: number; charge: string; isTuition: boolean }) {
+  if (!(await office())) return fail(NOT_ALLOWED);
+  if (!isId(input?.id) || (input.charge !== "split" && input.charge !== "once")) return fail(TRY_AGAIN);
+  const db = await untyped();
+  const { error } = await db.from("fee_head").update({ charge: input.charge, is_tuition: !!input.isTuition }).eq("id", input.id);
+  if (error) return fail(TRY_AGAIN);
+  done();
+  return { ok: true as const };
+}
+
+// Saves the year's instalment plan. Instalments already raised stay exactly as
+// they are; new ones must come after the last raised one, and all the shares
+// together must make 100%.
+export async function saveInstalments(rows: { id?: number; name: string; dueDate: string; sharePct: number }[]) {
+  if (!(await office())) return fail(NOT_ALLOWED);
+  const year = await getCurrentYear();
+  if (!year) return fail("No academic year is set as current.");
+  if (!Array.isArray(rows) || rows.length > 24) return fail("A year can have at most 24 instalments.");
+  const db = await untyped();
+  const { data: cur, error: curErr } = await db.from("fee_instalment").select("id, seq, name, due_date, share_pct").eq("academic_year_id", year.id).order("seq");
+  if (curErr) return fail(TRY_AGAIN);
+  const existing = (cur ?? []) as { id: number; seq: number; name: string; due_date: string; share_pct: number | string }[];
+  const raisedIds = new Set<number>();
+  for (const e of existing) {
+    const { count } = await db.from("fee_invoice").select("id", { count: "exact", head: true }).eq("instalment_id", e.id).neq("status", "cancelled");
+    if (count) raisedIds.add(e.id);
+  }
+  const raised = existing.filter((e) => raisedIds.has(e.id));
+  const fresh: { name: string; due_date: string; share_pct: number }[] = [];
+  const seen = new Set<string>();
+  for (const r of rows) {
+    if (r?.id && raisedIds.has(r.id)) continue;   // raised instalments cannot change
+    const name = text(r?.name, 60);
+    if (!name) return fail("Give every instalment a name, for example Term 1.");
+    if (seen.has(name.toLowerCase())) return fail(`Two instalments are called ${name}.`);
+    seen.add(name.toLowerCase());
+    if (!isDate(r?.dueDate)) return fail(`Choose a due date for ${name}.`);
+    const share = typeof r?.sharePct === "number" && Number.isFinite(r.sharePct) ? Math.round(r.sharePct * 1000) / 1000 : NaN;
+    if (!(share > 0 && share <= 100)) return fail(`Enter the share of ${name} as a percentage.`);
+    fresh.push({ name, due_date: r.dueDate, share_pct: share });
+  }
+  fresh.sort((a, b) => a.due_date.localeCompare(b.due_date));
+  const lastRaised = raised[raised.length - 1];
+  if (lastRaised && fresh.some((f) => f.due_date <= lastRaised.due_date)) {
+    return fail(`${lastRaised.name} has already been raised, so new instalments must be due after ${lastRaised.due_date.split("-").reverse().join("/")}.`);
+  }
+  for (const r of raised) if (seen.has(r.name.toLowerCase())) return fail(`${r.name} already exists and has been raised.`);
+  const total = Math.round((raised.reduce((n, r) => n + Number(r.share_pct), 0) + fresh.reduce((n, f) => n + f.share_pct, 0)) * 1000) / 1000;
+  if (fresh.length + raised.length > 0 && Math.abs(total - 100) > 0.001) return fail(`The shares add up to ${total}%. They must add up to 100%.`);
+
+  const drop = existing.filter((e) => !raisedIds.has(e.id)).map((e) => e.id);
+  if (drop.length) {
+    const { error } = await db.from("fee_instalment").delete().in("id", drop);
+    if (error) return fail(TRY_AGAIN);
+  }
+  const start = (lastRaised?.seq ?? 0) + 1;
+  if (fresh.length) {
+    const { error } = await db.from("fee_instalment").insert(fresh.map((f, i) => ({ ...f, seq: start + i, academic_year_id: year.id })));
+    if (error) return fail(TRY_AGAIN);
+  }
+  done();
+  return { ok: true as const };
+}
+
+export async function raiseInstalment(input: { instalmentId: number; classId?: number | null; sectionId?: number | null }) {
+  if (!(await office())) return fail(NOT_ALLOWED);
+  if (!isId(input?.instalmentId)) return fail("Choose an instalment.");
+  const classId = input.classId ?? null, sectionId = input.sectionId ?? null;
+  if ((classId !== null && !isId(classId)) || (sectionId !== null && !isId(sectionId))) return fail(TRY_AGAIN);
+  const supabase = await createClient();
+  const { data, error } = await supabase.rpc("raise_instalment" as never, { p_instalment: input.instalmentId, p_class: classId, p_section: sectionId } as never);
+  if (error) return fail(TRY_AGAIN);
+  done();
+  return { ok: true as const, created: Number(data ?? 0) };
+}
+
+export async function saveConcessionType(input: { id?: number; name: string; kind: string; value: number; headIds: number[] | null; sibling: boolean; active: boolean }) {
+  if (!(await office())) return fail(NOT_ALLOWED);
+  const name = text(input?.name, 60);
+  if (!name) return fail("Enter a name, for example Sibling discount.");
+  if (input.kind !== "percent" && input.kind !== "amount") return fail("Choose a percentage or an amount.");
+  const value = money(input.value);
+  if (value === null || (input.kind === "percent" && value > 100)) return fail(input.kind === "percent" ? "Enter a percentage between 0 and 100." : "Enter the amount off for the year.");
+  const heads = Array.isArray(input.headIds) && input.headIds.length ? input.headIds.filter(isId) : null;
+  if (input.id !== undefined && !isId(input.id)) return fail(TRY_AGAIN);
+  const row = { name, kind: input.kind, value, head_ids: heads, auto_rule: input.sibling ? "sibling" : null, active: !!input.active };
+  const db = await untyped();
+  const { error } = input.id !== undefined
+    ? await db.from("fee_concession_type").update(row).eq("id", input.id)
+    : await db.from("fee_concession_type").insert(row);
+  if (error) return fail(error.code === "23505" ? "A concession with this name already exists." : TRY_AGAIN);
+  done();
+  return { ok: true as const };
+}
+
+// Concessions apply to instalments raised from now on; invoices already raised
+// are not changed.
+export async function grantConcession(input: { studentId: number; typeId: number; note?: string }) {
+  const session = await office();
+  if (!session) return fail(NOT_ALLOWED);
+  const year = await getCurrentYear();
+  if (!year) return fail("No academic year is set as current.");
+  if (!isId(input?.studentId) || !isId(input?.typeId)) return fail("Choose a concession.");
+  const note = text(input.note, 300) || null;
+  const db = await untyped();
+  const { error } = await db.from("student_concession").upsert(
+    { student_id: input.studentId, concession_type_id: input.typeId, academic_year_id: year.id, status: "active", is_auto: false, note, granted_by: session.staffId },
+    { onConflict: "student_id,concession_type_id,academic_year_id" });
+  if (error) return fail(TRY_AGAIN);
+  done();
+  return { ok: true as const };
+}
+
+export async function removeConcession(id: number) {
+  if (!(await office())) return fail(NOT_ALLOWED);
+  if (!isId(id)) return fail(TRY_AGAIN);
+  const db = await untyped();
+  const { error } = await db.from("student_concession").update({ status: "removed" }).eq("id", id);
+  if (error) return fail(TRY_AGAIN);
+  done();
+  return { ok: true as const };
+}

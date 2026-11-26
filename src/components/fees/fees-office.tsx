@@ -185,7 +185,7 @@ export function RaiseFeesForm({ classes, sections, classTotals }: { classes: Cla
 
   return (
     <Card className="max-w-2xl">
-      <CardHeader title="Raise fees" />
+      <CardHeader eyebrow="Without instalments" title="Raise a class's full fees as one bill" />
       <CardBody className="space-y-3">
         <p className="text-[13px] text-ink-500">Creates one invoice for every enrolled student, using the amounts in Fee setup. Students who already have an invoice with the same title this year are skipped.</p>
         <div className="grid gap-3 sm:grid-cols-2">

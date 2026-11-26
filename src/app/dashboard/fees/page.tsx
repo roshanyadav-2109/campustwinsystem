@@ -10,9 +10,11 @@ import { Field, Input, Select } from "@/components/ui/field";
 import { getStaffScope } from "@/lib/data/scope";
 import { getMyChildren } from "@/lib/data/analytics";
 import {
-  FeesNotReady, getDues, getFeeHeads, getFeeOverview, getFeeStructure, getRecentPayments,
-  getStudentBrief, getStudentLedger, searchStudents,
+  FeesNotReady, getConcessionTypes, getDues, getFeeHeads, getFeeOverview, getFeeStructure, getInstalments, getRecentPayments,
+  getStudentBrief, getStudentConcessions, getStudentLedger, searchStudents,
 } from "@/lib/data/fees";
+import { ConcessionTypesManager, HeadOptions, InstalmentPlanner, InstalmentRaise, StudentConcessions } from "@/components/fees/fees-plan";
+import { createClient } from "@/lib/supabase/server";
 import { FeeHeadsManager, FeeStructureGrid, InvoiceActions, RaiseFeesForm } from "@/components/fees/fees-office";
 import { DuesExcelButton } from "@/components/fees/fees-downloads";
 import { InvoiceTable, OverviewView, PaymentTable, SegLinks, Stat } from "@/components/fees/fees-views";
@@ -135,11 +137,22 @@ async function adminScreen(session: Session, sp: SP) {
   }
 
   if (view === "setup") {
-    const [heads, structure] = await Promise.all([getFeeHeads(), getFeeStructure(year.id)]);
+    const supabase = await createClient();
+    const [heads, structure, instalments, types, { data: yr }] = await Promise.all([
+      getFeeHeads(), getFeeStructure(year.id), getInstalments(year.id), getConcessionTypes(),
+      supabase.from("academic_year").select("start_date").eq("id", year.id).single(),
+    ]);
     return frame(
-      <div className="grid gap-5 lg:grid-cols-[320px_1fr]">
-        <div className="self-start"><FeeHeadsManager heads={heads} /></div>
-        <FeeStructureGrid classes={scope.classes} heads={heads.filter((h) => h.is_active)} structure={structure} yearName={year.name} />
+      <div className="space-y-5">
+        <div className="grid gap-5 lg:grid-cols-[320px_1fr]">
+          <div className="self-start"><FeeHeadsManager heads={heads} /></div>
+          <FeeStructureGrid classes={scope.classes} heads={heads.filter((h) => h.is_active)} structure={structure} yearName={year.name} />
+        </div>
+        <InstalmentPlanner instalments={instalments} yearStart={yr?.start_date ?? `${new Date().getFullYear()}-04-01`} yearName={year.name} />
+        <div className="grid items-start gap-5 lg:grid-cols-2">
+          <HeadOptions heads={heads.filter((h) => h.is_active)} />
+          <ConcessionTypesManager types={types} heads={heads} />
+        </div>
       </div>,
     );
   }
@@ -149,9 +162,17 @@ async function adminScreen(session: Session, sp: SP) {
     const active = new Set(heads.filter((h) => h.is_active).map((h) => h.id));
     const classTotals: Record<number, number> = {};
     for (const r of structure) if (active.has(r.fee_head_id)) classTotals[r.class_id] = (classTotals[r.class_id] ?? 0) + r.amount;
+    const supabase = await createClient();
+    const [instalments, { count: enrolled }] = await Promise.all([
+      getInstalments(year.id),
+      supabase.from("student_enrollment").select("id", { count: "exact", head: true }).eq("academic_year_id", year.id).neq("status", "transferred"),
+    ]);
+    const sections = scope.sections.map((s) => ({ id: s.id, name: s.name, class_id: s.class_id }));
     return frame(
-      <RaiseFeesForm classes={scope.classes} classTotals={classTotals}
-        sections={scope.sections.map((s) => ({ id: s.id, name: s.name, class_id: s.class_id }))} />,
+      <div className="space-y-5">
+        <InstalmentRaise instalments={instalments} classes={scope.classes} sections={sections} enrolled={enrolled ?? 0} />
+        <RaiseFeesForm classes={scope.classes} classTotals={classTotals} sections={sections} />
+      </div>,
     );
   }
 
@@ -162,7 +183,9 @@ async function adminScreen(session: Session, sp: SP) {
       q && !studentId ? searchStudents(q, year.id) : Promise.resolve([]),
       studentId ? getStudentBrief(studentId, year.id) : Promise.resolve(null),
     ]);
-    const ledger = student ? await getStudentLedger(student, { includeCancelled: true }) : null;
+    const [ledger, granted, types] = student
+      ? await Promise.all([getStudentLedger(student, { includeCancelled: true }), getStudentConcessions(student.id, year.id), getConcessionTypes()])
+      : [null, [], []];
     const due = ledger ? ledger.invoices.reduce((n, i) => n + i.balance, 0) : 0;
     return frame(
       <div className="space-y-5">
@@ -209,6 +232,7 @@ async function adminScreen(session: Session, sp: SP) {
               <CardHeader title="Payment history" />
               <CardBody><PaymentTable payments={ledger.payments} empty="No payments have been recorded for this student." /></CardBody>
             </Card>
+            <StudentConcessions studentId={student.id} granted={granted} types={types} />
           </>
         )}
       </div>,

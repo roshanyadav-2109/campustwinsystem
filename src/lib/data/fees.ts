@@ -2,8 +2,8 @@ import { createClient } from "@/lib/supabase/server";
 import { untyped, getNames } from "@/lib/data/schedule";
 import type { SectionOpt } from "@/lib/data/scope";
 import {
-  FEE_MODES, round2, todayIST,
-  type DueRow, type FeeHead, type FeeLine, type FeeMode, type FeeOverview, type InvoiceStatus,
+  FEE_MODES, fmtMoney, round2, todayIST,
+  type ConcessionType, type DueRow, type FeeHead, type Instalment, type StudentConcession, type FeeLine, type FeeMode, type FeeOverview, type InvoiceStatus,
   type InvoiceView, type PaymentView, type StructureRow, type StudentBrief,
 } from "@/components/fees/shared";
 
@@ -67,9 +67,44 @@ export async function inChunks<T>(ids: number[], run: (chunk: number[]) => Promi
 // ---------------------------------------------------------------------------
 export async function getFeeHeads(): Promise<FeeHead[]> {
   const db = await untyped();
-  const { data, error } = await db.from("fee_head").select("id, name, is_active").order("name");
+  const { data, error } = await db.from("fee_head").select("id, name, is_active, charge, is_tuition").order("name");
   check(error);
   return (data ?? []) as FeeHead[];
+}
+
+// The year's instalments, with how many invoices each has raised so far.
+export async function getInstalments(yearId: number): Promise<Instalment[]> {
+  const db = await untyped();
+  const { data, error } = await db.from("fee_instalment").select("id, seq, name, due_date, share_pct").eq("academic_year_id", yearId).order("seq");
+  check(error);
+  const rows = (data ?? []) as { id: number; seq: number; name: string; due_date: string; share_pct: number | string }[];
+  const counts = await Promise.all(rows.map((r) =>
+    db.from("fee_invoice").select("id", { count: "exact", head: true }).eq("instalment_id", r.id).neq("status", "cancelled")));
+  return rows.map((r, i) => ({ ...r, share_pct: Number(r.share_pct), raised: counts[i].count ?? 0 }));
+}
+
+export async function getConcessionTypes(): Promise<ConcessionType[]> {
+  const db = await untyped();
+  const { data, error } = await db.from("fee_concession_type").select("id, name, kind, value, head_ids, auto_rule, active").order("name");
+  check(error);
+  return ((data ?? []) as (ConcessionType & { value: number | string })[]).map((t) => ({ ...t, value: Number(t.value) }));
+}
+
+export const concessionDetail = (t: Pick<ConcessionType, "kind" | "value">) =>
+  t.kind === "percent" ? `${t.value}% off` : `${fmtMoney(t.value)} off a year`;
+
+export async function getStudentConcessions(studentId: number, yearId: number): Promise<StudentConcession[]> {
+  const db = await untyped();
+  const { data, error } = await db.from("student_concession")
+    .select("id, concession_type_id, is_auto, note, fee_concession_type(name, kind, value)")
+    .eq("student_id", studentId).eq("academic_year_id", yearId).eq("status", "active").order("id");
+  check(error);
+  return ((data ?? []) as unknown as { id: number; concession_type_id: number; is_auto: boolean; note: string | null; fee_concession_type: { name: string; kind: "percent" | "amount"; value: number | string } | null }[])
+    .map((r) => ({
+      id: r.id, typeId: r.concession_type_id, isAuto: r.is_auto, note: r.note,
+      name: r.fee_concession_type?.name ?? "Concession",
+      detail: r.fee_concession_type ? concessionDetail({ kind: r.fee_concession_type.kind, value: Number(r.fee_concession_type.value) }) : "",
+    }));
 }
 
 export async function getFeeStructure(yearId: number): Promise<StructureRow[]> {
@@ -103,12 +138,15 @@ function toInvoiceView(r: InvoiceRow, lines: FeeLine[], today: string): InvoiceV
 
 async function getLines(invoiceIds: number[]): Promise<Map<number, FeeLine[]>> {
   const db = await untyped();
-  const rows = await inChunks<{ invoice_id: number; amount: number | string; fee_head: { name: string } | null }>(invoiceIds, (chunk) =>
-    db.from("fee_invoice_line").select("invoice_id, amount, fee_head(name)").in("invoice_id", chunk).order("id").limit(5000));
+  const rows = await inChunks<{ invoice_id: number; amount: number | string; kind: string; label: string | null; waived: boolean; fee_head: { name: string } | null }>(invoiceIds, (chunk) =>
+    db.from("fee_invoice_line").select("invoice_id, amount, kind, label, waived, fee_head(name)").in("invoice_id", chunk).order("id").limit(5000));
   const map = new Map<number, FeeLine[]>();
   for (const r of rows) {
     const list = map.get(r.invoice_id) ?? [];
-    list.push({ name: r.fee_head?.name ?? "Fee", amount: Number(r.amount) });
+    const base = r.fee_head?.name ?? r.label ?? (r.kind === "late_fee" ? "Late fee" : r.kind === "transport" ? "Transport" : "Fee");
+    if (r.kind === "concession") list.push({ name: `Concession: ${r.label ?? "concession"}`, amount: -Number(r.amount) });
+    else if (r.waived) list.push({ name: `${base} (waived)`, amount: 0 });
+    else list.push({ name: base, amount: Number(r.amount) });
     map.set(r.invoice_id, list);
   }
   return map;
