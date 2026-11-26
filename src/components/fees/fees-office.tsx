@@ -1,5 +1,5 @@
 "use client";
-import { useMemo, useState, useTransition } from "react";
+import { useId, useMemo, useState, useTransition } from "react";
 import { Card, CardBody, CardHeader } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Field, Input, Select } from "@/components/ui/field";
@@ -275,6 +275,7 @@ export function InvoiceActions({ invoice }: { invoice: InvoiceView }) {
 }
 
 function PaymentDialog({ invoice, refund, onClose }: { invoice: InvoiceView; refund: boolean; onClose: () => void }) {
+  const uid = useId();
   const limit = refund ? invoice.paid : invoice.balance;
   const [amount, setAmount] = useState(refund ? "" : String(limit));
   const [mode, setMode] = useState<FeeMode>("cash");
@@ -312,23 +313,23 @@ function PaymentDialog({ invoice, refund, onClose }: { invoice: InvoiceView; ref
             {invoice.title}. {refund ? `Paid so far ${fmtMoney(invoice.paid)}.` : `Balance ${fmtMoney(invoice.balance)} of ${fmtMoney(invoice.amount)}.`}
           </p>
           <div className="grid gap-3 sm:grid-cols-2">
-            <Field label={refund ? "Refund amount" : "Amount received"} hint={`Up to ${fmtMoney(limit)}`}>
-              <Input type="number" min={0} max={limit} step="0.01" inputMode="decimal" value={amount} autoFocus onChange={(e) => setAmount(e.target.value)} />
+            <Field label={refund ? "Refund amount" : "Amount received"} htmlFor={`${uid}-a`} hint={`Up to ${fmtMoney(limit)}`}>
+              <Input id={`${uid}-a`} type="number" min={0} max={limit} step="0.01" inputMode="decimal" value={amount} autoFocus onChange={(e) => setAmount(e.target.value)} />
             </Field>
-            <Field label="Date">
-              <Input type="date" value={paidOn} max={todayIST()} onChange={(e) => setPaidOn(e.target.value)} />
+            <Field label="Date" htmlFor={`${uid}-d`}>
+              <Input id={`${uid}-d`} type="date" value={paidOn} max={todayIST()} onChange={(e) => setPaidOn(e.target.value)} />
             </Field>
-            <Field label="Mode">
-              <Select value={mode} onChange={(e) => setMode(e.target.value as FeeMode)}>
+            <Field label="Mode" htmlFor={`${uid}-m`}>
+              <Select id={`${uid}-m`} value={mode} onChange={(e) => setMode(e.target.value as FeeMode)}>
                 {FEE_MODES.map((m) => (<option key={m} value={m}>{MODE_LABEL[m]}</option>))}
               </Select>
             </Field>
-            <Field label={mode === "loan" ? "Lender and loan number" : "Reference"} hint={mode === "loan" ? "For example, SBI 12345678" : "UPI, cheque or bank reference, if any"}>
-              <Input value={reference} maxLength={80} onChange={(e) => setReference(e.target.value)} />
+            <Field label={mode === "loan" ? "Lender and loan number" : "Reference"} htmlFor={`${uid}-r`} hint={mode === "loan" ? "For example, SBI 12345678" : "UPI, cheque or bank reference, if any"}>
+              <Input id={`${uid}-r`} value={reference} maxLength={80} onChange={(e) => setReference(e.target.value)} />
             </Field>
           </div>
-          <Field label={refund ? "Reason for refund" : "Note"}>
-            <Input value={note} maxLength={300} onChange={(e) => setNote(e.target.value)} />
+          <Field label={refund ? "Reason for refund" : "Note"} htmlFor={`${uid}-n`}>
+            <Input id={`${uid}-n`} value={note} maxLength={300} onChange={(e) => setNote(e.target.value)} />
           </Field>
           {error && <p role="alert" className={ERR}>{error}</p>}
           <div className="flex gap-2 pt-1">
