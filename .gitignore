@@ -67,3 +67,4 @@ swap-db.log
 .test-calendar.mjs
 .test-leave-types.mjs
 .test-transport.mjs
+.test-imports.mjs

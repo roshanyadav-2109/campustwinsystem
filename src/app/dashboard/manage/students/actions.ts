@@ -217,7 +217,7 @@ export async function importStudents(rows: ImportRow[]): Promise<ImportResult> {
     for (let i = 0; i < recs.length; i += 500) {
       const { data, error } = await supabase
         .from("student")
-        .upsert(recs.slice(i, i + 500) as never, { onConflict: "admission_no" })
+        .upsert(recs.slice(i, i + 500) as never, { onConflict: "school_id,admission_no" })
         .select("id, admission_no");
       if (error) return { ok: false, error: `${TRY_AGAIN} (${idByAdm.size} students were saved before it stopped.)` };
       for (const s of (data ?? []) as { id: number; admission_no: string }[]) idByAdm.set(s.admission_no.toUpperCase(), s.id);

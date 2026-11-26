@@ -100,7 +100,7 @@ export async function importBooks(rows: Partial<Record<keyof BookInput, unknown>
 
   const db = await untyped();
   const { data, error } = await db.from("library_book")
-    .upsert(clean.map((b) => ({ ...bookRow(b), added_by: session.staffId })), { onConflict: "accession_no", ignoreDuplicates: true })
+    .upsert(clean.map((b) => ({ ...bookRow(b), added_by: session.staffId })), { onConflict: "school_id,accession_no", ignoreDuplicates: true })
     .select("id");
   if (error) return { ok: false, error: "The books could not be added. Please check the rows and try again." };
   const added = data?.length ?? 0;

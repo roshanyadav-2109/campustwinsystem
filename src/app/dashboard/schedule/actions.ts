@@ -123,7 +123,7 @@ export async function saveBellSchedule(rows: PeriodInput[]): Promise<Result> {
 
   const { error } = await db.from("timetable_period").upsert(
     rows.map((r) => ({ period_no: r.periodNo, label: r.label.trim().slice(0, 40), start_time: r.start, end_time: r.end, is_break: r.isBreak })),
-    { onConflict: "period_no" },
+    { onConflict: "school_id,period_no" },
   );
   if (error) return { ok: false, error: "Could not save the bell schedule. Please try again." };
 
