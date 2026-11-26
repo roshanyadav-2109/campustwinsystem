@@ -6,7 +6,7 @@ import { SUPABASE_URL, SUPABASE_ANON_KEY } from "@/lib/supabase/config";
 const KIND: Record<string, string> = { transfer: "Transfer certificate", bonafide: "Bonafide certificate", character: "Character certificate" };
 export const dynamic = "force-dynamic";
 
-type Hit = { kind: string; number: string; student_name: string; admission_no: string; issued_on: string; school_name: string; school_place: string | null; status: string; copies: number; source: string };
+type Hit = { kind: string; number: string | null; student_name: string; admission_no: string; issued_on: string; school_name: string; school_place: string | null; status: string; copies: number; source: string };
 
 export default async function VerifyPage({ params }: { params: Promise<{ token: string }> }) {
   const { token } = await params;
@@ -17,10 +17,10 @@ export default async function VerifyPage({ params }: { params: Promise<{ token: 
   const rows: [string, string][] = c ? [
     ["Issued by", [c.school_name, c.school_place].filter(Boolean).join(", ")],
     ["Certificate", KIND[c.kind] ?? c.kind],
-    ["Number", `${c.number}${c.copies ? ` (${c.copies} duplicate${c.copies === 1 ? "" : "s"} printed)` : ""}`],
+    ["Number", `${c.number ?? "Not given"}${c.copies ? ` (${c.copies} duplicate${c.copies === 1 ? "" : "s"} printed)` : ""}`],
     ["Student", `${c.student_name}, admission no. ${c.admission_no}`],
     ["Date of issue", day(c.issued_on)],
-    ...(c.source !== "issued" ? [["Recorded", "Issued by the institution before it used CampusTwin, and recorded later"] as [string, string]] : []),
+    
   ] : [];
   return (
     <main className="mx-auto max-w-lg px-6 py-16">

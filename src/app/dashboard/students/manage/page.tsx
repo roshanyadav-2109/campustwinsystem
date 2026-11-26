@@ -1,3 +1,4 @@
+import { CertificateBulkUpload } from "@/components/manage/students/certificate-bulk-upload";
 import { CertificateRegisterUpload } from "@/components/manage/students/certificate-register-upload";
 import { DetailsUpload } from "@/components/manage/students/details-upload";
 import { guardTab } from "@/lib/access";
@@ -46,6 +47,7 @@ async function ManageStudentsPageBody({ searchParams }: { searchParams: SP }) {
       />
       <div className="grid items-start gap-5 xl:grid-cols-2">
         <DetailsUpload />
+        <CertificateBulkUpload />
         <CertificateRegisterUpload />
       </div>
     </div>

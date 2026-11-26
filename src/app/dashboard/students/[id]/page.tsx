@@ -44,11 +44,10 @@ export default async function StudentPage({ params }: { params: Promise<{ id: st
   if (admin) {
     const db = await untyped();
     const { data } = await db.from("certificate")
-      .select("id, kind, number, issued_on, source, status, copies, file_key, verify_token, content, cancel_reason")
-      .eq("student_id", s.id).order("issued_at", { ascending: false });
-    certs = ((data ?? []) as { id: number; kind: CertRow["kind"]; number: string; issued_on: string; source: CertRow["source"]; status: CertRow["status"]; copies: number; file_key: string | null; verify_token: string; content: CertRow["content"]; cancel_reason: string | null }[])
-      .map((c) => ({ id: c.id, kind: c.kind, number: c.number, issuedOn: c.issued_on, source: c.source, status: c.status, copies: c.copies,
-        hasFile: !!c.file_key, token: c.verify_token, content: c.source === "issued" ? c.content : null, cancelReason: c.cancel_reason }));
+      .select("id, kind, number, issued_on, source, status, file_key, cancel_reason")
+      .eq("student_id", s.id).order("issued_on", { ascending: false });
+    certs = ((data ?? []) as { id: number; kind: CertRow["kind"]; number: string | null; issued_on: string; source: CertRow["source"]; status: CertRow["status"]; file_key: string | null; cancel_reason: string | null }[])
+      .map((c) => ({ id: c.id, kind: c.kind, number: c.number, issuedOn: c.issued_on, source: c.source, status: c.status, hasFile: !!c.file_key, cancelReason: c.cancel_reason }));
   }
 
   return (
@@ -109,9 +108,7 @@ export default async function StudentPage({ params }: { params: Promise<{ id: st
         </Card>
         {admin && (
           <div className="xl:col-span-2">
-            <CertificatesPanel studentId={s.id} rows={certs} canIssue={session?.staffRole === "office"}
-              schoolName={[session?.school.name, session?.school.place].filter(Boolean).join(", ")}
-              kinds={session?.school.edition === "school" ? ["transfer", "bonafide", "character"] : []} />
+            <CertificatesPanel studentId={s.id} rows={certs} canUpload={session?.staffRole === "office"} />
           </div>
         )}
         {admin && (() => {

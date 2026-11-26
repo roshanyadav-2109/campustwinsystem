@@ -82,3 +82,4 @@ swap-db.log
 .test-two-institutions.mjs
 .dbg-two.mjs
 .test-certificates.mjs
+.dbg-cert-cleanup.mjs
