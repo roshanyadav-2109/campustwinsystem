@@ -6,7 +6,8 @@ begin
   insert into public.staff (school_id, full_name, email, role) values (8, 'QA IDC', 'qa-idc@example.com', 'office') returning id into v_staff;
   insert into public.profile (id, role, full_name, school_id, staff_id) values (u, 'staff', 'QA IDC', 8, v_staff);
   select e.student_id, e.academic_year_id into v_kid, v_year from public.student_enrollment e join public.academic_year y on y.id = e.academic_year_id
-   join public.student s on s.id = e.student_id where e.school_id = 8 and y.is_current and s.status = 'active' limit 1;
+   join public.student s on s.id = e.student_id where e.school_id = 8 and y.is_current and s.status = 'active'
+     and not exists (select 1 from public.id_card k where k.student_id = e.student_id and k.status = 'active') limit 1;
   perform set_config('request.jwt.claims', json_build_object('sub', u, 'role', 'authenticated')::text, true);
   set local role authenticated;
   insert into public.id_card (student_id, academic_year_id) values (v_kid, v_year) returning id, verify_token into c1, t1;
