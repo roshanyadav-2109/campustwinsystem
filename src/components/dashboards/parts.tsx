@@ -13,7 +13,7 @@ import type { TransportCardLabels } from "@/components/transport/transport-card"
 import type { TFunction } from "@/i18n/translate";
 import { cn } from "@/lib/utils";
 import { TrendArrow } from "@/components/ui/status";
-import { TRANSPORT_ENABLED } from "@/lib/features";
+import { transportOn } from "@/lib/transport-on";
 
 // A distinct, premium colour per destination — icons only, no block behind.
 export const NAV_COLOR: Record<string, string> = {
@@ -165,7 +165,7 @@ export async function QuickLinks({ role }: { role: NavRole }) {
 // Buses on the road right now. Hidden entirely until the office sets transport
 // up, so a school without buses never sees three zeroes.
 export async function FleetStrip() {
-  if (!TRANSPORT_ENABLED) return null;
+  if (!(await transportOn())) return null;
   const { t } = await getT();
   const fleet = await getFleetSummary();
   if (!fleet.buses) return null;

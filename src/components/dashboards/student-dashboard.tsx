@@ -13,7 +13,7 @@ import { ProfileMenu } from "@/components/dashboards/profile-menu";
 import { AnnouncementsList } from "@/components/dashboards/announcements-list";
 import { transportCardLabels, ActionButtons } from "@/components/dashboards/parts";
 import { TransportCard } from "@/components/transport/transport-card";
-import { TRANSPORT_ENABLED } from "@/lib/features";
+import { transportOn } from "@/lib/transport-on";
 import { cn } from "@/lib/utils";
 import { TrendArrow } from "@/components/ui/status";
 
@@ -100,7 +100,7 @@ async function ProfileCard({ name, studentId }: { name: string; studentId: numbe
 // A pupil who does not ride a bus sees nothing at all here — an empty state
 // would only advertise a service they have not bought.
 async function BusCard({ studentId }: { studentId: number }) {
-  if (!TRANSPORT_ENABLED) return null;
+  if (!(await transportOn())) return null;
   const rides = await getRideSummaries([studentId]);
   if (!rides.length) return null;
   const { t } = await getT();

@@ -52,6 +52,7 @@ const gu: PartialMessages = {
     allotments: "સોંપાયેલા શિક્ષકો",
     promotion: "આગલા ધોરણમાં પ્રમોશન",
     transport: "વાહન વ્યવસ્થા",
+    transportSetup: "બસ અને રૂટ",
     transportRiders: "બસમાં જતા વિદ્યાર્થીઓ",
     schedule: "સમયપત્રક",
     manage: "સ્કૂલ સંચાલન",

@@ -1,8 +1,5 @@
 // ─── Feature switches ────────────────────────────────────────────────────────
-// School transport is built but not yet launched (guardian alert emails are
-// still held — see README). Until it is, every /transport page shows a
-// "Coming soon" screen and the bus tiles stay off the dashboards.
-//
-// Set NEXT_PUBLIC_TRANSPORT_ENABLED=true to switch it on. NEXT_PUBLIC_* vars are
-// inlined at BUILD time, so redeploy after changing it.
-export const TRANSPORT_ENABLED = process.env.NEXT_PUBLIC_TRANSPORT_ENABLED === "true";
+// School transport is on. Whether a school has it is decided per school by its
+// "transport" module (console, Settings, Modules), like every other paid module.
+// Parent alert emails stay queued until an email provider is set up.
+export const TRANSPORT_ENABLED = true;

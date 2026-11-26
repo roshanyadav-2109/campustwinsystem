@@ -9,7 +9,7 @@ import { Card, CardBody } from "@/components/ui/card";
 import { EmptyState } from "@/components/ui/empty";
 import { DashHeader, AnnouncementsPanel, EventsPanel, QuickLinks, transportCardLabels, ActionButtons } from "@/components/dashboards/parts";
 import { TransportCard } from "@/components/transport/transport-card";
-import { TRANSPORT_ENABLED } from "@/lib/features";
+import { transportOn } from "@/lib/transport-on";
 
 // Parent view: an ID card per child (one login shows all siblings).
 export async function GuardianDashboard({ session }: { session: Session }) {
@@ -95,7 +95,7 @@ export async function GuardianDashboard({ session }: { session: Session }) {
 // One card per child who actually rides a bus. A family with no transport gets
 // nothing here — not an empty state, not a placeholder.
 async function BusStrip({ childIds, showNames }: { childIds: number[]; showNames: boolean }) {
-  if (!TRANSPORT_ENABLED) return null;
+  if (!(await transportOn())) return null;
   const rides = await getRideSummaries(childIds);
   if (!rides.length) return null;
   const { t } = await getT();

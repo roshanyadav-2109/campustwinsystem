@@ -52,6 +52,7 @@ const pa: PartialMessages = {
     allotments: "ਨਿਯੁਕਤ ਅਧਿਆਪਕ",
     promotion: "ਅਗਲੀ ਜਮਾਤ",
     transport: "ਟਰਾਂਸਪੋਰਟ",
+    transportSetup: "ਬੱਸਾਂ ਅਤੇ ਰੂਟ",
     transportRiders: "ਬੱਸ ਵਾਲੇ ਵਿਦਿਆਰਥੀ",
     schedule: "ਸਮਾਂ-ਸਾਰਣੀ",
     manage: "ਸਕੂਲ ਪ੍ਰਬੰਧ",

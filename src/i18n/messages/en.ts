@@ -51,6 +51,7 @@ const en = {
     allotments: "Assigned Teachers",
     promotion: "Promotion",
     transport: "Transport",
+    transportSetup: "Buses and Routes",
     transportRiders: "Bus Riders",
     schedule: "Schedule",
     manage: "Manage School",

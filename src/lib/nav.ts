@@ -26,6 +26,7 @@ export const NAV: NavItem[] = [
   { href: "/dashboard", icon: DashboardIcon, labelKey: "nav.dashboard", roles: ALL },
   { href: "/dashboard/transport", icon: BusIcon, labelKey: "nav.transport", roles: [...ALL, "transport"], module: "transport" },
   { href: "/dashboard/transport/riders", icon: BusRidersIcon, labelKey: "nav.transportRiders", roles: ["principal", "office"], module: "transport" },
+  { href: "/dashboard/transport/setup", icon: BusIcon, labelKey: "nav.transportSetup", roles: ["principal", "office"], module: "transport" },
   { href: "/dashboard/progress", icon: ProgressIcon, labelKey: "nav.myProgress", roles: ["student"] },
   { href: "/dashboard/progress", icon: ProgressIcon, labelKey: "nav.childProgress", roles: ["guardian"] },
   { href: "/dashboard/progress", icon: ProgressIcon, labelKey: "nav.progress", roles: ["subject_teacher", "class_teacher", "principal"] },
