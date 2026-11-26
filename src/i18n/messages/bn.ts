@@ -34,6 +34,7 @@ const bn: PartialMessages = {
     noAccess: "এই পৃষ্ঠায় আপনার প্রবেশাধিকার নেই।",
   },
   nav: {
+    idCard: "পরিচয়পত্র ও বিবরণ",
     examTimetable: "পরীক্ষার সময়সূচি",
     reportCards: "রিপোর্ট কার্ড",
     notifications: "বিজ্ঞপ্তি",

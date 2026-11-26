@@ -34,6 +34,7 @@ const gu: PartialMessages = {
     noAccess: "તમને આ પેજ જોવાની પરવાનગી નથી.",
   },
   nav: {
+    idCard: "ઓળખપત્ર અને વિગતો",
     examTimetable: "પરીક્ષા સમયપત્રક",
     reportCards: "રિપોર્ટ કાર્ડ",
     notifications: "સૂચનાઓ",

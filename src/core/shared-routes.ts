@@ -31,6 +31,7 @@ export const SHARED_ROUTES: RouteDef[] = [
   { href: "/dashboard/allotments", icon: AllotmentIcon, labelKey: "nav.allotments", roles: ["principal", "office"], group: "staff" },
   { href: "/dashboard/promotion", icon: PromotionIcon, labelKey: "nav.promotion", roles: ["office", "principal", "class_teacher"], group: "students" },
   { href: "/dashboard/details", icon: RoleStudentIcon, labelKey: "nav.details", roles: ["student"], group: "students" },
+  { href: "/dashboard/id-card", icon: StudentsIcon, labelKey: "nav.idCard", roles: ["student", "guardian"], group: "students" },
   // Office editing of student records, opened from Students.
   { href: "/dashboard/students/manage", labelKey: "nav.studentRecords", roles: ["office"], group: "students", menu: false },
 

@@ -33,6 +33,7 @@ const en = {
     noAccess: "You don't have access to this page.",
   },
   nav: {
+    idCard: "ID card and details",
     examTimetable: "Exam timetable",
     reportCards: "Report cards",
     notifications: "Notifications",
