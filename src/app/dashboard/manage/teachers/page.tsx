@@ -2,6 +2,7 @@ import { createClient } from "@/lib/supabase/server";
 import { getCurrentYear } from "@/lib/session";
 import { EmptyState } from "@/components/ui/empty";
 import { StaffList, type StaffRow } from "@/components/manage/teachers/staff-list";
+import { StaffImport } from "@/components/manage/teachers/staff-import";
 import { Assignments, type AssignRow, type SectionOpt, type SubjectOpt } from "@/components/manage/teachers/assignments";
 
 // The API returns at most 1000 rows per request, so read the year's
@@ -66,6 +67,7 @@ export default async function ManageTeachersPage() {
   return (
     <div className="space-y-6">
       <StaffList staff={staff} />
+      <StaffImport />
       <Assignments
         yearName={year.name}
         staff={staff.map((s) => ({ id: s.id, fullName: s.fullName, role: s.role }))}

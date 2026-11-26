@@ -260,3 +260,58 @@ export async function removeStaffPhoto(staffId: number): Promise<ActionResult> {
   refresh();
   return { ok: true };
 }
+
+// ---------------------------------------------------------------------------
+// Bulk import of staff from Excel or CSV
+// ---------------------------------------------------------------------------
+export type StaffImportRow = { fullName: string; role: StaffRole; employeeCode: string; email: string; phone: string };
+export type StaffImportResult = { ok: true; added: number; updated: number } | { ok: false; error: string };
+
+// Adds new staff and updates ones already on file (same employee code, or the
+// same email when there is no code). An email that already opens a parent's or
+// student's login is refused, because sign-in must point at one person.
+export async function importStaff(rows: StaffImportRow[]): Promise<StaffImportResult> {
+  const denied = await officeOnly();
+  if (denied) return { ok: false, error: denied };
+  if (!Array.isArray(rows) || !rows.length) return { ok: false, error: "There is nothing to import." };
+  if (rows.length > 1000) return { ok: false, error: "Please import at most 1000 staff at a time." };
+  const clean: { full_name: string; role: StaffRole; employee_code: string | null; email: string | null; phone: string | null }[] = [];
+  for (const [i, r] of rows.entries()) {
+    const c = cleanStaff({ ...r, email: (r.email ?? "").toLowerCase() });
+    if ("error" in c) return { ok: false, error: `Row ${i + 2}: ${c.error}` };
+    clean.push(c.row);
+  }
+  const supabase = await createClient();
+  const emails = clean.map((c) => c.email).filter((e): e is string => !!e);
+  if (emails.length) {
+    const [gu, su] = await Promise.all([
+      supabase.from("guardian").select("email, full_name").in("email", emails),
+      supabase.from("student").select("email, full_name").in("email", emails),
+    ]);
+    const taken = [...(gu.data ?? []), ...(su.data ?? [])][0];
+    if (taken) return { ok: false, error: `${taken.email} already signs in as ${taken.full_name}. Use a different email for the staff member.` };
+  }
+  const { data: existing } = await supabase.from("staff").select("id, employee_code, email");
+  const byCode = new Map((existing ?? []).filter((s) => s.employee_code).map((s) => [String(s.employee_code).toUpperCase(), s.id]));
+  const byEmail = new Map((existing ?? []).filter((s) => s.email).map((s) => [String(s.email).toLowerCase(), s.id]));
+  let added = 0, updated = 0;
+  for (const c of clean) {
+    const id = (c.employee_code && byCode.get(c.employee_code.toUpperCase())) || (c.email && byEmail.get(c.email)) || null;
+    if (id) {
+      // A blank cell never wipes what is already on file.
+      const patch: Partial<typeof c> = { full_name: c.full_name, role: c.role };
+      if (c.employee_code) patch.employee_code = c.employee_code;
+      if (c.email) patch.email = c.email;
+      if (c.phone) patch.phone = c.phone;
+      const { error } = await supabase.from("staff").update(patch).eq("id", id);
+      if (error) return { ok: false, error: `${c.full_name}: ${plainError(error, "another staff member already has this employee code.")} ${added + updated} were saved before this.` };
+      updated++;
+    } else {
+      const { error } = await supabase.from("staff").insert(c);
+      if (error) return { ok: false, error: `${c.full_name}: ${plainError(error, "another staff member already has this employee code.")} ${added + updated} were saved before this.` };
+      added++;
+    }
+  }
+  refresh();
+  return { ok: true, added, updated };
+}

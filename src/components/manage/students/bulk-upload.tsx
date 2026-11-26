@@ -1,4 +1,5 @@
 "use client";
+import { readSpreadsheet, SpreadsheetError } from "@/lib/xlsx-read";
 import { useId, useState, useTransition } from "react";
 import { Card, CardBody, CardHeader } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -42,22 +43,18 @@ export function BulkUpload({ sections, onImported }: { sections: SectionRef[]; o
     setExisting(new Set());
     if (!file) return;
     setFileName(file.name);
-    if (/\.(xlsx|xls|ods)$/i.test(file.name)) {
-      setProblem("This is an Excel file. In Excel, choose File → Save As → \"CSV (Comma delimited)\", then upload that file.");
-      return;
-    }
     if (file.size > 5 * 1024 * 1024) { setProblem("This file is too big. Please upload at most 2000 students at a time."); return; }
     setReading(true);
     try {
-      const result = readImport(parseCsv(await file.text()), sections);
+      const result = readImport(await readSpreadsheet(file, parseCsv), sections);
       if (result.problem) { setProblem(result.problem); return; }
       if (result.rows.length > 2000) { setProblem("Please upload at most 2000 students at a time."); return; }
       const good = result.rows.filter((r) => !r.errors.length).map((r) => r.admissionNo);
       const found = good.length ? await findExistingAdmissionNos(good) : [];
       setExisting(new Set(found.map((a) => a.toUpperCase())));
       setRows(result.rows);
-    } catch {
-      setProblem("We could not read this file. Please check it is a CSV file saved from Excel.");
+    } catch (e) {
+      setProblem(e instanceof SpreadsheetError ? e.message : "We could not read this file. Please check it is an Excel or CSV file.");
     } finally {
       setReading(false);
     }
@@ -93,7 +90,7 @@ export function BulkUpload({ sections, onImported }: { sections: SectionRef[]; o
             </button>
           </li>
           <li>Write the class like <span className="font-medium">VIII-A</span>. Dates can be like <span className="font-medium">15/08/2012</span>.</li>
-          <li>In Excel, save it as <span className="font-medium">CSV</span>, then choose the file below. Students already in the school (same admission no) are updated.</li>
+          <li>Save it (Excel or CSV is fine), then choose the file below. Students already in the school (same admission no) are updated.</li>
         </ol>
 
         <div className="mt-4 flex flex-wrap items-center gap-3">

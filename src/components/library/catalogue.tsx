@@ -1,4 +1,5 @@
 "use client";
+import { readSpreadsheet, SpreadsheetError } from "@/lib/xlsx-read";
 import { useRouter } from "next/navigation";
 import { useId, useState, useTransition } from "react";
 import { Button } from "@/components/ui/button";
@@ -225,17 +226,15 @@ function BulkAdd({ onDone }: { onDone: (message: string) => void }) {
   async function choose(file: File | undefined) {
     if (!file) return;
     setRows(null);
-    if (/\.(xlsx|xls|ods)$/i.test(file.name)) {
-      setProblem("This is an Excel file. In Excel, choose File, Save As, \"CSV (Comma delimited)\", then upload that file. You can also copy the rows and paste them below.");
-      return;
-    }
     if (file.size > 2 * 1024 * 1024) { setProblem("This file is too big. Please add at most 1000 books at a time."); return; }
     try {
-      const content = await file.text();
+      // Show what was read in the box (one row per line), then check it.
+      const cells = await readSpreadsheet(file, parseCsv);
+      const content = cells.map((r) => r.map((c) => c.replace(/[\t\r\n]+/g, " ")).join("\t")).join("\n");
       setText(content);
       check(content);
-    } catch {
-      setProblem("We could not read this file. Please check it is a CSV file saved from Excel.");
+    } catch (e) {
+      setProblem(e instanceof SpreadsheetError ? e.message : "We could not read this file. Please check it is an Excel or CSV file.");
     }
   }
 
@@ -268,7 +267,7 @@ function BulkAdd({ onDone }: { onDone: (message: string) => void }) {
         <span className="text-[13px] text-ink-500">or</span>
         <label htmlFor={inputId}
           className="inline-flex h-10 cursor-pointer items-center rounded-sm border border-hair bg-panel px-4 text-[14px] font-medium text-ink-900 hover:bg-gold-100">
-          Choose a CSV file
+          Choose an Excel or CSV file
         </label>
         <input id={inputId} type="file" accept=".csv,text/csv,.xlsx,.xls" className="sr-only"
           onChange={(e) => { void choose(e.target.files?.[0]); e.target.value = ""; }} />
