@@ -1,0 +1,15 @@
+{
+  // Eternity company site: static files only, served on eternity.campustwin.org
+  // until the Eternity domain is chosen.
+  "name": "eternity-site",
+  "compatibility_date": "2025-03-01",
+  "workers_dev": true,
+  "routes": [
+    { "pattern": "eternity.campustwin.org/*", "zone_name": "campustwin.org" }
+  ],
+  "assets": {
+    "directory": "./public",
+    "not_found_handling": "404-page",
+    "html_handling": "auto-trailing-slash"
+  }
+}

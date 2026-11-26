@@ -1,0 +1,77 @@
+/* Shared styles for the product illustrations rendered to /shots/*.webp.
+   Composition: pastel stage, one tinted card, large figures, icon tiles,
+   two flat colour blocks and a banner. Rendered at 1200 x 750, 2x. */
+* { box-sizing: border-box; margin: 0; }
+body { background: #fff; font-family: "Onest", system-ui, sans-serif; color: #1b1d24; -webkit-font-smoothing: antialiased; }
+
+.stage { width: 1200px; height: 750px; background: var(--stage); display: grid; place-items: center; }
+.card {
+  width: 1000px; background: var(--tint); border-radius: 18px; padding: 34px 36px 36px;
+  display: grid; grid-template-columns: 300px 1fr; gap: 26px 30px;
+  box-shadow: 0 30px 60px -28px rgba(30, 35, 60, .35), 0 2px 6px rgba(30, 35, 60, .06);
+}
+.h { font-size: 15px; font-weight: 600; margin-bottom: 14px; color: #262a35; }
+
+.kpis { background: #fff; border-radius: 12px; display: grid; grid-template-columns: 1fr 1fr; box-shadow: 0 1px 2px rgba(0,0,0,.05); }
+.kpis div { padding: 22px 10px 20px; text-align: center; border-bottom: 1px solid #edf0f3; }
+.kpis div:nth-child(odd) { border-right: 1px solid #edf0f3; }
+.kpis div:nth-last-child(-n+2) { border-bottom: 0; }
+.kpis b { display: block; font-size: 25px; font-weight: 600; letter-spacing: -0.02em; }
+.kpis span { display: block; margin-top: 4px; font-size: 12.5px; color: #6b7080; }
+
+.quick { display: grid; grid-template-columns: repeat(4, 1fr); gap: 12px; }
+.quick div { background: #fff; border-radius: 10px; padding: 14px 14px 13px; font-size: 13px; font-weight: 500; color: #2b2f3a; box-shadow: 0 1px 2px rgba(0,0,0,.05); }
+.quick svg { display: block; width: 24px; height: 24px; margin-bottom: 12px; fill: none; stroke: #2b2f3a; stroke-width: 1.5; stroke-linecap: round; stroke-linejoin: round; }
+
+.promos { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; margin-top: 14px; }
+.promo { position: relative; overflow: hidden; border-radius: 10px; height: 118px; padding: 20px 22px; color: #fff; }
+.promo p { font-size: 17px; font-weight: 500; letter-spacing: -0.01em; max-width: 72%; position: relative; }
+.obtn { position: absolute; left: 22px; bottom: 20px; border: 1.5px solid rgba(255,255,255,.85); border-radius: 4px; padding: 6px 16px; font-size: 13px; font-weight: 500; }
+.ghost { position: absolute; right: -2px; bottom: -16px; width: 96px; height: 96px; fill: none; stroke: rgba(255,255,255,.18); stroke-width: 1.6; stroke-linecap: round; stroke-linejoin: round; }
+
+.band { grid-column: 1 / -1; border-radius: 12px; height: 168px; display: flex; align-items: center; justify-content: space-between; padding: 0 40px; color: #fff; overflow: hidden; }
+.band-t { font-size: 21px; font-weight: 500; letter-spacing: -0.015em; }
+.band-s { font-size: 14px; color: rgba(255,255,255,.75); margin-top: 6px; }
+.sbtn { display: inline-block; margin-top: 18px; background: #fff; color: #1b1d24; border-radius: 4px; padding: 9px 22px; font-size: 13.5px; font-weight: 600; }
+.people { display: grid; grid-template-columns: repeat(3, 66px); gap: 10px; transform: rotate(0deg); }
+.pc { background: #fff; border-radius: 8px; height: 66px; padding: 9px 0 0; display: grid; justify-items: center; align-content: start; gap: 5px; box-shadow: 0 6px 14px -8px rgba(0,0,0,.4); }
+.pc i { width: 30px; height: 30px; border-radius: 50%; display: grid; place-items: center; font: 600 11px "Onest"; font-style: normal; }
+.pc em { width: 40px; height: 4px; border-radius: 2px; background: #9bd8a8; }
+.pc em.s { width: 28px; background: #e3e6ec; }
+.pc.hi { outline: 3px solid #ffd45c; outline-offset: -1px; }
+
+/* ------------------------------------------------ product cards: three parts of one product */
+.cstage { width: 1200px; height: 720px; background: var(--stage); position: relative; overflow: hidden; }
+.mt { position: absolute; background: #fff; border-radius: 16px; padding: 28px 30px; box-shadow: 0 26px 50px -26px rgba(30,35,60,.35), 0 2px 6px rgba(30,35,60,.06); }
+.m1 { left: 80px; top: 90px; width: 560px; height: 540px; }
+.m2 { left: 680px; top: 90px; width: 440px; height: 255px; }
+.m3 { left: 680px; top: 375px; width: 440px; height: 255px; }
+.mt-h { display: flex; align-items: center; gap: 10px; font-size: 21px; font-weight: 600; color: #262a35; }
+.mt-h svg { width: 30px; height: 30px; fill: none; stroke: var(--acc); stroke-width: 1.7; stroke-linecap: round; stroke-linejoin: round; }
+.mt-big { display: block; margin-top: 18px; font-size: 52px; font-weight: 600; letter-spacing: -0.03em; line-height: 1.05; }
+.m2 .mt-big, .m3 .mt-big { font-size: 42px; margin-top: 12px; }
+.mt-sub { margin-top: 6px; font-size: 18px; color: #6b7080; }
+.mt-note { margin-top: 10px; font-size: 16px; color: #6b7080; }
+.bars { display: flex; align-items: flex-end; gap: 14px; height: 230px; margin-top: 34px; }
+.bars i { flex: 1; background: var(--acc); opacity: .85; border-radius: 6px 6px 2px 2px; }
+.bars i:nth-child(odd) { opacity: .55; }
+.prog { margin-top: 22px; height: 14px; border-radius: 7px; background: #eef0f4; overflow: hidden; }
+.prog i { display: block; height: 100%; background: var(--acc); border-radius: 7px; }
+.chips, .avrow { display: flex; flex-wrap: wrap; gap: 10px; margin-top: 26px; }
+.chips span { padding: 9px 16px; border-radius: 22px; background: #f3f4f7; font-size: 16px; font-weight: 500; }
+.avrow i { width: 64px; height: 64px; border-radius: 50%; display: grid; place-items: center; font: 600 19px "Onest"; font-style: normal; border: 3px solid #fff; margin-right: -16px; }
+.m1 .avrow { margin-top: 40px; }
+.mt-btn { display: inline-block; margin-top: 18px; background: var(--acc); color: #fff; border-radius: 6px; padding: 11px 22px; font-size: 17px; font-weight: 600; }
+.mrows { margin-top: 26px; }
+.m2 .mrows, .m3 .mrows { margin-top: 14px; }
+.mrows p { display: flex; justify-content: space-between; padding: 12px 0; border-top: 1px solid #edf0f3; font-size: 18px; }
+.mrows em { font-style: normal; font-weight: 600; }
+.m1 .mrows p { font-size: 20px; padding: 16px 0; }
+
+/* Twin card */
+.twin-orbwrap { position: absolute; left: 60px; top: 170px; width: 380px; height: 380px; display: grid; place-items: center; }
+.ask { position: absolute; background: #fff; border-radius: 18px; padding: 22px 26px; font-size: 22px; box-shadow: 0 22px 44px -24px rgba(30,35,60,.35); }
+.ask small { display: block; font-size: 15px; color: #6b7080; margin-top: 6px; }
+.ask.q1 { left: 470px; top: 130px; width: 620px; }
+.ask.q2 { left: 520px; top: 300px; width: 600px; }
+.ask.q3 { left: 470px; top: 470px; width: 620px; }
