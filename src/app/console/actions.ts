@@ -5,7 +5,12 @@ import { createAdminClient } from "@/lib/supabase/admin";
 import { getOwnerEmail } from "@/lib/owner";
 import { refreshBrand } from "@/lib/brand-server";
 
-const YEAR = { name: "2025-26", start_date: "2025-04-01", end_date: "2026-03-31" };
+// The Indian academic year runs April to March: from April it is this year to
+// next year, before April it is last year to this year.
+function currentAcademicYear(today = new Date()) {
+  const y = today.getMonth() >= 3 ? today.getFullYear() : today.getFullYear() - 1;
+  return { name: `${y}-${String((y + 1) % 100).padStart(2, "0")}`, start_date: `${y}-04-01`, end_date: `${y + 1}-03-31` };
+}
 const DEFAULT_MODULES = { twin: false, fees: true, library: true, homework: true, admissions: true, hr: true, transport: true };
 
 async function guard() {
@@ -23,7 +28,7 @@ export async function createSchool(formData: FormData) {
   if (!name || !slug) return;
   const { data: school, error } = await admin.from("school").insert({ name, slug, code: slug.toUpperCase(), place, modules: DEFAULT_MODULES }).select("id").single();
   if (error || !school) throw new Error(error?.message || "create failed");
-  await admin.from("academic_year").insert({ ...YEAR, is_current: true, school_id: school.id });
+  await admin.from("academic_year").insert({ ...currentAcademicYear(), is_current: true, school_id: school.id });
   refreshBrand();
   revalidatePath("/console");
 }
@@ -42,7 +47,7 @@ export async function createUniversity(formData: FormData) {
     const cSlug = slugify(idx >= 0 ? line.slice(idx + 1) : line);
     if (!cName || !cSlug) continue;
     const { data: campus } = await admin.from("school").insert({ name: cName, slug: cSlug, code: cSlug.toUpperCase(), university_id: uni.id, modules: uni.modules }).select("id").single();
-    if (campus) await admin.from("academic_year").insert({ ...YEAR, is_current: true, school_id: campus.id });
+    if (campus) await admin.from("academic_year").insert({ ...currentAcademicYear(), is_current: true, school_id: campus.id });
   }
   refreshBrand();
   revalidatePath("/console");
@@ -56,7 +61,7 @@ export async function addCampus(formData: FormData) {
   if (!universityId || !name || !slug) return;
   const { data: uni } = await admin.from("university").select("modules").eq("id", universityId).single();
   const { data: campus } = await admin.from("school").insert({ name, slug, code: slug.toUpperCase(), university_id: universityId, modules: uni?.modules ?? DEFAULT_MODULES }).select("id").single();
-  if (campus) await admin.from("academic_year").insert({ ...YEAR, is_current: true, school_id: campus.id });
+  if (campus) await admin.from("academic_year").insert({ ...currentAcademicYear(), is_current: true, school_id: campus.id });
   refreshBrand();
   revalidatePath("/console");
 }
@@ -156,4 +161,32 @@ export async function assignCentralAdmin(formData: FormData): Promise<void> {
   if (!profile) return;
   await admin.from("profile").update({ university_id: universityId, active_campus_id: profile.school_id }).eq("id", user.id);
   revalidatePath(`/console/university/${universityId}`);
+}
+
+// Give a school its first leader login (principal or office) without any
+// script: the person then signs in with Google using this email.
+export type LoginResult = { ok: boolean; message: string } | null;
+export async function grantSchoolLogin(_prev: LoginResult, formData: FormData): Promise<LoginResult> {
+  const admin = await guard();
+  const schoolId = Number(formData.get("schoolId"));
+  const name = String(formData.get("name") || "").replace(/\s+/g, " ").trim();
+  const email = String(formData.get("email") || "").trim().toLowerCase();
+  const role = String(formData.get("role") || "");
+  if (!schoolId) return { ok: false, message: "School not found." };
+  if (!name) return { ok: false, message: "Type the person's full name." };
+  if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) return { ok: false, message: "Type a proper email address, like name@gmail.com." };
+  if (!["principal", "office"].includes(role)) return { ok: false, message: "Choose Principal or School office." };
+  const exact = email.replace(/[\\%_]/g, (c) => `\\${c}`);
+  // An email can open only one record anywhere, or sign-in would be ambiguous.
+  const [st, gu, su] = await Promise.all([
+    admin.from("staff").select("full_name, school_id").ilike("email", exact).limit(1),
+    admin.from("guardian").select("full_name, school_id").ilike("email", exact).limit(1),
+    admin.from("student").select("full_name, school_id").ilike("email", exact).limit(1),
+  ]);
+  const taken = st.data?.[0] ?? gu.data?.[0] ?? su.data?.[0];
+  if (taken) return { ok: false, message: `${email} already signs in as ${taken.full_name}${taken.school_id === schoolId ? " at this school" : " at another school"}. Use a different email.` };
+  const { error } = await admin.from("staff").insert({ school_id: schoolId, full_name: name, email, role: role as never });
+  if (error) return { ok: false, message: "Could not save. Please try again." };
+  revalidatePath(`/console/school/${schoolId}/access`);
+  return { ok: true, message: `${name} can now sign in with Google as ${email}.` };
 }
