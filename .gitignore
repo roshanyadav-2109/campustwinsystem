@@ -81,3 +81,4 @@ swap-db.log
 .dbg-hdr.mjs
 .test-two-institutions.mjs
 .dbg-two.mjs
+.test-certificates.mjs

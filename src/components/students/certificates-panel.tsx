@@ -160,6 +160,11 @@ function IssueDialog({ studentId, kinds, schoolName, onClose }: { studentId: num
         {preview && (
           <div className="space-y-2 rounded-sm border border-hair p-3">
             <div className="text-[14px] font-semibold text-ink-900">{preview.content.title}</div>
+            {preview.content.header.length > 0 && (
+              <dl className="grid gap-x-4 gap-y-1 text-[12.5px] sm:grid-cols-2">
+                {preview.content.header.map(([k, val]) => <div key={k}><dt className="inline text-ink-500">{k}: </dt><dd className="inline text-ink-900">{val}</dd></div>)}
+              </dl>
+            )}
             {preview.content.rows.length > 0 && (
               <table className="w-full text-[12.5px]"><tbody>
                 {preview.content.rows.map(([k, val], i) => <tr key={i} className="border-t border-hair"><td className="py-1 pr-3 text-ink-700">{k}</td><td className="py-1 text-ink-900">{val || <span className="text-down">blank</span>}</td></tr>)}
