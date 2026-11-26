@@ -1,12 +1,13 @@
 import { createClient } from "@supabase/supabase-js";
 import { SUPABASE_URL, SUPABASE_ANON_KEY } from "@/lib/supabase/config";
 
-// Public check from a QR code: a student ID card (or a recorded certificate).
+// Public check from a QR code: a student ID card, a report card, or a recorded certificate.
 // Shows only what proves it is genuine; nothing else about the student.
 const KIND: Record<string, string> = { transfer: "Transfer certificate", bonafide: "Bonafide certificate", character: "Character certificate" };
 export const dynamic = "force-dynamic";
 
 type Card = { student_name: string; class_label: string | null; school_name: string; school_place: string | null; year_name: string; valid: boolean; reason: string | null };
+type Report = { valid: boolean; reason: string; student_name: string; class_label: string | null; term_name: string | null; year_name: string | null; school_name: string; published_on: string };
 type Cert = { kind: string; number: string | null; student_name: string; admission_no: string; issued_on: string; school_name: string; school_place: string | null; status: string };
 
 function Facts({ rows }: { rows: [string, string][] }) {
@@ -23,9 +24,11 @@ export default async function VerifyPage({ params }: { params: Promise<{ token: 
   const { token } = await params;
   const ok = /^[a-f0-9]{32,64}$/.test(token);
   const anon = createClient(SUPABASE_URL, SUPABASE_ANON_KEY, { auth: { persistSession: false } });
-  const [{ data: cardData }, { data: certData }] = ok
-    ? await Promise.all([anon.rpc("verify_id_card" as never, { p_token: token } as never), anon.rpc("verify_certificate" as never, { p_token: token } as never)])
-    : [{ data: null }, { data: null }];
+  const [{ data: cardData }, { data: certData }, { data: repData }] = ok
+    ? await Promise.all([anon.rpc("verify_id_card" as never, { p_token: token } as never), anon.rpc("verify_certificate" as never, { p_token: token } as never),
+        anon.rpc("verify_report_card" as never, { p_token: token } as never)])
+    : [{ data: null }, { data: null }, { data: null }];
+  const report = ((repData ?? []) as Report[])[0];
   const card = ((cardData ?? []) as Card[])[0];
   const cert = ((certData ?? []) as Cert[])[0];
   const day = (iso: string) => iso.split("-").reverse().join("/");
@@ -40,6 +43,13 @@ export default async function VerifyPage({ params }: { params: Promise<{ token: 
           {!card.valid && card.reason && <p className="mt-1 text-[14px] text-ink-900">{card.reason}</p>}
           <Facts rows={[["Student", card.student_name], ["Class", card.class_label ?? ""], ["Institution", place(card.school_name, card.school_place)], ["Year", card.year_name]]} />
           <p className="mt-4 text-[12px] text-ink-500">Compare the name and class with the card. If they differ, the card is not genuine.</p>
+        </>
+      ) : report ? (
+        <>
+          <h1 className={`mt-2 text-[22px] font-semibold ${report.valid ? "text-up" : "text-down"}`}>{report.valid ? "Valid report card" : "This report card is not current"}</h1>
+          {!report.valid && <p className="mt-1 text-[14px] text-ink-900">{report.reason}</p>}
+          <Facts rows={[["Student", report.student_name], ["Class", report.class_label ?? ""], ["Report", [report.term_name, report.year_name].filter(Boolean).join(", ")], ["Institution", report.school_name], ["Published", day(report.published_on)]]} />
+          <p className="mt-4 text-[12px] text-ink-500">Marks are not shown here. Compare the printed card with the one in the parent&apos;s CampusTwin account.</p>
         </>
       ) : cert ? (
         <>

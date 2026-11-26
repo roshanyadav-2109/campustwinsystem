@@ -33,6 +33,7 @@ const en = {
     noAccess: "You don't have access to this page.",
   },
   nav: {
+    reportCards: "Report cards",
     notifications: "Notifications",
     settings: "Settings",
     studentRecords: "Student records",
@@ -518,6 +519,7 @@ const en = {
     transport: "Buses and routes",
     access: "Logins and access",
     messages: "Messages and alerts",
+    reportCards: "Report cards",
     admin: "Plan, activity and health",
   },
   todo: {

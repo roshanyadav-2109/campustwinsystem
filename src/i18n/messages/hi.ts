@@ -34,6 +34,7 @@ const hi: PartialMessages = {
     noAccess: "आपको इस पृष्ठ तक पहुँच नहीं है।",
   },
   nav: {
+    reportCards: "रिपोर्ट कार्ड",
     notifications: "सूचनाएँ",
     settings: "सेटिंग्स",
     studentRecords: "छात्र रिकॉर्ड",
@@ -350,6 +351,7 @@ const hi: PartialMessages = {
     transport: "बसें और रूट",
     access: "लॉगिन और पहुँच",
     messages: "संदेश और सूचनाएँ",
+    reportCards: "रिपोर्ट कार्ड",
     admin: "प्लान, गतिविधि और स्थिति",
   },
   todo: {

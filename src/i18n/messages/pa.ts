@@ -34,6 +34,7 @@ const pa: PartialMessages = {
     noAccess: "ਤੁਹਾਨੂੰ ਇਹ ਪੰਨਾ ਵੇਖਣ ਦੀ ਇਜਾਜ਼ਤ ਨਹੀਂ ਹੈ।",
   },
   nav: {
+    reportCards: "ਰਿਪੋਰਟ ਕਾਰਡ",
     notifications: "ਸੂਚਨਾਵਾਂ",
     settings: "ਸੈਟਿੰਗਾਂ",
     studentRecords: "ਵਿਦਿਆਰਥੀ ਰਿਕਾਰਡ",
@@ -519,6 +520,7 @@ const pa: PartialMessages = {
     transport: "ਬੱਸਾਂ ਅਤੇ ਰੂਟ",
     access: "ਲੌਗਇਨ ਅਤੇ ਪਹੁੰਚ",
     messages: "ਸੁਨੇਹੇ ਅਤੇ ਸੂਚਨਾਵਾਂ",
+    reportCards: "ਰਿਪੋਰਟ ਕਾਰਡ",
     admin: "ਪਲਾਨ, ਗਤੀਵਿਧੀ ਅਤੇ ਸਥਿਤੀ",
   },
   todo: {

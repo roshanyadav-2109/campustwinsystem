@@ -34,6 +34,7 @@ const bn: PartialMessages = {
     noAccess: "এই পৃষ্ঠায় আপনার প্রবেশাধিকার নেই।",
   },
   nav: {
+    reportCards: "রিপোর্ট কার্ড",
     notifications: "বিজ্ঞপ্তি",
     settings: "সেটিংস",
     studentRecords: "ছাত্রছাত্রীর রেকর্ড",
@@ -350,6 +351,7 @@ const bn: PartialMessages = {
     transport: "বাস ও রুট",
     access: "লগইন ও অ্যাক্সেস",
     messages: "বার্তা ও সতর্কতা",
+    reportCards: "রিপোর্ট কার্ড",
     admin: "প্ল্যান, কার্যকলাপ ও অবস্থা",
   },
   todo: {
