@@ -74,3 +74,5 @@ swap-db.log
 .test-fees-instalments.mjs
 .test-fees-step2.mjs
 .test-fee-letters.mjs
+.dbg-gf.mjs
+.dbg-gf2.mjs
