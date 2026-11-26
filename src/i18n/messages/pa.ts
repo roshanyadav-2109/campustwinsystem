@@ -34,6 +34,8 @@ const pa: PartialMessages = {
     noAccess: "ਤੁਹਾਨੂੰ ਇਹ ਪੰਨਾ ਵੇਖਣ ਦੀ ਇਜਾਜ਼ਤ ਨਹੀਂ ਹੈ।",
   },
   nav: {
+    frontDesk: "ਫ੍ਰੰਟ ਡੈਸਕ",
+    pickupHealth: "ਪਿਕ-ਅੱਪ ਅਤੇ ਸਿਹਤ",
     substitutions: "ਬਦਲਵੇਂ ਅਧਿਆਪਕ",
     staffAttendance: "ਸਟਾਫ਼ ਹਾਜ਼ਰੀ",
     gateScan: "ਗੇਟ ਸਕੈਨ",

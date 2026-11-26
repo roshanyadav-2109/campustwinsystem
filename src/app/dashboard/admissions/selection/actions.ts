@@ -27,7 +27,7 @@ export async function setSeats(classId: number, seats: string): Promise<R> {
   return { ok: true, message: "Saved." };
 }
 
-export async function saveApplicant(id: number, input: { score: string; scoreNote: string; fee: string; feeOn: string; feeRef: string; slotId: number | null }): Promise<R> {
+export async function saveApplicant(id: number, input: { score: string; scoreNote: string; fee: string; feeOn: string; feeRef: string; testSlot: number | null; interviewSlot: number | null }): Promise<R> {
   if (!(await office())) return { ok: false, error: "Only the office can change this." };
   const num = (v: string) => (v.trim() === "" ? null : Number(v));
   if ((input.score.trim() && !/^\d{1,4}(\.\d{1,2})?$/.test(input.score.trim())) || (input.fee.trim() && !/^\d{1,6}(\.\d{1,2})?$/.test(input.fee.trim()))) return { ok: false, error: "Score and fee must be numbers." };
@@ -38,13 +38,11 @@ export async function saveApplicant(id: number, input: { score: string; scoreNot
     app_fee_amount: num(input.fee), app_fee_paid_on: input.feeOn || null, app_fee_ref: input.feeRef.trim().slice(0, 80) || null,
   } as never).eq("id", id);
   if (error) return { ok: false, error: "Could not save." };
-  // test / interview slot
-  const { data: slot } = input.slotId ? await supabase.from("admission_slot" as never).select("kind").eq("id", input.slotId).maybeSingle() : { data: null };
-  const kind = (slot as { kind: string } | null)?.kind;
-  if (input.slotId && kind) {
-    await supabase.from("admission_booking" as never).delete().eq("enquiry_id", id).eq("kind", kind);
-    const { error: bErr } = await supabase.from("admission_booking" as never).insert({ slot_id: input.slotId, enquiry_id: id, kind } as never);
-    if (bErr) return { ok: false, error: bErr.message.includes("full") ? "That slot is full. Choose another." : "Could not book the slot." };
+  // test and interview bookings: changed in one step, so a full slot never loses the old booking
+  for (const [kind, slotId] of [["test", input.testSlot], ["interview", input.interviewSlot]] as const) {
+    if (slotId == null) { await supabase.from("admission_booking" as never).delete().eq("enquiry_id", id).eq("kind", kind); continue; }
+    const { error: bErr } = await supabase.from("admission_booking" as never).upsert({ slot_id: slotId, enquiry_id: id, kind } as never, { onConflict: "enquiry_id,kind" });
+    if (bErr) return { ok: false, error: bErr.message.includes("full") ? `That ${kind} slot is full. Choose another.` : bErr.message.includes("another class") ? "That slot is for another class." : "Could not book the slot." };
   }
   revalidatePath(PATH);
   return { ok: true, message: "Saved." };
@@ -81,7 +79,8 @@ export async function signAdmissionDoc(enquiryId: number, contentType: string, s
 export async function recordAdmissionDoc(enquiryId: number, kind: string, key: string): Promise<R> {
   const s = await office();
   if (!s) return { ok: false, error: "Only the office can upload documents." };
-  if (!key.includes(`/admissions/${enquiryId}/`) || !kind.trim()) return { ok: false, error: "Could not save the document." };
+  const { tenantPrefixForSchool } = await import("@/lib/r2");
+  if (!key.startsWith(`${await tenantPrefixForSchool(s.schoolId)}/admissions/${enquiryId}/`) || !kind.trim()) return { ok: false, error: "Could not save the document." };
   const supabase = await createClient();
   const { error } = await supabase.from("admission_document" as never).insert({ enquiry_id: enquiryId, kind: kind.trim().slice(0, 60), file_key: key, uploaded_by: s.staffId } as never);
   if (error) return { ok: false, error: "Could not save the document." };
@@ -95,7 +94,7 @@ export async function admissionDocLink(docId: number): Promise<{ ok: true; url: 
   const supabase = await createClient();
   const { data } = await supabase.from("admission_document" as never).select("file_key").eq("id", docId).maybeSingle();
   const key = (data as { file_key: string } | null)?.file_key;
-  if (!key) return { ok: false, error: "Not found." };
-  const { presignGet } = await import("@/lib/r2");
+  const { presignGet, tenantPrefixForSchool } = await import("@/lib/r2");
+  if (!key || !key.startsWith(`${await tenantPrefixForSchool(s.schoolId)}/admissions/`)) return { ok: false, error: "Not found." };
   return { ok: true, url: await presignGet(key) };
 }

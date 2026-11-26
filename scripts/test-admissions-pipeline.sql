@@ -34,7 +34,12 @@ begin
   ok := false; begin insert into public.admission_booking (slot_id, enquiry_id, kind) values (sl, e1, 'test'); exception when others then ok := true; end;
   if not ok then raise exception 'FAIL booked twice'; end if;
   -- documents
-  insert into public.admission_document (enquiry_id, kind, file_key) values (e1, 'Birth certificate', 'x/admissions/1/doc.pdf');
+  insert into public.admission_document (enquiry_id, kind, file_key) values (e1, 'Birth certificate', 'schools/greenfield/admissions/' || e1 || '/doc.pdf');
+  ok := false; begin insert into public.admission_document (enquiry_id, kind, file_key) values (e1, 'x', 'schools/other/admissions/' || e1 || '/doc.pdf'); exception when others then ok := true; end;
+  if not ok then raise exception 'FAIL document key outside the folder accepted'; end if;
+  -- an expired claim does not hold a seat; withdrawing an admission frees it
+  update public.admission_enquiry set seat_claimed_at = now() - interval '1 hour' where id = e1;
+  perform public.claim_admission_seat(e2);
   reset role;
 end $$;
 rollback;

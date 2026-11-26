@@ -25,7 +25,10 @@ function ApplicantRow({ a, slots, canEdit }: { a: Applicant; slots: SlotRow[]; c
   const [fee, setFee] = useState(a.app_fee_amount == null ? "" : String(Number(a.app_fee_amount)));
   const [feeOn, setFeeOn] = useState(a.app_fee_paid_on ?? "");
   const [feeRef, setFeeRef] = useState(a.app_fee_ref ?? "");
-  const [slotId, setSlotId] = useState<number | "">(a.bookings[0]?.slot_id ?? "");
+  const [testSlot, setTestSlot] = useState<number | "">(a.bookings.find((b) => b.kind === "test")?.slot_id ?? "");
+  const [interviewSlot, setInterviewSlot] = useState<number | "">(a.bookings.find((b) => b.kind === "interview")?.slot_id ?? "");
+  const slotOptions = (kind: "test" | "interview", current: number | "") => slots.filter((s) => s.kind === kind).map((s) => (
+    <option key={s.id} value={s.id} disabled={s.used >= s.capacity && s.id !== current}>{when(s.starts_at)}{s.venue ? `, ${s.venue}` : ""} ({s.used}/{s.capacity})</option>));
   const [docKind, setDocKind] = useState("Birth certificate");
   const [msg, setMsg] = useState<{ ok: boolean; text: string } | null>(null);
   const [pending, start] = useTransition();
@@ -39,9 +42,11 @@ function ApplicantRow({ a, slots, canEdit }: { a: Applicant; slots: SlotRow[]; c
       <td className="px-2 py-2"><Input className={`${c} w-24`} aria-label={`${a.child_name}: application fee`} inputMode="decimal" placeholder="Rs" disabled={!canEdit} value={fee} onChange={(e) => setFee(e.target.value)} />
         <Input type="date" className={`${c} mt-1 w-36`} aria-label={`${a.child_name}: fee paid on`} disabled={!canEdit} value={feeOn} onChange={(e) => setFeeOn(e.target.value)} />
         <Input className={`${c} mt-1 w-36`} aria-label={`${a.child_name}: fee receipt`} placeholder="Receipt / UPI ref" disabled={!canEdit} value={feeRef} onChange={(e) => setFeeRef(e.target.value)} /></td>
-      <td className="px-2 py-2"><Select className={`${c} w-52`} aria-label={`${a.child_name}: slot`} disabled={!canEdit} value={slotId} onChange={(e) => setSlotId(e.target.value ? Number(e.target.value) : "")}>
-        <option value="">No slot</option>
-        {slots.map((s) => <option key={s.id} value={s.id} disabled={s.used >= s.capacity && s.id !== a.bookings[0]?.slot_id}>{s.kind === "test" ? "Test" : "Interview"}, {when(s.starts_at)} ({s.used}/{s.capacity})</option>)}</Select></td>
+      <td className="px-2 py-2">
+        <Select className={`${c} w-52`} aria-label={`${a.child_name}: test slot`} disabled={!canEdit} value={testSlot} onChange={(e) => setTestSlot(e.target.value ? Number(e.target.value) : "")}>
+          <option value="">No test</option>{slotOptions("test", testSlot)}</Select>
+        <Select className={`${c} mt-1 w-52`} aria-label={`${a.child_name}: interview slot`} disabled={!canEdit} value={interviewSlot} onChange={(e) => setInterviewSlot(e.target.value ? Number(e.target.value) : "")}>
+          <option value="">No interview</option>{slotOptions("interview", interviewSlot)}</Select></td>
       <td className="px-2 py-2 text-[12px]">
         {a.docs.map((d) => <button key={d.id} className="block text-[#0F6CBD] hover:underline" onClick={() => start(async () => { const r = await admissionDocLink(d.id); if (r.ok) window.open(r.url, "_blank"); })}>{d.kind}</button>)}
         {canEdit && (
@@ -66,7 +71,7 @@ function ApplicantRow({ a, slots, canEdit }: { a: Applicant; slots: SlotRow[]; c
       </td>
       <td className="px-2 py-2">
         {canEdit && <Button size="sm" disabled={pending} onClick={() => start(async () => {
-          const r = await saveApplicant(a.id, { score, scoreNote: note, fee, feeOn, feeRef, slotId: slotId === "" ? null : slotId });
+          const r = await saveApplicant(a.id, { score, scoreNote: note, fee, feeOn, feeRef, testSlot: testSlot === "" ? null : testSlot, interviewSlot: interviewSlot === "" ? null : interviewSlot });
           setMsg(r.ok ? { ok: true, text: "Saved." } : { ok: false, text: r.error }); if (r.ok) router.refresh();
         })}>Save</Button>}
         <div className="mt-1"><Msg m={msg} /></div>

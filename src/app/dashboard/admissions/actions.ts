@@ -246,6 +246,9 @@ export async function admitEnquiry(
   const { data: sec } = await supabase.from("section").select("id, class_id").eq("id", input.sectionId).maybeSingle();
   if (!sec || sec.class_id !== enq.class_id) return { ok: false, error: "Choose a section of the class the child is joining." };
 
+  const wantedNo = text(input.admissionNo);
+  const { data: taken } = await supabase.from("student").select("id").eq("admission_no", wantedNo).maybeSingle();
+  if (taken) return { ok: false, error: `Admission number ${wantedNo} is already used. Choose another.` };
   // a seat in the class (refused when the class is full; two admits at once cannot both take the last seat)
   const { error: seatErr } = await supabase.rpc("claim_admission_seat" as never, { p_enquiry: id } as never);
   if (seatErr) return { ok: false, error: seatErr.message.startsWith("All ") ? `${seatErr.message}. Raise the seats in Admissions, Seats and merit, if the school agrees.` : "Could not reserve a seat." };
@@ -264,7 +267,7 @@ export async function admitEnquiry(
   });
   // Link the enquiry whenever the student record exists, even if the parent
   // part failed, so the child is never admitted twice.
-  const { data: student } = await supabase.from("student").select("id").eq("admission_no", admissionNo).maybeSingle();
+  const { data: student } = res.ok ? await supabase.from("student").select("id").eq("admission_no", admissionNo).maybeSingle() : { data: null };
   if (student) {
     await db.from("admission_enquiry").update({ status: "admitted", student_id: student.id }).eq("id", id);
     // Start the student's profile from what the family gave in the enquiry.

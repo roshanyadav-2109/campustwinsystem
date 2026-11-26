@@ -34,6 +34,8 @@ const gu: PartialMessages = {
     noAccess: "તમને આ પેજ જોવાની પરવાનગી નથી.",
   },
   nav: {
+    frontDesk: "ફ્રન્ટ ડેસ્ક",
+    pickupHealth: "પિક-અપ અને આરોગ્ય",
     substitutions: "અવેજી",
     staffAttendance: "સ્ટાફ હાજરી",
     gateScan: "ગેટ સ્કૅન",

@@ -34,6 +34,8 @@ const bn: PartialMessages = {
     noAccess: "এই পৃষ্ঠায় আপনার প্রবেশাধিকার নেই।",
   },
   nav: {
+    frontDesk: "ফ্রন্ট ডেস্ক",
+    pickupHealth: "পিক-আপ ও স্বাস্থ্য",
     substitutions: "বিকল্প শিক্ষক",
     staffAttendance: "কর্মী উপস্থিতি",
     gateScan: "গেট স্ক্যান",
