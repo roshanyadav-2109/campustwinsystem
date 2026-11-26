@@ -69,3 +69,5 @@ swap-db.log
 .test-transport.mjs
 .test-imports.mjs
 .test-plans.mjs
+.test-school-admin.mjs
+.dbg-req.mjs
