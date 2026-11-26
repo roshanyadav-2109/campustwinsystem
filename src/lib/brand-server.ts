@@ -4,6 +4,7 @@ import { headers } from "next/headers";
 import { unstable_cache, revalidateTag } from "next/cache";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { SCHOOL } from "@/lib/school";
+import { slugFromHost } from "@/lib/host-slug";
 
 // Branding is the same for every visitor and changes only when the office/console
 // edits it, so it is cached across requests (not just per request) to avoid a DB
@@ -62,15 +63,7 @@ function toBrand(r: Row): Brand {
 
 // The institution slug from a host, or null for the apex / localhost / an IP /
 // an unrelated host (e.g. a vercel.app preview).
-export function slugFromHost(host: string | null): string | null {
-  if (!host) return null;
-  const h = host.split(":")[0].toLowerCase();
-  if (h === "localhost" || /^[0-9.]+$/.test(h)) return null;
-  if (!h.endsWith("." + BASE)) return null;
-  const sub = h.slice(0, -(("." + BASE).length));
-  if (!sub || sub === "www") return null;
-  return sub.split(".").pop() || null;
-}
+export { slugFromHost };
 
 // The apex (campustwin.org) and any unmatched host are NOT a school — they get
 // the neutral CampusTwin brand, never a fall-back to some institution.

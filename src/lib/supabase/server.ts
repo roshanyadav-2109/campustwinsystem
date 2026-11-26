@@ -3,16 +3,20 @@ import { SUPABASE_URL, SUPABASE_ANON_KEY } from "@/lib/supabase/config";
 import { cookies, headers } from "next/headers";
 import { cookieDomainForHost } from "@/lib/supabase/cookie-domain";
 import type { Database } from "@/lib/database.types";
+import { institutionHeaders } from "@/lib/host-slug";
 
 // Server Supabase client (RSC, Server Actions, Route Handlers).
 // cookies() is async in Next 16.
 export async function createClient() {
   const cookieStore = await cookies();
-  const domain = cookieDomainForHost((await headers()).get("host"));
+  const host = (await headers()).get("host");
+  const domain = cookieDomainForHost(host);
   return createServerClient<Database>(
     SUPABASE_URL,
     SUPABASE_ANON_KEY,
     {
+      // Every call says which institution's website it came from (0078).
+      global: { headers: institutionHeaders(host) },
       cookies: {
         getAll() {
           return cookieStore.getAll();

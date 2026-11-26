@@ -77,3 +77,5 @@ swap-db.log
 .dbg-gf.mjs
 .dbg-gf2.mjs
 .test-structure.mjs
+.test-student-profile.mjs
+.dbg-hdr.mjs
