@@ -1,4 +1,5 @@
 "use client";
+import Link from "next/link";
 import { useState, useTransition } from "react";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { Card, CardBody, CardHeader } from "@/components/ui/card";
@@ -143,7 +144,7 @@ export function StudentAdmin({
               <tbody>
                 {rows.map((s) => (
                   <tr key={s.id} className="hover:bg-panel">
-                    <td className="py-2 font-medium text-ink-900">{s.fullName}</td>
+                    <td className="py-2 font-medium"><Link href={`/dashboard/students/${s.id}`} className="text-[#0F6CBD] hover:underline">{s.fullName}</Link></td>
                     <td className="py-2 tabular text-ink-900">{s.admissionNo}</td>
                     <td className="py-2 text-ink-900">{s.classSection ?? "—"}</td>
                     <td className="py-2 tabular text-ink-900">{s.rollNo ?? "—"}</td>

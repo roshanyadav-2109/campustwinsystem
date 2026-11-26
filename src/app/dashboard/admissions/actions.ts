@@ -237,7 +237,7 @@ export async function admitEnquiry(
   const db = await untyped();
   const { data: enq } = await db
     .from("admission_enquiry")
-    .select("id, student_id, child_name, date_of_birth, class_id, guardian_name, phone, email")
+    .select("id, student_id, child_name, date_of_birth, class_id, guardian_name, phone, email, address, previous_school, class(name)")
     .eq("id", id).maybeSingle();
   if (!enq) return { ok: false, error: "That enquiry was not found." };
   if (enq.student_id) return { ok: false, error: "This child has already been admitted." };
@@ -263,6 +263,15 @@ export async function admitEnquiry(
   const { data: student } = await supabase.from("student").select("id").eq("admission_no", admissionNo).maybeSingle();
   if (student) {
     await db.from("admission_enquiry").update({ status: "admitted", student_id: student.id }).eq("id", id);
+    // Start the student's profile from what the family gave in the enquiry.
+    const e = enq as unknown as { address: string | null; previous_school: string | null; class: { name: string } | null };
+    await db.from("student_profile").upsert({
+      student_id: student.id,
+      admission_date: new Date(Date.now() + 5.5 * 3600_000).toISOString().slice(0, 10),
+      admitted_class: e.class?.name ?? null,
+      previous_school: e.previous_school?.trim().slice(0, 160) || null,
+      address_line: e.address?.trim().slice(0, 240) || null,
+    }, { onConflict: "student_id", ignoreDuplicates: true });
     revalidatePath(TAB);
   }
   return res;

@@ -1,3 +1,4 @@
+import { DetailsUpload } from "@/components/manage/students/details-upload";
 import { guardTab } from "@/lib/access";
 import { PageHeader } from "@/components/ui/page-header";
 import { EmptyState } from "@/components/ui/empty";
@@ -33,14 +34,17 @@ async function ManageStudentsPageBody({ searchParams }: { searchParams: SP }) {
   });
 
   return (
-    <StudentAdmin
-      rows={list.rows}
-      total={list.total}
-      page={list.page}
-      pageSize={list.pageSize}
-      sections={sections}
-      yearName={year.name}
-    />
+    <div className="space-y-5">
+      <StudentAdmin
+        rows={list.rows}
+        total={list.total}
+        page={list.page}
+        pageSize={list.pageSize}
+        sections={sections}
+        yearName={year.name}
+      />
+      <DetailsUpload />
+    </div>
   );
 }
 

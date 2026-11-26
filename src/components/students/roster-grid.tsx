@@ -43,6 +43,8 @@ export function RosterGrid({
                 </span>
                 <ArrowRightIcon size={15} className="text-muted transition-transform group-hover:translate-x-0.5 group-hover:text-ink-900" />
               </Link>
+              <Link prefetch={false} href={`/dashboard/students/${s.id}`} aria-label={`Profile of ${s.name}`}
+                className="shrink-0 rounded-sm px-2 py-1 text-[12px] font-medium text-[#0F6CBD] hover:bg-panel">Profile</Link>
               {mode !== "none" && rec && (
                 <button type="button" onClick={() => { setNote(null); setEditing(rec); }}
                   className="shrink-0 rounded-sm px-2 py-1 text-[12px] font-medium text-[#0F6CBD] hover:bg-[#EBF3FC]"

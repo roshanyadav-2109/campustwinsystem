@@ -346,3 +346,51 @@ export async function updateStudentDetails(input: StudentInput): Promise<Result>
   refresh();
   return { ok: true };
 }
+
+// ---------------------------------------------------------------------------
+// More details for students already on the roll (profile and identity columns)
+// ---------------------------------------------------------------------------
+export async function importStudentDetails(rows: import("./details-rules").DetailsRow[]): Promise<{ ok: true; updated: number; unknown: string[] } | { ok: false; error: string }> {
+  const session = await getSession();
+  if (!session?.staffId || session.staffRole !== "office") return { ok: false, error: "Only the school office can upload student details." };
+  if (!Array.isArray(rows) || !rows.length) return { ok: false, error: "There are no rows to save." };
+  if (rows.length > 3000) return { ok: false, error: "Please upload at most 3000 students at a time." };
+  if (rows.some((r) => r.errors?.length)) return { ok: false, error: "Some rows have problems. Please fix the file and upload it again." };
+  const supabase = await createClient();
+  const db = supabase as unknown as { from: (t: string) => ReturnType<typeof supabase.from> };
+
+  // Admission numbers to student ids, for students of this school.
+  const wanted = [...new Set(rows.map((r) => r.admissionNo.trim()))];
+  const idByAdm = new Map<string, number>();
+  for (let i = 0; i < wanted.length; i += 300) {
+    const { data } = await supabase.from("student").select("id, admission_no").in("admission_no", wanted.slice(i, i + 300));
+    for (const s of data ?? []) idByAdm.set(s.admission_no.toUpperCase(), s.id);
+  }
+  const unknown = wanted.filter((a) => !idByAdm.has(a.toUpperCase()));
+
+  // Write only the columns each row fills, grouped so one upsert writes one shape.
+  const save = async (table: "student_profile" | "student_identity", pick: (r: import("./details-rules").DetailsRow) => Record<string, unknown>) => {
+    const groups = new Map<string, Record<string, unknown>[]>();
+    for (const r of rows) {
+      const id = idByAdm.get(r.admissionNo.trim().toUpperCase());
+      const vals = pick(r);
+      if (!id || !Object.keys(vals).length) continue;
+      const rec = { student_id: id, ...vals };
+      const key = Object.keys(rec).sort().join(",");
+      groups.set(key, [...(groups.get(key) ?? []), rec]);
+    }
+    for (const recs of groups.values()) {
+      for (let i = 0; i < recs.length; i += 500) {
+        const { error } = await db.from(table).upsert(recs.slice(i, i + 500) as never, { onConflict: "student_id" });
+        if (error) return error.code === "23505" ? "Two students have the same APAAR ID or PEN." : "Some details could not be saved. Please try again.";
+      }
+    }
+    return null;
+  };
+  const e1 = await save("student_profile", (r) => r.profile);
+  if (e1) return { ok: false, error: e1 };
+  const e2 = await save("student_identity", (r) => r.identity);
+  if (e2) return { ok: false, error: e2 };
+  refresh();
+  return { ok: true, updated: rows.filter((r) => idByAdm.has(r.admissionNo.trim().toUpperCase())).length, unknown };
+}
