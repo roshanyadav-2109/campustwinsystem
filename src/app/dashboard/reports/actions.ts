@@ -16,7 +16,7 @@ export type CardsRequest = {
 // teacher to the sections they may see.
 export async function classReportCards(req: CardsRequest): Promise<{ ok: true; cards: ClassCard[] } | { ok: false; error: string }> {
   const session = await getSession();
-  if (!session?.staffId || !roleCanOpen(session.navRole, "/dashboard/reports")) {
+  if (!session?.staffId || !roleCanOpen(session.navRole, "/dashboard/reports", session.school.modules, session.school.edition)) {
     return { ok: false, error: "You can't make report cards for this class." };
   }
   if (req.type === "exam" && !req.examName) return { ok: false, error: "Please choose an exam first." };

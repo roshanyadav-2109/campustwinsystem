@@ -15,11 +15,11 @@ export type NavItem = RouteDef & { icon: IconComponent };
 // toggles) when the Twin feature ships.
 
 /** Menu entries for a role here, in registry order. */
-export function navFor(role: NavRole, enabled?: Record<string, boolean>, edition?: Edition): NavItem[] {
+export function navFor(role: NavRole, enabled: Record<string, boolean> | undefined, edition: Edition): NavItem[] {
   return menuRoutes(ROUTES, role, enabled, edition).filter((r): r is NavItem => !!r.icon);
 }
 
 /** Whether a role may open a page here, listed in the menu or not. */
-export function canOpen(role: NavRole, href: string, enabled?: Record<string, boolean>, edition?: Edition): boolean {
+export function canOpen(role: NavRole, href: string, enabled: Record<string, boolean> | undefined, edition: Edition): boolean {
   return openableRoutes(ROUTES, role, enabled, edition).some((r) => r.href === href);
 }

@@ -18,7 +18,7 @@ export async function getTodo(session: Session): Promise<TodoItem[]> {
 
   const [sections, marked, holiday, draft, enquiries, overdue, letters] = await Promise.all([
     supabase.from("section").select("id", { count: "exact", head: true }),
-    supabase.from("attendance_record").select("section_id").eq("on_date", today).is("period", null).limit(10000),
+    supabase.rpc("sections_marked_on" as never, { p_date: today } as never),
     supabase.from("event").select("id, class_id, section_id").eq("event_type", "holiday").lte("start_date", today).gte("end_date", today),
     supabase.from("assessment").select("id", { count: "exact", head: true }).eq("academic_year_id", year.id).eq("is_published", false),
     moduleOn("admissions", mods) ? supabase.from("admission_enquiry").select("id", { count: "exact", head: true }).eq("status", "new") : Promise.resolve({ count: 0 }),
@@ -29,7 +29,7 @@ export async function getTodo(session: Session): Promise<TodoItem[]> {
 
   // Attendance: only on a working day that is not a whole-school holiday.
   const wholeHoliday = ((holiday.data ?? []) as { class_id: number | null; section_id: number | null }[]).some((e) => !e.class_id && !e.section_id);
-  const markedSections = new Set(((marked.data ?? []) as { section_id: number }[]).map((r) => r.section_id)).size;
+  const markedSections = Number(marked.data ?? 0);
   const unmarked = sunday || wholeHoliday ? 0 : Math.max(0, (sections.count ?? 0) - markedSections);
 
   const items: TodoItem[] = [

@@ -9,7 +9,7 @@ import { EmptyState } from "@/components/ui/empty";
 // (What a page then shows is still limited by the database's row rules.)
 // Both the menu and this guard read the route registry, which also lists pages
 // that are opened from elsewhere and not shown in the menu.
-export function roleCanOpen(role: NavRole, href: string, modules?: Record<string, boolean>, edition?: Edition): boolean {
+export function roleCanOpen(role: NavRole, href: string, modules: Record<string, boolean> | undefined, edition: Edition): boolean {
   return canOpen(role, href, modules, edition);
 }
 

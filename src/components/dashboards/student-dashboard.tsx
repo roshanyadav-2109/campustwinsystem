@@ -50,7 +50,7 @@ export async function StudentDashboard({ session }: { session: Session }) {
 
   return (
     <div className="grid max-w-6xl items-start gap-3 lg:grid-cols-[minmax(0,1fr)_18.5rem]">
-      <MainContent name={session.fullName} standing={standing} att={att} />
+      <MainContent name={session.fullName} standing={standing} att={att} session={session} />
       <div className="flex flex-col gap-3">
         <ProfileCard name={session.fullName} studentId={studentId} />
         <BusCard studentId={studentId} />
@@ -119,10 +119,10 @@ async function BusCard({ studentId }: { studentId: number }) {
 }
 
 // ── Middle: the largest area — greeting + performance overview ───────────────
-async function MainContent({ name, standing, att }: { name: string; standing: Standing | null; att: Att | null }) {
+async function MainContent({ name, standing, att, session }: { name: string; standing: Standing | null; att: Att | null; session: Session }) {
   const { t, locale } = await getT();
   const firstName = name.split(" ").slice(-1)[0];
-  const links = navFor("student").filter((l) => l.href !== "/dashboard");
+  const links = navFor("student", session.school.modules, session.school.edition).filter((l) => l.href !== "/dashboard");
   // A distinct, lively colour per quick link.
   const linkColor: Record<string, string> = {
     "/dashboard/progress": "text-[rgb(79,70,229)]",

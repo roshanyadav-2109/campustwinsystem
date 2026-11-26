@@ -38,7 +38,7 @@ export function AppShell({
   role: NavRole;
   roleLabel: string;
   modules?: Record<string, boolean>;
-  edition?: Edition;
+  edition: Edition;
   brand?: { name: string; place: string | null; logo: string | null; monogram: string | null };
   university?: { name: string; activeCampusName: string | null } | null;
   children: React.ReactNode;

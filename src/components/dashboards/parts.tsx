@@ -1,3 +1,4 @@
+import { getSession } from "@/lib/session";
 import { CalendarIcon, type IconComponent } from "@/components/icons";
 import Link from "next/link";
 import { createClient } from "@/lib/supabase/server";
@@ -139,7 +140,8 @@ export async function EventsPanel() {
 
 export async function QuickLinks({ role }: { role: NavRole }) {
   const { t } = await getT();
-  const links = navFor(role).filter((l) => l.href !== "/dashboard");
+  const session = await getSession();
+  const links = navFor(role, session?.school.modules, session?.school.edition ?? "school").filter((l) => l.href !== "/dashboard");
   return (
     <div>
       <div className="mb-3 text-[16px] font-semibold text-ink-900">{t("dashboard.quickLinks")}</div>
