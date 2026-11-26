@@ -19,7 +19,7 @@ const STATUSES: { key: AttStatus; short: string; cls: string }[] = [
 const statusStyle: Record<AttStatus, Status> = { present: "up", absent: "down", late: "watch", leave: "flat", holiday: "flat" };
 
 export function AttendanceBoard({
-  sectionId, yearId, date, roster, initial, summary, readOnly = false,
+  sectionId, yearId, date, roster, initial, summary, onLeave = [], readOnly = false,
 }: {
   sectionId: number;
   yearId: number;
@@ -27,12 +27,14 @@ export function AttendanceBoard({
   roster: Row[];
   initial: Record<number, AttStatus>;
   summary: Record<number, { pct: number; present: number; total: number }>;
+  onLeave?: number[];          // students whose approved leave covers this date
   readOnly?: boolean;
 }) {
   const { t, locale } = useI18n();
+  const leave = new Set(onLeave);
   const [marks, setMarks] = useState<Record<number, AttStatus>>(() => {
     const seed: Record<number, AttStatus> = {};
-    for (const r of roster) seed[r.id] = initial[r.id] ?? "present";
+    for (const r of roster) seed[r.id] = initial[r.id] ?? (leave.has(r.id) ? "leave" : "present");
     return seed;
   });
   const [pending, start] = useTransition();
@@ -41,7 +43,8 @@ export function AttendanceBoard({
   // whole section is saved as "holiday" (excluded from attendance %).
   const [holiday, setHoliday] = useState(() => roster.length > 0 && roster.every((r) => initial[r.id] === "holiday"));
 
-  const setAll = (status: AttStatus) => setMarks(Object.fromEntries(roster.map((r) => [r.id, status])));
+  // "Mark all" never overrides a student who is on approved leave.
+  const setAll = (status: AttStatus) => setMarks(Object.fromEntries(roster.map((r) => [r.id, leave.has(r.id) ? "leave" : status])));
   const below = roster
     .map((r) => ({ r, s: summary[r.id] }))
     .filter((x) => x.s && x.s.total > 0 && x.s.pct < 75);
@@ -77,7 +80,10 @@ export function AttendanceBoard({
             {roster.map((r) => (
               <li key={r.id} className="flex items-center gap-3 py-2">
                 <span className="flex h-6 w-6 items-center justify-center rounded-full bg-panel text-[11px] font-semibold text-ink-900 tabular">{r.roll ?? "–"}</span>
-                <span className="flex-1 truncate text-[14px] text-ink-900">{r.name}</span>
+                <span className="flex-1 truncate text-[14px] text-ink-900">
+                  {r.name}
+                  {leave.has(r.id) && <span className="ml-2 text-[12px] text-ink-500">{t("attendance.onApprovedLeave")}</span>}
+                </span>
                 {readOnly ? (
                   initial[r.id] ? (
                     <StatusPill status={statusStyle[initial[r.id]]}>{t(`attendance.${initial[r.id]}`)}</StatusPill>

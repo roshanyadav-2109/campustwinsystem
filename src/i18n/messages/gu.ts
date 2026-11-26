@@ -292,6 +292,7 @@ const gu: PartialMessages = {
     belowThreshold: "75% થી ઓછી હાજરી",
     markAllPresent: "બધાને હાજર કરો",
     markAllAbsent: "બધાને ગેરહાજર કરો",
+    onApprovedLeave: "મંજૂર રજા પર",
     markHoliday: "રજાનો દિવસ જાહેર કરો",
     saveAttendance: "હાજરી સેવ કરો",
     date: "તારીખ",

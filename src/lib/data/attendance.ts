@@ -1,5 +1,18 @@
 import { createClient } from "@/lib/supabase/server";
 
+// Students in a section whose approved leave covers this date.
+export async function getApprovedLeaveIds(sectionId: number, date: string) {
+  const supabase = await createClient();
+  const { data } = await supabase
+    .from("leave_application")
+    .select("student_id")
+    .eq("section_id", sectionId)
+    .eq("status", "approved")
+    .lte("from_date", date)
+    .gte("to_date", date);
+  return [...new Set((data ?? []).map((r) => r.student_id))];
+}
+
 export async function getDateAttendance(sectionId: number, date: string) {
   const supabase = await createClient();
   const { data } = await supabase

@@ -291,6 +291,7 @@ const en = {
     belowThreshold: "Below 75% attendance",
     markAllPresent: "Mark all present",
     markAllAbsent: "Mark all absent",
+    onApprovedLeave: "On approved leave",
     markHoliday: "Mark as holiday",
     saveAttendance: "Save attendance",
     date: "Date",

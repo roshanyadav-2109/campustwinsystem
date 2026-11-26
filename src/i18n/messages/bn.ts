@@ -150,6 +150,7 @@ const bn: PartialMessages = {
     belowThreshold: "প্রয়োজনীয় উপস্থিতির নিচে",
     markAllPresent: "সবাইকে উপস্থিত করুন",
     markAllAbsent: "সবাইকে অনুপস্থিত করুন",
+    onApprovedLeave: "অনুমোদিত ছুটিতে",
     markHoliday: "ছুটি হিসেবে চিহ্নিত করুন",
     saveAttendance: "উপস্থিতি সংরক্ষণ করুন",
     date: "তারিখ",
