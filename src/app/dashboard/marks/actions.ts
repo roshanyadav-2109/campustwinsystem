@@ -7,19 +7,20 @@ import { getSession } from "@/lib/session";
 // teacher of that section×subject, the class teacher, or admin.
 export async function saveMarks(input: {
   assessmentId: number;
-  entries: { studentId: number; marks: number | null; absent: boolean }[];
+  entries: { studentId: number; marks: number | null; absent: boolean; exempt?: boolean }[];
 }) {
   const supabase = await createClient();
   const session = await getSession();
   const rows = input.entries.map((e) => ({
     assessment_id: input.assessmentId,
     student_id: e.studentId,
-    marks_obtained: e.absent ? null : e.marks,
-    is_absent: e.absent,
+    marks_obtained: e.absent || e.exempt ? null : e.marks,
+    is_absent: e.absent && !e.exempt,
+    is_exempt: !!e.exempt,
     entered_by: session?.staffId ?? null,
   }));
-  const { error } = await supabase.from("mark").upsert(rows, { onConflict: "assessment_id,student_id" });
-  if (error) return { ok: false, error: error.message };
+  const { error } = await supabase.from("mark").upsert(rows as never, { onConflict: "assessment_id,student_id" });
+  if (error) return { ok: false, error: error.message.includes("locked") ? "These marks are locked for report cards. Ask the office to unlock the term." : error.message };
   revalidatePath("/dashboard/marks");
   revalidatePath("/dashboard/progress");
   return { ok: true };

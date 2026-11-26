@@ -9,7 +9,7 @@ import { cn } from "@/lib/utils";
 import { saveMarks, releaseAssessment } from "@/app/dashboard/marks/actions";
 
 type Row = { id: number; name: string; roll: number | null };
-type Entry = { marks: number | null; absent: boolean };
+type Entry = { marks: number | null; absent: boolean; exempt?: boolean };
 
 function band(pct: number | null) {
   if (pct == null) return null;
@@ -34,7 +34,7 @@ export function MarksEntry({
   }
   const [entries, setEntries] = useState<Record<number, Entry>>(() => {
     const seed: Record<number, Entry> = {};
-    for (const r of roster) seed[r.id] = initial[r.id] ?? { marks: null, absent: false };
+    for (const r of roster) seed[r.id] = initial[r.id] ?? { marks: null, absent: false, exempt: false };
     return seed;
   });
   const [pending, start] = useTransition();
@@ -43,10 +43,13 @@ export function MarksEntry({
 
   function setMark(id: number, raw: string) {
     const v = raw === "" ? null : Math.max(0, Math.min(maxMarks, Number(raw)));
-    setEntries((e) => ({ ...e, [id]: { marks: v, absent: false } }));
+    setEntries((e) => ({ ...e, [id]: { marks: v, absent: false, exempt: false } }));
   }
   function toggleAbsent(id: number) {
-    setEntries((e) => ({ ...e, [id]: { marks: null, absent: !e[id].absent } }));
+    setEntries((e) => ({ ...e, [id]: { marks: null, absent: !e[id].absent, exempt: false } }));
+  }
+  function toggleExempt(id: number) {
+    setEntries((e) => ({ ...e, [id]: { marks: null, absent: false, exempt: !e[id].exempt } }));
   }
 
   function save() {
@@ -81,8 +84,8 @@ export function MarksEntry({
                 <BandChip band={band(pct)} />
                 <input
                   type="number" inputMode="numeric" min={0} max={maxMarks}
-                  value={e.absent ? "" : e.marks ?? ""}
-                  disabled={e.absent}
+                  value={e.absent || e.exempt ? "" : e.marks ?? ""}
+                  disabled={e.absent || e.exempt}
                   onChange={(ev) => setMark(r.id, ev.target.value)}
                   className="h-9 w-20 rounded-sm border border-hair bg-surface px-2 text-right text-[14px] tabular focus-visible:border-[#0F6CBD] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#0F6CBD]/30 disabled:bg-panel"
                   placeholder={String(maxMarks)}
@@ -90,6 +93,10 @@ export function MarksEntry({
                 <button onClick={() => toggleAbsent(r.id)} aria-pressed={e.absent}
                   className={cn("h-8 rounded-sm px-2 text-[12px] font-semibold", e.absent ? "bg-down text-white" : "bg-panel text-ink-500 hover:bg-[#0F6CBD]/[0.05]")}>
                   {t("marks.absent")}
+                </button>
+                <button onClick={() => toggleExempt(r.id)} aria-pressed={!!e.exempt} title="Exempt: not counted (for example medical)"
+                  className={cn("h-8 rounded-sm px-2 text-[12px] font-semibold", e.exempt ? "bg-ink-900 text-white" : "bg-panel text-ink-500 hover:bg-[#0F6CBD]/[0.05]")}>
+                  Exempt
                 </button>
               </li>
             );

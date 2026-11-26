@@ -5,6 +5,7 @@ import { EmptyState } from "@/components/ui/empty";
 import { MarksScopeBar } from "@/components/marks/marks-scope-bar";
 import { MarksEntry } from "@/components/marks/marks-entry";
 import { NewExamButton } from "@/components/marks/new-exam-button";
+import { MarksSheet } from "@/components/marks/marks-sheet";
 import { getStaffScope, getSectionStudents } from "@/lib/data/scope";
 import { getAssessments, getAssessmentMarks } from "@/lib/data/marks";
 
@@ -51,7 +52,7 @@ export default async function MarksPage({ searchParams }: { searchParams: SP }) 
     getSectionStudents(section.id, yearId),
     assessment ? getAssessmentMarks(assessment.id) : Promise.resolve(new Map()),
   ]);
-  const initial: Record<number, { marks: number | null; absent: boolean }> = {};
+  const initial: Record<number, { marks: number | null; absent: boolean; exempt?: boolean }> = {};
   for (const [k, v] of marksMap) initial[k] = v;
 
   return (
@@ -65,6 +66,7 @@ export default async function MarksPage({ searchParams }: { searchParams: SP }) 
       ) : (
         <EmptyState art="no-marks" title={t("marks.pickAssessment")} />
       )}
+      <MarksSheet sectionId={section.id} sectionLabel={`${section.class_name}-${section.name}`} yearId={yearId} />
     </div>
   );
 }

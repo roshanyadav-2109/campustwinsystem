@@ -22,9 +22,10 @@ export async function getAssessmentMarks(assessmentId: number) {
   const supabase = await createClient();
   const { data } = await supabase
     .from("mark")
-    .select("student_id, marks_obtained, is_absent")
+    .select("student_id, marks_obtained, is_absent, is_exempt" as "student_id, marks_obtained, is_absent")
     .eq("assessment_id", assessmentId);
-  const map = new Map<number, { marks: number | null; absent: boolean }>();
-  for (const r of data ?? []) map.set(r.student_id, { marks: r.marks_obtained == null ? null : Number(r.marks_obtained), absent: r.is_absent });
+  const map = new Map<number, { marks: number | null; absent: boolean; exempt: boolean }>();
+  for (const r of (data ?? []) as unknown as { student_id: number; marks_obtained: number | null; is_absent: boolean; is_exempt: boolean }[])
+    map.set(r.student_id, { marks: r.marks_obtained == null ? null : Number(r.marks_obtained), absent: r.is_absent, exempt: !!r.is_exempt });
   return map;
 }
