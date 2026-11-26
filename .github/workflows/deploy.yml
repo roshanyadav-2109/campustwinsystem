@@ -35,6 +35,7 @@ jobs:
           GOOGLE_CLIENT_ID=${{ secrets.GOOGLE_CLIENT_ID }}
           GOOGLE_CLIENT_SECRET=${{ secrets.GOOGLE_CLIENT_SECRET }}
           CLOUDINARY_URL=${{ secrets.CLOUDINARY_URL }}
+          DEMO_PASSWORD=${{ secrets.DEMO_PASSWORD }}
           ENV
       - name: Build (OpenNext for Cloudflare)
         run: npx opennextjs-cloudflare build

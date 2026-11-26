@@ -84,3 +84,5 @@ swap-db.log
 .test-certificates.mjs
 .dbg-cert-cleanup.mjs
 .test-id-cards.mjs
+.make-demo-card.mjs
+.rotate-demo.mjs

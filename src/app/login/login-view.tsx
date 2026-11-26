@@ -2,11 +2,11 @@
 /* eslint-disable @next/next/no-img-element -- static brand wordmark from /public */
 import { useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
-import { createClient } from "@/lib/supabase/client";
 import { useT } from "@/i18n/provider";
 import { SchoolEmblem } from "@/components/brand";
 import type { Brand } from "@/lib/brand-server";
-import { DEMO_ACCOUNTS, DEMO_PASSWORD } from "@/lib/demo";
+import { DEMO_ACCOUNTS } from "@/lib/demo";
+import { demoSignIn } from "@/app/login/actions";
 import { safeNext } from "@/lib/safe-next";
 
 function GoogleMark({ size = 18 }: { size?: number }) {
@@ -38,14 +38,13 @@ export function LoginView({ brand, owner = false, demo = false }: { brand: Brand
   const t = useT();
   const router = useRouter();
   const params = useSearchParams();
-  const supabase = createClient();
   const [busy, setBusy] = useState<string | null>(null);
   const [error, setError] = useState(false);
 
-  async function signIn(em: string, pw: string, key: string) {
-    setBusy(key); setError(false);
-    const { error } = await supabase.auth.signInWithPassword({ email: em, password: pw });
-    if (error) { setError(true); setBusy(null); return; }
+  async function openDemo(em: string) {
+    setBusy(em); setError(false);
+    const r = await demoSignIn(em);
+    if (!r.ok) { setError(true); setBusy(null); return; }
     router.push(safeNext(params.get("next")));
     router.refresh();
   }
@@ -107,7 +106,7 @@ export function LoginView({ brand, owner = false, demo = false }: { brand: Brand
                 {DEMO_ACCOUNTS.map((a) => (
                   <button
                     key={a.email}
-                    onClick={() => signIn(a.email, DEMO_PASSWORD, a.email)}
+                    onClick={() => openDemo(a.email)}
                     disabled={busy !== null}
                     className="flex h-10 items-center justify-between gap-2 rounded-md border border-cx-line-strong bg-white px-3 text-[13.5px] text-cx-text transition-colors hover:bg-cx-raised disabled:opacity-60"
                   >

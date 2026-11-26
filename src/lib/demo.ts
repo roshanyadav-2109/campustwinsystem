@@ -1,6 +1,6 @@
-// Demo accounts seeded in the database. Password is the same for all — this is
-// a synthetic demo. Each lands in a DB-scoped view (RLS enforces the rest).
-export const DEMO_PASSWORD = "kviit@demo1";
+// Demo accounts seeded in the database (made-up data). Their password is a
+// deployment secret (DEMO_PASSWORD) used only on the server; see
+// src/app/login/actions.ts. Each lands in a DB-scoped view (RLS enforces the rest).
 
 // One teacher = one unified portal (class teacher of their own section +
 // subject teacher elsewhere). A single "Teacher" demo login, not two.
