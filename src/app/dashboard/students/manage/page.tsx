@@ -1,3 +1,4 @@
+import { IdCardsForSection } from "@/components/students/id-cards";
 import { CertificateBulkUpload } from "@/components/manage/students/certificate-bulk-upload";
 import { CertificateRegisterUpload } from "@/components/manage/students/certificate-register-upload";
 import { DetailsUpload } from "@/components/manage/students/details-upload";
@@ -47,6 +48,7 @@ async function ManageStudentsPageBody({ searchParams }: { searchParams: SP }) {
       />
       <div className="grid items-start gap-5 xl:grid-cols-2">
         <DetailsUpload />
+        <IdCardsForSection sections={sections.map((x) => ({ id: x.id, label: x.label }))} />
         <CertificateBulkUpload />
         <CertificateRegisterUpload />
       </div>

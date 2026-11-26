@@ -1,44 +1,55 @@
 import { createClient } from "@supabase/supabase-js";
 import { SUPABASE_URL, SUPABASE_ANON_KEY } from "@/lib/supabase/config";
 
-// Public check of a certificate from its QR code. Shows only what proves it is
-// genuine (institution, student, certificate, date, valid or cancelled).
+// Public check from a QR code: a student ID card (or a recorded certificate).
+// Shows only what proves it is genuine; nothing else about the student.
 const KIND: Record<string, string> = { transfer: "Transfer certificate", bonafide: "Bonafide certificate", character: "Character certificate" };
 export const dynamic = "force-dynamic";
 
-type Hit = { kind: string; number: string | null; student_name: string; admission_no: string; issued_on: string; school_name: string; school_place: string | null; status: string; copies: number; source: string };
+type Card = { student_name: string; class_label: string | null; school_name: string; school_place: string | null; year_name: string; valid: boolean; reason: string | null };
+type Cert = { kind: string; number: string | null; student_name: string; admission_no: string; issued_on: string; school_name: string; school_place: string | null; status: string };
+
+function Facts({ rows }: { rows: [string, string][] }) {
+  return (
+    <dl className="mt-5 divide-y divide-hair rounded-md border border-hair text-[14px]">
+      {rows.map(([k, v]) => (
+        <div key={k} className="flex gap-4 px-4 py-2.5"><dt className="w-32 shrink-0 text-ink-500">{k}</dt><dd className="text-ink-900">{v}</dd></div>
+      ))}
+    </dl>
+  );
+}
 
 export default async function VerifyPage({ params }: { params: Promise<{ token: string }> }) {
   const { token } = await params;
+  const ok = /^[a-f0-9]{32,64}$/.test(token);
   const anon = createClient(SUPABASE_URL, SUPABASE_ANON_KEY, { auth: { persistSession: false } });
-  const { data } = /^[a-f0-9]{32,64}$/.test(token) ? await anon.rpc("verify_certificate" as never, { p_token: token } as never) : { data: null };
-  const c = ((data ?? []) as Hit[])[0];
+  const [{ data: cardData }, { data: certData }] = ok
+    ? await Promise.all([anon.rpc("verify_id_card" as never, { p_token: token } as never), anon.rpc("verify_certificate" as never, { p_token: token } as never)])
+    : [{ data: null }, { data: null }];
+  const card = ((cardData ?? []) as Card[])[0];
+  const cert = ((certData ?? []) as Cert[])[0];
   const day = (iso: string) => iso.split("-").reverse().join("/");
-  const rows: [string, string][] = c ? [
-    ["Issued by", [c.school_name, c.school_place].filter(Boolean).join(", ")],
-    ["Certificate", KIND[c.kind] ?? c.kind],
-    ["Number", `${c.number ?? "Not given"}${c.copies ? ` (${c.copies} duplicate${c.copies === 1 ? "" : "s"} printed)` : ""}`],
-    ["Student", `${c.student_name}, admission no. ${c.admission_no}`],
-    ["Date of issue", day(c.issued_on)],
-    
-  ] : [];
+  const place = (n: string, p: string | null) => [n, p].filter(Boolean).join(", ");
+
   return (
     <main className="mx-auto max-w-lg px-6 py-16">
-      <p className="text-[12px] font-medium uppercase tracking-wide text-ink-500">CampusTwin certificate check</p>
-      {!c ? (
+      <p className="text-[12px] font-medium uppercase tracking-wide text-ink-500">CampusTwin check</p>
+      {card ? (
         <>
-          <h1 className="mt-2 text-[22px] font-semibold text-ink-900">No certificate found</h1>
-          <p className="mt-2 text-[14px] text-ink-700">This code does not match any certificate. Check that the whole code was scanned, or contact the institution.</p>
+          <h1 className={`mt-2 text-[22px] font-semibold ${card.valid ? "text-up" : "text-down"}`}>{card.valid ? "Valid student ID card" : "This ID card is not valid"}</h1>
+          {!card.valid && card.reason && <p className="mt-1 text-[14px] text-ink-900">{card.reason}</p>}
+          <Facts rows={[["Student", card.student_name], ["Class", card.class_label ?? ""], ["Institution", place(card.school_name, card.school_place)], ["Year", card.year_name]]} />
+          <p className="mt-4 text-[12px] text-ink-500">Compare the name and class with the card. If they differ, the card is not genuine.</p>
+        </>
+      ) : cert ? (
+        <>
+          <h1 className={`mt-2 text-[22px] font-semibold ${cert.status === "issued" ? "text-up" : "text-down"}`}>{cert.status === "issued" ? "This certificate is on record" : "This certificate has been withdrawn"}</h1>
+          <Facts rows={[["Issued by", place(cert.school_name, cert.school_place)], ["Certificate", KIND[cert.kind] ?? cert.kind], ["Number", cert.number ?? "Not given"], ["Student", `${cert.student_name}, admission no. ${cert.admission_no}`], ["Date of issue", day(cert.issued_on)]]} />
         </>
       ) : (
         <>
-          <h1 className={`mt-2 text-[22px] font-semibold ${c.status === "issued" ? "text-up" : "text-down"}`}>{c.status === "issued" ? "This certificate is genuine" : "This certificate has been cancelled"}</h1>
-          <dl className="mt-5 divide-y divide-hair rounded-md border border-hair text-[14px]">
-            {rows.map(([k, v]) => (
-              <div key={k} className="flex gap-4 px-4 py-2.5"><dt className="w-32 shrink-0 text-ink-500">{k}</dt><dd className="text-ink-900">{v}</dd></div>
-            ))}
-          </dl>
-          <p className="mt-4 text-[12px] text-ink-500">Compare these details with the paper. If they differ, the paper is not genuine.</p>
+          <h1 className="mt-2 text-[22px] font-semibold text-ink-900">Nothing found</h1>
+          <p className="mt-2 text-[14px] text-ink-700">This code does not match any card or certificate. Check that the whole code was scanned, or contact the institution.</p>
         </>
       )}
     </main>

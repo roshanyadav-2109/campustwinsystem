@@ -8,6 +8,7 @@ import { EMPTY_IDENTITY, EMPTY_PROFILE, getStudentRecord } from "@/lib/data/stud
 import { EditIdentityButton, EditProfileButton } from "@/components/students/student-profile-edit";
 import { fmtDay } from "@/components/fees/shared";
 import { CertificatesPanel, type CertRow } from "@/components/students/certificates-panel";
+import { IdCardForStudent } from "@/components/students/id-cards";
 import { untyped } from "@/lib/data/schedule";
 
 // One student, everything in one place: admission, address, family,
@@ -41,8 +42,13 @@ export default async function StudentPage({ params }: { params: Promise<{ id: st
   const canEdit = admin || !!session?.isClassTeacher;
   const address = [p.address_line, p.city, p.state, p.pincode].filter(Boolean).join(", ");
   let certs: CertRow[] = [];
+  let hasCard = false;
   if (admin) {
     const db = await untyped();
+    if (year) {
+      const { count } = await db.from("id_card").select("id", { count: "exact", head: true }).eq("student_id", s.id).eq("academic_year_id", year.id).eq("status", "active");
+      hasCard = (count ?? 0) > 0;
+    }
     const { data } = await db.from("certificate")
       .select("id, kind, number, issued_on, source, status, file_key, cancel_reason")
       .eq("student_id", s.id).order("issued_on", { ascending: false });
@@ -108,7 +114,10 @@ export default async function StudentPage({ params }: { params: Promise<{ id: st
         </Card>
         {admin && (
           <div className="xl:col-span-2">
-            <CertificatesPanel studentId={s.id} rows={certs} canUpload={session?.staffRole === "office"} />
+            <div className="grid items-start gap-5 lg:grid-cols-[1fr_340px]">
+              <CertificatesPanel studentId={s.id} rows={certs} canUpload={session?.staffRole === "office"} />
+              {session?.staffRole === "office" && s.status === "active" && <IdCardForStudent studentId={s.id} name={s.fullName} hasCard={hasCard} />}
+            </div>
           </div>
         )}
         {admin && (() => {
