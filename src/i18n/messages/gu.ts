@@ -520,6 +520,7 @@ const gu: PartialMessages = {
     transport: "બસો અને રૂટ",
     access: "લૉગિન અને ઍક્સેસ",
     messages: "સંદેશા અને સૂચનાઓ",
+    payments: "ઑનલાઇન ચુકવણી",
     reportCards: "રિપોર્ટ કાર્ડ",
     admin: "પ્લાન, પ્રવૃત્તિ અને સ્થિતિ",
   },

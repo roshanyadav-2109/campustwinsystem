@@ -113,7 +113,7 @@ begin
   reset role;
   if (select paid_amount from public.fee_invoice where id = v_inv3) <> 600 then raise exception 'FAIL refund not on the bill: %', (select paid_amount from public.fee_invoice where id = v_inv3); end if;
   -- the log cannot be changed
-  ok := false; begin delete from public.payment_event where school_id = 8; exception when others then ok := true; end;
-  if not ok then raise exception 'FAIL payment log deleted'; end if;
+  ok := false; begin update public.payment_event set kind = 'x' where school_id = 8; exception when others then ok := true; end;
+  if not ok then raise exception 'FAIL payment log changed'; end if;
 end $$;
 rollback;

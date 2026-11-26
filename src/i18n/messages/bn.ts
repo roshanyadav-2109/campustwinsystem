@@ -351,6 +351,7 @@ const bn: PartialMessages = {
     transport: "বাস ও রুট",
     access: "লগইন ও অ্যাক্সেস",
     messages: "বার্তা ও সতর্কতা",
+    payments: "অনলাইন পেমেন্ট",
     reportCards: "রিপোর্ট কার্ড",
     admin: "প্ল্যান, কার্যকলাপ ও অবস্থা",
   },

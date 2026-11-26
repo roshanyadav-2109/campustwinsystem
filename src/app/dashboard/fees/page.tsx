@@ -19,6 +19,8 @@ import { InvoiceActions, RaiseFeesForm } from "@/components/fees/fees-office";
 import { FamilyFeeLetters, OfficeFeeLetters } from "@/components/fees/fees-letters";
 import { DemandNoticesButton, DuesExcelButton, TuitionCertificateButton } from "@/components/fees/fees-downloads";
 import { InvoiceTable, OverviewView, PaymentTable, SegLinks, Stat } from "@/components/fees/fees-views";
+import { PayOnline } from "@/components/fees/pay-online";
+import { createClient as createSupabase } from "@/lib/supabase/server";
 import { TD, TD_R, TH, TH_R, fmtDay, fmtMoney } from "@/components/fees/shared";
 import type { Session } from "@/lib/session";
 
@@ -82,6 +84,8 @@ async function ownerScreen(session: Session, sp: SP) {
   ]);
   const totalDue = invoices.reduce((n, i) => n + i.balance, 0);
   const overdue = invoices.filter((i) => i.overdue);
+  const { data: gw } = await (await createSupabase()).rpc("online_payment_available" as never);
+  const online = ((gw ?? []) as unknown as { provider: string; mode: string }[])[0] ?? null;
   const nextDue = invoices.filter((i) => i.balance > 0).map((i) => i.dueDate).sort()[0];
   const totalPaid = invoices.reduce((n, i) => n + i.paid, 0);
 
@@ -100,13 +104,13 @@ async function ownerScreen(session: Session, sp: SP) {
         <Stat label="Paid so far" value={fmtMoney(totalPaid)} />
       </div>
       <div className="mt-4 flex flex-wrap items-center justify-between gap-3 rounded-sm border border-hair bg-panel px-3 py-2">
-        <p className="text-[13px] text-ink-700">Pay at the school office or by bank transfer. Your receipt appears here once the office records it.</p>
+        <p className="text-[13px] text-ink-700">{online ? `Pay online below${online.mode === "test" ? " (the school is testing online payment: no real money)" : ""}, or at the school office. Receipts appear here.` : "Pay at the school office or by bank transfer. Your receipt appears here once the office records it."}</p>
         <TuitionCertificateButton studentId={student.id} />
       </div>
       <div className="mt-5 space-y-5">
         <Card>
           <CardHeader title="Invoices" />
-          <CardBody><InvoiceTable invoices={invoices} /></CardBody>
+          <CardBody><InvoiceTable invoices={invoices} action={online ? (inv) => (inv.balance > 0 ? <PayOnline invoiceId={inv.id} label={`Pay ${fmtMoney(inv.balance)}`} /> : null) : undefined} /></CardBody>
         </Card>
         <Card>
           <CardHeader title="Payment history" />

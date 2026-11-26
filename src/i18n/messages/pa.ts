@@ -520,6 +520,7 @@ const pa: PartialMessages = {
     transport: "ਬੱਸਾਂ ਅਤੇ ਰੂਟ",
     access: "ਲੌਗਇਨ ਅਤੇ ਪਹੁੰਚ",
     messages: "ਸੁਨੇਹੇ ਅਤੇ ਸੂਚਨਾਵਾਂ",
+    payments: "ਆਨਲਾਈਨ ਭੁਗਤਾਨ",
     reportCards: "ਰਿਪੋਰਟ ਕਾਰਡ",
     admin: "ਪਲਾਨ, ਗਤੀਵਿਧੀ ਅਤੇ ਸਥਿਤੀ",
   },

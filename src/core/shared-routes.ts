@@ -43,6 +43,7 @@ export const SHARED_ROUTES: RouteDef[] = [
   { href: "/dashboard/settings/fees", labelKey: "settings.fees", roles: ["office"], module: "fees", group: "settings", menu: false },
   { href: "/dashboard/settings/transport", labelKey: "settings.transport", roles: ["principal", "office"], module: "transport", group: "settings", menu: false },
   { href: "/dashboard/settings/access", labelKey: "settings.access", roles: ["office"], group: "settings", menu: false },
+  { href: "/dashboard/settings/payments", labelKey: "settings.payments", roles: ["office", "principal"], module: "fees", group: "settings", menu: false },
   { href: "/dashboard/settings/messages", labelKey: "settings.messages", roles: ["office", "principal"], group: "settings", menu: false },
   { href: "/dashboard/settings/admin", labelKey: "settings.admin", roles: ["office", "principal"], group: "settings", menu: false },
 
