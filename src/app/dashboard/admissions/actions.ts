@@ -246,6 +246,10 @@ export async function admitEnquiry(
   const { data: sec } = await supabase.from("section").select("id, class_id").eq("id", input.sectionId).maybeSingle();
   if (!sec || sec.class_id !== enq.class_id) return { ok: false, error: "Choose a section of the class the child is joining." };
 
+  // a seat in the class (refused when the class is full; two admits at once cannot both take the last seat)
+  const { error: seatErr } = await supabase.rpc("claim_admission_seat" as never, { p_enquiry: id } as never);
+  if (seatErr) return { ok: false, error: seatErr.message.startsWith("All ") ? `${seatErr.message}. Raise the seats in Admissions, Seats and merit, if the school agrees.` : "Could not reserve a seat." };
+
   const admissionNo = text(input.admissionNo);
   const res = await saveStudent({
     fullName: enq.child_name,
@@ -273,6 +277,8 @@ export async function admitEnquiry(
       address_line: e.address?.trim().slice(0, 240) || null,
     }, { onConflict: "student_id", ignoreDuplicates: true });
     revalidatePath(TAB);
+  } else {
+    await supabase.rpc("release_admission_seat" as never, { p_enquiry: id } as never);
   }
   return res;
 }

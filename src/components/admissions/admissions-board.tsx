@@ -177,7 +177,8 @@ export function AdmissionsBoard({
         <CardHeader
           title={`Enquiries · ${yearName}`}
           action={
-            <span className="text-[13px] text-ink-900 tabular">
+            <span className="flex items-center gap-3 text-[13px] text-ink-900 tabular">
+              <a href="/dashboard/admissions/selection" className="font-medium text-[#0F6CBD] hover:underline">Seats, tests and merit list</a>
               {filtered ? `${rows.length} of ${total}` : `${total} ${total === 1 ? "enquiry" : "enquiries"}`}
             </span>
           }
