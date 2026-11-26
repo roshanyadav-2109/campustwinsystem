@@ -4,9 +4,12 @@ begin;
 do $$ declare of uuid := gen_random_uuid(); pa uuid := gen_random_uuid(); te uuid := gen_random_uuid();
   v_staff bigint; v_teacher bigint; v_year bigint; v_sec bigint; v_sec2 bigint; v_class bigint; v_sch bigint; v_sch2 bigint; v_area bigint;
   v_kid bigint; v_g bigint; v_subj bigint; v_pt numeric; v_pt_max numeric; v_hy numeric; v_hy_max numeric; v_expect numeric; r jsonb; s jsonb;
-  n int; ok boolean; v_card bigint; v_token text; v_mark bigint; v_other_kid bigint;
+  n int; ok boolean; v_card bigint; v_token text; v_mark bigint; v_other_kid bigint; t_pt bigint; t_hy bigint; v_hy_mark bigint; v_assess bigint; v_foreign bigint;
 begin
   select id into v_year from public.academic_year where school_id = 8 and is_current;
+  select id into t_pt from public.assessment_type where school_id = 8 and code = 'periodic_test';
+  select id into t_hy from public.assessment_type where school_id = 8 and code = 'half_yearly';
+  select id into v_foreign from public.report_scheme where school_id <> 8 limit 1;
   -- a class with two sections, level 6
   select sec.class_id, min(sec.id), max(sec.id) into v_class, v_sec, v_sec2 from public.section sec join public.class c on c.id = sec.class_id
    where sec.school_id = 8 and c.level = 6 group by sec.class_id having count(*) >= 2 limit 1;
@@ -27,23 +30,23 @@ begin
   insert into public.report_scheme (name, board, pass_percent) values ('QA Board A', 'Board A', 33) returning id into v_sch;
   insert into public.report_scheme_term (scheme_id, term, name) values (v_sch, 1, 'Term 1'), (v_sch, 2, 'Term 2');
   insert into public.report_scheme_component (scheme_id, term, name, assessment_type_id, rule, best_n, out_of, sort) values
-    (v_sch, 1, 'Periodic test', 11, 'best', 1, 20, 1), (v_sch, 1, 'Half-yearly', 12, 'sum', null, 80, 2), (v_sch, 2, 'Periodic test', 11, 'best', 1, 100, 1);
+    (v_sch, 1, 'Periodic test', t_pt, 'best', 1, 20, 1), (v_sch, 1, 'Half-yearly', t_hy, 'sum', null, 80, 2), (v_sch, 2, 'Periodic test', t_pt, 'best', 1, 100, 1);
   insert into public.report_grade_band (scheme_id, min_percent, grade, grade_point) values (v_sch, 90, 'A', 10), (v_sch, 75, 'B', 8), (v_sch, 50, 'C', 6), (v_sch, 33, 'D', 4), (v_sch, 0, 'E', 0);
   insert into public.report_coscholastic_area (scheme_id, name, grades) values (v_sch, 'Art', '{A,B,C}') returning id into v_area;
   insert into public.report_scheme (name, board) values ('QA Board B', 'Board B') returning id into v_sch2;
   insert into public.report_scheme_term (scheme_id, term, name) values (v_sch2, 1, 'Semester 1');
-  insert into public.report_scheme_component (scheme_id, term, name, assessment_type_id, rule, out_of) values (v_sch2, 1, 'Exam', 12, 'sum', 100);
+  insert into public.report_scheme_component (scheme_id, term, name, assessment_type_id, rule, out_of) values (v_sch2, 1, 'Exam', t_hy, 'sum', 100);
   insert into public.report_scheme_assignment (academic_year_id, class_id, scheme_id) values (v_year, v_class, v_sch);
   insert into public.report_scheme_assignment (academic_year_id, class_id, section_id, scheme_id) values (v_year, v_class, v_sec2, v_sch2);
   if public.report_scheme_for(v_sec, v_year) <> v_sch or public.report_scheme_for(v_sec2, v_year) <> v_sch2 then raise exception 'FAIL section scheme override'; end if;
 
   -- a student and one subject: compare with a hand calculation
   select m.student_id, a.subject_id into v_kid, v_subj from public.mark m join public.assessment a on a.id = m.assessment_id
-   where a.section_id = v_sec and a.term = 1 and a.assessment_type_id = 12 and m.marks_obtained is not null and not m.is_absent limit 1;
+   where a.section_id = v_sec and a.term = 1 and a.assessment_type_id = t_hy and m.marks_obtained is not null and not m.is_absent limit 1;
   select m.marks_obtained, a.max_marks into v_pt, v_pt_max from public.mark m join public.assessment a on a.id = m.assessment_id
-   where m.student_id = v_kid and a.subject_id = v_subj and a.section_id = v_sec and a.term = 1 and a.assessment_type_id = 11 limit 1;
+   where m.student_id = v_kid and a.subject_id = v_subj and a.section_id = v_sec and a.term = 1 and a.assessment_type_id = t_pt limit 1;
   select m.marks_obtained, a.max_marks into v_hy, v_hy_max from public.mark m join public.assessment a on a.id = m.assessment_id
-   where m.student_id = v_kid and a.subject_id = v_subj and a.section_id = v_sec and a.term = 1 and a.assessment_type_id = 12 limit 1;
+   where m.student_id = v_kid and a.subject_id = v_subj and a.section_id = v_sec and a.term = 1 and a.assessment_type_id = t_hy limit 1;
   v_expect := round(coalesce(v_pt / v_pt_max, 0) * 20 + v_hy / v_hy_max * 80, 2);
   select c.report into r from public.compute_report(v_sec, v_year, 1::smallint) c where c.student_id = v_kid;
   select x into s from jsonb_array_elements(r -> 'subjects') x where (x ->> 'subject_id')::bigint = v_subj;
@@ -54,6 +57,35 @@ begin
   -- the other section is computed with its own scheme
   select c.report into r from public.compute_report(v_sec2, v_year, 1::smallint) c limit 1;
   if r is not null and r -> 'scheme' ->> 'name' <> 'QA Board B' then raise exception 'FAIL second section uses %', r -> 'scheme' ->> 'name'; end if;
+
+  -- another institution's scheme cannot be changed from here
+  if v_foreign is not null then
+    ok := false; begin insert into public.report_grade_band (scheme_id, min_percent, grade) values (v_foreign, 1, 'X'); exception when others then ok := true; end;
+    if not ok then raise exception 'FAIL wrote into another institution''s scheme'; end if;
+  end if;
+  -- a grade outside the area's grades is refused
+  ok := false; begin insert into public.report_coscholastic_grade (academic_year_id, student_id, area_id, term, grade) values (v_year, v_kid, v_area, 1, 'Z'); exception when others then ok := true; end;
+  if not ok then raise exception 'FAIL grade outside the scale accepted'; end if;
+  -- exempt from the half-yearly: left out (max 20), not incomplete
+  select m.id into v_hy_mark from public.mark m join public.assessment a on a.id = m.assessment_id where m.student_id = v_kid and a.subject_id = v_subj and a.section_id = v_sec and a.term = 1 and a.assessment_type_id = t_hy;
+  reset role;
+  update public.mark set is_exempt = true where id = v_hy_mark;
+  set local role authenticated;
+  select c.report into r from public.compute_report(v_sec, v_year, 1::smallint) c where c.student_id = v_kid;
+  select x into s from jsonb_array_elements(r -> 'subjects') x where (x ->> 'subject_id')::bigint = v_subj;
+  if (s ->> 'max')::numeric <> 20 or (s ->> 'incomplete')::boolean then raise exception 'FAIL exempt: %', s; end if;
+  reset role;
+  update public.mark set is_exempt = false where id = v_hy_mark;
+  -- a mark not yet entered: the subject is flagged incomplete
+  delete from public.mark where id = v_hy_mark;
+  set local role authenticated;
+  select c.report into r from public.compute_report(v_sec, v_year, 1::smallint) c where c.student_id = v_kid;
+  select x into s from jsonb_array_elements(r -> 'subjects') x where (x ->> 'subject_id')::bigint = v_subj;
+  if not (s ->> 'incomplete')::boolean or not (r ->> 'incomplete')::boolean then raise exception 'FAIL missing mark not flagged: %', s; end if;
+  reset role;
+  insert into public.mark (assessment_id, student_id, marks_obtained, school_id)
+    select a.id, v_kid, v_hy, 8 from public.assessment a where a.subject_id = v_subj and a.section_id = v_sec and a.term = 1 and a.assessment_type_id = t_hy;
+  set local role authenticated;
 
   -- co-scholastic grade and remark (office)
   insert into public.report_coscholastic_grade (academic_year_id, student_id, area_id, term, grade) values (v_year, v_kid, v_area, 1, 'A');
@@ -67,6 +99,12 @@ begin
   select m.id into v_mark from public.mark m join public.assessment a on a.id = m.assessment_id where m.student_id = v_kid and a.term = 1 and a.section_id = v_sec limit 1;
   ok := false; begin update public.mark set marks_obtained = marks_obtained where id = v_mark; exception when others then ok := sqlerrm like '%locked%'; end;
   if not ok then raise exception 'FAIL locked marks changed'; end if;
+  -- the exam itself cannot change in a locked term
+  select a.id into v_assess from public.assessment a where a.section_id = v_sec and a.term = 1 limit 1;
+  ok := false; begin update public.assessment set max_marks = max_marks + 1 where id = v_assess; exception when others then ok := sqlerrm like '%locked%'; end;
+  if not ok then raise exception 'FAIL exam edited in a locked term'; end if;
+  ok := false; begin delete from public.assessment where id = v_assess; exception when others then ok := sqlerrm like '%locked%'; end;
+  if not ok then raise exception 'FAIL exam deleted in a locked term'; end if;
   n := public.publish_report_cards(v_sec, v_year, 1::smallint);
   if n < 1 then raise exception 'FAIL nothing published'; end if;
   select id, verify_token into v_card, v_token from public.report_card where student_id = v_kid and term = 1 and status = 'published';
