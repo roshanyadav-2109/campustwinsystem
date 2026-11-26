@@ -4,9 +4,9 @@ import { Card, CardBody, CardHeader } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Field, Input, Select } from "@/components/ui/field";
 import {
-  grantConcession, raiseInstalment, removeConcession, saveConcessionType, saveFeeHeadOptions, saveInstalments,
+  grantConcession, previewLateRule, raiseInstalment, removeConcession, saveConcessionType, saveFeeHeadOptions, saveInstalments, saveLateRule,
 } from "@/app/dashboard/fees/actions";
-import { fmtDay, fmtMoney, type ConcessionType, type FeeHead, type Instalment, type StudentConcession } from "@/components/fees/shared";
+import { fmtDay, fmtMoney, type ConcessionType, type FeeHead, type Instalment, type LateRule, type StudentConcession } from "@/components/fees/shared";
 
 const ERR = "text-[13px] text-down";
 const OK = "text-[13px] font-medium text-up";
@@ -318,6 +318,76 @@ export function StudentConcessions({ studentId, granted, types }: { studentId: n
         )}
         {error && <p role="alert" className={ERR}>{error}</p>}
         <p className="text-[12px] text-muted">Applies to instalments raised from now on.</p>
+      </CardBody>
+    </Card>
+  );
+}
+
+// ---------------------------------------------------------------------------
+// Late fee rule
+// ---------------------------------------------------------------------------
+export function LateFeeCard({ rule }: { rule: LateRule | null }) {
+  const uid = useId();
+  const [enabled, setEnabled] = useState(rule?.enabled ?? false);
+  const [kind, setKind] = useState<LateRule["kind"]>(rule?.kind ?? "per_week");
+  const [amount, setAmount] = useState(rule ? String(rule.amount) : "");
+  const [max, setMax] = useState(rule?.max_amount != null ? String(rule.max_amount) : "");
+  const [grace, setGrace] = useState(String(rule?.grace_days ?? 0));
+  const [includeOld, setIncludeOld] = useState(!!rule && rule.applies_from === null);
+  const [preview, setPreview] = useState<string | null>(null);
+  const [msg, setMsg] = useState<{ ok: boolean; text: string } | null>(null);
+  const [pending, start] = useTransition();
+  const input = () => ({ enabled, kind, amount: Number(amount), maxAmount: max.trim() ? Number(max) : null, graceDays: Number(grace), includeOld });
+  const touch = () => setPreview(null);
+  const check = () => {
+    setMsg(null); setPreview(null);
+    start(async () => {
+      const res = await previewLateRule(input());
+      if (!res.ok) { setMsg({ ok: false, text: res.error }); return; }
+      setPreview(res.invoices ? `This would add late fees to ${res.invoices} ${res.invoices === 1 ? "bill" : "bills"} today, ${fmtMoney(res.extra)} in all.` : "This would not add a late fee to any bill today.");
+    });
+  };
+  const save = () => {
+    setMsg(null);
+    start(async () => {
+      const res = await saveLateRule(input());
+      setMsg(res.ok
+        ? { ok: true, text: enabled ? `Saved. Late fees were added to ${res.applied} ${res.applied === 1 ? "bill" : "bills"} now, and are kept up to date every night.` : "Saved. Late fees are switched off." }
+        : { ok: false, text: res.error });
+    });
+  };
+  const unit = kind === "once" ? "once" : kind === "per_week" ? "for every week late" : "for every month late";
+  const g = Number(grace) || 0;
+  return (
+    <Card>
+      <CardHeader title="Late fee" />
+      <CardBody className="space-y-3">
+        <label className="flex items-center gap-2 text-[14px] font-medium text-ink-900">
+          <input type="checkbox" checked={enabled} onChange={(e) => { setEnabled(e.target.checked); touch(); }} /> Charge a late fee on bills paid after their due date
+        </label>
+        <div className="grid gap-3 sm:grid-cols-4">
+          <Field label="How" htmlFor={`${uid}-k`}>
+            <Select id={`${uid}-k`} value={kind} onChange={(e) => { setKind(e.target.value as LateRule["kind"]); touch(); }}>
+              <option value="per_week">Every week late</option>
+              <option value="per_month">Every month late</option>
+              <option value="once">Once</option>
+            </Select>
+          </Field>
+          <Field label="Amount (₹)" htmlFor={`${uid}-a`}><Input id={`${uid}-a`} inputMode="decimal" value={amount} onChange={(e) => { setAmount(e.target.value); touch(); }} /></Field>
+          <Field label="At most (₹, optional)" htmlFor={`${uid}-m`}><Input id={`${uid}-m`} inputMode="decimal" value={max} onChange={(e) => { setMax(e.target.value); touch(); }} /></Field>
+          <Field label="Days of grace" htmlFor={`${uid}-g`}><Input id={`${uid}-g`} inputMode="numeric" value={grace} onChange={(e) => { setGrace(e.target.value); touch(); }} /></Field>
+        </div>
+        {amount && <p className="text-[13px] text-ink-700">{fmtMoney(Number(amount) || 0)} {unit}{max ? `, up to ${fmtMoney(Number(max) || 0)} on a bill` : ""}, starting {g} {g === 1 ? "day" : "days"} after the due date.</p>}
+        <label className="flex items-center gap-2 text-[13px] text-ink-700">
+          <input type="checkbox" checked={includeOld} onChange={(e) => { setIncludeOld(e.target.checked); touch(); }} /> Also charge bills that were already overdue before late fees were switched on
+        </label>
+        <div className="flex flex-wrap items-center gap-2">
+          <Button variant="subtle" disabled={pending || !amount} onClick={check}>See what this adds</Button>
+          <Button disabled={pending || (enabled && !amount)} onClick={save}>{pending ? "Saving…" : "Save"}</Button>
+        </div>
+        {preview && <p role="status" className="text-[13px] font-medium text-ink-900">{preview}</p>}
+        {msg && <p role={msg.ok ? "status" : "alert"} className={msg.ok ? OK : ERR}>{msg.text}</p>}
+        <p className="text-[12px] text-muted">The office can waive a late fee on any bill, with a reason. A waived late fee is never added back.</p>
       </CardBody>
     </Card>
   );

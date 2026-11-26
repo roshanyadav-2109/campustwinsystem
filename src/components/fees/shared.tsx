@@ -12,6 +12,7 @@ export const MODE_LABEL: Record<FeeMode, string> = {
 };
 
 export type FeeHead = { id: number; name: string; is_active: boolean; charge: "split" | "once"; is_tuition: boolean };
+export type LateRule = { enabled: boolean; grace_days: number; kind: "once" | "per_week" | "per_month"; amount: number; max_amount: number | null; applies_from: string | null };
 export type Instalment = { id: number; seq: number; name: string; due_date: string; share_pct: number; raised: number };
 export type ConcessionType = { id: number; name: string; kind: "percent" | "amount"; value: number; head_ids: number[] | null; auto_rule: "sibling" | null; active: boolean };
 export type StudentConcession = { id: number; typeId: number; name: string; detail: string; isAuto: boolean; note: string | null };
@@ -62,6 +63,8 @@ export type DueRow = {
   classLabel: string;
   invoices: number;
   pending: number;
+  daysOverdue: number;
+  items: { title: string; dueDate: string; balance: number }[];
   oldestDue: string;
   overdue: boolean;
 };

@@ -3,7 +3,7 @@ import { untyped, getNames } from "@/lib/data/schedule";
 import type { SectionOpt } from "@/lib/data/scope";
 import {
   FEE_MODES, fmtMoney, round2, todayIST,
-  type ConcessionType, type DueRow, type FeeHead, type Instalment, type StudentConcession, type FeeLine, type FeeMode, type FeeOverview, type InvoiceStatus,
+  type ConcessionType, type DueRow, type FeeHead, type Instalment, type LateRule, type StudentConcession, type FeeLine, type FeeMode, type FeeOverview, type InvoiceStatus,
   type InvoiceView, type PaymentView, type StructureRow, type StudentBrief,
 } from "@/components/fees/shared";
 
@@ -88,6 +88,14 @@ export async function getConcessionTypes(): Promise<ConcessionType[]> {
   const { data, error } = await db.from("fee_concession_type").select("id, name, kind, value, head_ids, auto_rule, active").order("name");
   check(error);
   return ((data ?? []) as (ConcessionType & { value: number | string })[]).map((t) => ({ ...t, value: Number(t.value) }));
+}
+
+export async function getLateRule(): Promise<LateRule | null> {
+  const db = await untyped();
+  const { data, error } = await db.from("fee_late_rule").select("enabled, grace_days, kind, amount, max_amount, applies_from").maybeSingle();
+  check(error);
+  const r = data as (Omit<LateRule, "amount" | "max_amount"> & { amount: number | string; max_amount: number | string | null }) | null;
+  return r ? { ...r, amount: Number(r.amount), max_amount: r.max_amount == null ? null : Number(r.max_amount) } : null;
 }
 
 export const concessionDetail = (t: Pick<ConcessionType, "kind" | "value">) =>
@@ -257,8 +265,8 @@ export async function searchStudents(query: string, yearId: number): Promise<Stu
 // ---------------------------------------------------------------------------
 // Whole-school figures for a year (office / principal)
 // ---------------------------------------------------------------------------
-type SlimInvoice = { id: number; student_id: number; section_id: number | null; amount: number | string; paid_amount: number | string; due_date: string; status: InvoiceStatus };
-const SLIM_COLS = "id, student_id, section_id, amount, paid_amount, due_date, status";
+type SlimInvoice = { id: number; student_id: number; section_id: number | null; title: string; amount: number | string; paid_amount: number | string; due_date: string; status: InvoiceStatus };
+const SLIM_COLS = "id, student_id, section_id, title, amount, paid_amount, due_date, status";
 
 export async function getFeeOverview(yearId: number, sections: SectionOpt[]): Promise<FeeOverview> {
   const db = await untyped();
@@ -320,12 +328,13 @@ export async function getDues(yearId: number, sectionIds: number[] | null): Prom
   if (!invoices.length) return [];
 
   const today = todayIST();
-  const agg = new Map<number, { pending: number; oldest: string; invoices: number; sectionId: number | null }>();
+  const agg = new Map<number, { pending: number; oldest: string; invoices: number; sectionId: number | null; items: DueRow["items"] }>();
   for (const r of invoices) {
     const bal = Math.max(0, Number(r.amount) - Number(r.paid_amount));
     if (bal <= 0) continue;
-    const a = agg.get(r.student_id) ?? { pending: 0, oldest: r.due_date, invoices: 0, sectionId: r.section_id };
+    const a = agg.get(r.student_id) ?? { pending: 0, oldest: r.due_date, invoices: 0, sectionId: r.section_id, items: [] };
     a.pending += bal; a.invoices += 1;
+    a.items.push({ title: r.title, dueDate: r.due_date, balance: round2(bal) });
     if (r.due_date < a.oldest) a.oldest = r.due_date;
     agg.set(r.student_id, a);
   }
@@ -345,6 +354,8 @@ export async function getDues(yearId: number, sectionIds: number[] | null): Prom
       studentId: id, name: s?.full_name ?? "Student", admissionNo: s?.admission_no ?? "",
       classLabel: (a.sectionId ? names.section.get(a.sectionId) : undefined) ?? "",
       invoices: a.invoices, pending: round2(a.pending), oldestDue: a.oldest, overdue: a.oldest < today,
+      daysOverdue: a.oldest < today ? Math.round((Date.parse(`${today}T00:00:00Z`) - Date.parse(`${a.oldest}T00:00:00Z`)) / 86_400_000) : 0,
+      items: a.items.sort((x, y) => x.dueDate.localeCompare(y.dueDate)),
     };
   }).sort((x, y) => x.classLabel.localeCompare(y.classLabel, undefined, { numeric: true }) || x.name.localeCompare(y.name));
 }

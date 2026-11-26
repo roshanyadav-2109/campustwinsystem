@@ -10,13 +10,13 @@ import { Field, Input, Select } from "@/components/ui/field";
 import { getStaffScope } from "@/lib/data/scope";
 import { getMyChildren } from "@/lib/data/analytics";
 import {
-  FeesNotReady, getConcessionTypes, getDues, getFeeHeads, getFeeOverview, getFeeStructure, getInstalments, getRecentPayments,
+  FeesNotReady, getConcessionTypes, getDues, getFeeHeads, getFeeOverview, getFeeStructure, getInstalments, getLateRule, getRecentPayments,
   getStudentBrief, getStudentConcessions, getStudentLedger, searchStudents,
 } from "@/lib/data/fees";
-import { ConcessionTypesManager, HeadOptions, InstalmentPlanner, InstalmentRaise, StudentConcessions } from "@/components/fees/fees-plan";
+import { ConcessionTypesManager, HeadOptions, InstalmentPlanner, InstalmentRaise, LateFeeCard, StudentConcessions } from "@/components/fees/fees-plan";
 import { createClient } from "@/lib/supabase/server";
 import { FeeHeadsManager, FeeStructureGrid, InvoiceActions, RaiseFeesForm } from "@/components/fees/fees-office";
-import { DuesExcelButton } from "@/components/fees/fees-downloads";
+import { DemandNoticesButton, DuesExcelButton, TuitionCertificateButton } from "@/components/fees/fees-downloads";
 import { InvoiceTable, OverviewView, PaymentTable, SegLinks, Stat } from "@/components/fees/fees-views";
 import { TD, TD_R, TH, TH_R, fmtDay, fmtMoney } from "@/components/fees/shared";
 import type { Session } from "@/lib/session";
@@ -95,9 +95,10 @@ async function ownerScreen(session: Session, sp: SP) {
           note={overdue.length ? `${overdue.length} ${overdue.length === 1 ? "invoice is" : "invoices are"} past the due date` : "Nothing is past its due date"} />
         <Stat label="Paid so far" value={fmtMoney(totalPaid)} />
       </div>
-      <p className="mt-4 rounded-sm border border-hair bg-panel px-3 py-2 text-[13px] text-ink-700">
-        Pay at the school office or by bank transfer. Your receipt appears here once the office records it.
-      </p>
+      <div className="mt-4 flex flex-wrap items-center justify-between gap-3 rounded-sm border border-hair bg-panel px-3 py-2">
+        <p className="text-[13px] text-ink-700">Pay at the school office or by bank transfer. Your receipt appears here once the office records it.</p>
+        <TuitionCertificateButton studentId={student.id} />
+      </div>
       <div className="mt-5 space-y-5">
         <Card>
           <CardHeader title="Invoices" />
@@ -138,8 +139,8 @@ async function adminScreen(session: Session, sp: SP) {
 
   if (view === "setup") {
     const supabase = await createClient();
-    const [heads, structure, instalments, types, { data: yr }] = await Promise.all([
-      getFeeHeads(), getFeeStructure(year.id), getInstalments(year.id), getConcessionTypes(),
+    const [heads, structure, instalments, types, lateRule, { data: yr }] = await Promise.all([
+      getFeeHeads(), getFeeStructure(year.id), getInstalments(year.id), getConcessionTypes(), getLateRule(),
       supabase.from("academic_year").select("start_date").eq("id", year.id).single(),
     ]);
     return frame(
@@ -153,6 +154,7 @@ async function adminScreen(session: Session, sp: SP) {
           <HeadOptions heads={heads.filter((h) => h.is_active)} />
           <ConcessionTypesManager types={types} heads={heads} />
         </div>
+        <LateFeeCard rule={lateRule} />
       </div>,
     );
   }
@@ -223,7 +225,7 @@ async function adminScreen(session: Session, sp: SP) {
           <>
             <Card>
               <CardHeader eyebrow={student.name} title={[student.classLabel, student.admissionNo].filter(Boolean).join(" · ")}
-                action={<span className="text-[13px] text-ink-700">Total due <span className="font-semibold tabular text-ink-900">{fmtMoney(due)}</span></span>} />
+                action={<span className="flex flex-wrap items-center gap-3"><TuitionCertificateButton studentId={student.id} /><span className="text-[13px] text-ink-700">Total due <span className="font-semibold tabular text-ink-900">{fmtMoney(due)}</span></span></span>} />
               <CardBody>
                 <InvoiceTable invoices={ledger.invoices} action={(inv) => <InvoiceActions key={inv.id} invoice={inv} />} />
               </CardBody>
@@ -243,7 +245,8 @@ async function adminScreen(session: Session, sp: SP) {
     const sectionId = scope.sections.find((s) => s.id === numParam(sp.section))?.id ?? null;
     const classId = sectionId ? null : scope.classes.find((c) => c.id === numParam(sp.class))?.id ?? null;
     const ids = sectionId ? [sectionId] : classId ? scope.sections.filter((s) => s.class_id === classId).map((s) => s.id) : null;
-    const rows = await getDues(year.id, ids);
+    const overBy = [30, 60, 90].includes(numParam(sp.over) ?? 0) ? numParam(sp.over)! : 0;
+    const rows = (await getDues(year.id, ids)).filter((r) => r.daysOverdue >= overBy && (overBy === 0 || r.overdue));
     const sec = scope.sections.find((s) => s.id === sectionId);
     const label = sec ? `${sec.class_name}-${sec.name}` : classId ? `Class ${scope.classes.find((c) => c.id === classId)?.name ?? ""}` : "Whole school";
     const total = rows.reduce((n, r) => n + r.pending, 0);
@@ -267,11 +270,21 @@ async function adminScreen(session: Session, sp: SP) {
               </Select>
             </Field>
           </div>
+          <div className="w-48">
+            <Field label="Overdue" htmlFor="fee-over">
+              <Select id="fee-over" name="over" defaultValue={overBy || ""}>
+                <option value="">Everyone with dues</option>
+                <option value="30">More than 30 days</option>
+                <option value="60">More than 60 days</option>
+                <option value="90">More than 90 days</option>
+              </Select>
+            </Field>
+          </div>
           <Button type="submit" variant="subtle">Show</Button>
         </form>
         <Card>
           <CardHeader eyebrow="Dues" title={`${label}, ${rows.length} ${rows.length === 1 ? "student" : "students"}, ${fmtMoney(total)} pending`}
-            action={<DuesExcelButton rows={rows} label={`${label} ${year.name}`} />} />
+            action={<span className="flex flex-wrap gap-2"><DemandNoticesButton rows={rows} label={`${label} ${year.name}`} /><DuesExcelButton rows={rows} label={`${label} ${year.name}`} /></span>} />
           <CardBody>
             {rows.length === 0 ? (
               <p className="text-[13px] text-ink-500">No one has fees pending here.</p>
@@ -295,7 +308,7 @@ async function adminScreen(session: Session, sp: SP) {
                         <td className={TD_R}>{r.invoices}</td>
                         <td className={`${TD_R} font-semibold`}>{fmtMoney(r.pending)}</td>
                         <td className={`${TD} pl-4 whitespace-nowrap tabular`}>
-                          {fmtDay(r.oldestDue)}{r.overdue && <span className="ml-2 text-[12px] font-semibold text-down">Overdue</span>}
+                          {fmtDay(r.oldestDue)}{r.overdue && <span className="ml-2 text-[12px] font-semibold text-down">{r.daysOverdue} {r.daysOverdue === 1 ? "day" : "days"} overdue</span>}
                         </td>
                       </tr>
                     ))}

@@ -46,14 +46,16 @@ export async function saveBus(input: BusInput): Promise<Result> {
 }
 
 // ------------------------------------------------------------------ routes
-export type RouteInput = { id: number | null; code: string; name: string; notes: string; active: boolean };
+export type RouteInput = { id: number | null; code: string; name: string; notes: string; active: boolean; annualFee?: number };
 export async function saveRoute(input: RouteInput): Promise<Result & { id?: number }> {
   if (!(await leader())) return NOT_ALLOWED;
   const c = code(input?.code);
   const name = text(input?.name, 80);
   if (!c) return fail("Give the route a short code, like R1.");
   if (!name) return fail("Give the route a name, like Baner and Aundh.");
-  const row = { code: c, name, notes: text(input?.notes, 300) || null, is_active: input?.active !== false };
+  const fee = input?.annualFee == null ? 0 : Number(input.annualFee);
+  if (!Number.isFinite(fee) || fee < 0 || fee > 1_000_000) return fail("Enter the transport fee for the year as an amount in rupees, or 0.");
+  const row = { code: c, name, notes: text(input?.notes, 300) || null, is_active: input?.active !== false, annual_fee: Math.round(fee * 100) / 100 };
   const supabase = await createClient();
   const { data: clash } = await supabase.from("route").select("id").eq("code", c);
   if ((clash ?? []).some((r) => r.id !== input?.id)) return fail(`Route ${c} already exists.`);

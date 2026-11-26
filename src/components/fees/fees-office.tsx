@@ -4,7 +4,7 @@ import { Card, CardBody, CardHeader } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Field, Input, Select } from "@/components/ui/field";
 import { Dialog } from "@/components/students/student-form";
-import { cancelInvoice, raiseFees, recordPayment, saveFeeHead, saveFeeStructure } from "@/app/dashboard/fees/actions";
+import { cancelInvoice, raiseFees, recordPayment, saveFeeHead, saveFeeStructure, waiveLateFee } from "@/app/dashboard/fees/actions";
 import { FEE_MODES, MODE_LABEL, fmtMoney, todayIST, type FeeHead, type FeeMode, type InvoiceView, type StructureRow } from "@/components/fees/shared";
 
 type ClassOpt = { id: number; name: string };
@@ -234,8 +234,18 @@ export function RaiseFeesForm({ classes, sections, classTotals }: { classes: Cla
 export function InvoiceActions({ invoice }: { invoice: InvoiceView }) {
   const [open, setOpen] = useState<"pay" | "refund" | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [waiving, setWaiving] = useState(false);
+  const [reason, setReason] = useState("");
   const [pending, start] = useTransition();
   if (invoice.status === "cancelled") return null;
+  const hasLateFee = invoice.lines.some((l) => l.name === "Late fee" && l.amount > 0);
+  const waive = () => {
+    setError(null);
+    start(async () => {
+      const res = await waiveLateFee({ invoiceId: invoice.id, reason });
+      if (res.ok) { setWaiving(false); setReason(""); } else setError(res.error);
+    });
+  };
 
   const cancel = () => {
     if (!window.confirm(`Cancel "${invoice.title}"? The student will no longer be asked to pay it.`)) return;
@@ -249,7 +259,15 @@ export function InvoiceActions({ invoice }: { invoice: InvoiceView }) {
         {invoice.balance > 0 && <Button size="sm" onClick={() => setOpen("pay")}>Record payment</Button>}
         {invoice.paid > 0 && <Button size="sm" variant="subtle" onClick={() => setOpen("refund")}>Refund</Button>}
         {invoice.paid <= 0 && <Button size="sm" variant="ghost" disabled={pending} onClick={cancel}>Cancel invoice</Button>}
+        {hasLateFee && invoice.balance > 0 && !waiving && <Button size="sm" variant="ghost" onClick={() => setWaiving(true)}>Waive late fee</Button>}
       </div>
+      {waiving && (
+        <div className="flex flex-wrap items-center justify-end gap-2">
+          <Input className="h-8 w-56" aria-label="Reason for waiving the late fee" placeholder="Reason" maxLength={300} value={reason} onChange={(e) => setReason(e.target.value)} />
+          <Button size="sm" disabled={pending || !reason.trim()} onClick={waive}>Waive</Button>
+          <Button size="sm" variant="ghost" disabled={pending} onClick={() => setWaiving(false)}>Cancel</Button>
+        </div>
+      )}
       {error && <span role="alert" className="text-[12px] text-down">{error}</span>}
       {open && <PaymentDialog invoice={invoice} refund={open === "refund"} onClose={() => setOpen(null)} />}
     </div>

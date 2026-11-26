@@ -371,3 +371,104 @@ export async function removeConcession(id: number) {
   done();
   return { ok: true as const };
 }
+
+// ---------------------------------------------------------------------------
+// Late fees
+// ---------------------------------------------------------------------------
+type LateInput = { enabled: boolean; graceDays: number; kind: string; amount: number; maxAmount: number | null; includeOld: boolean };
+type LateOk = { kind: string; grace: number; amount: number; max: number | null };
+function lateRow(input: LateInput): LateOk | { error: string } {
+  const kind = ["once", "per_week", "per_month"].includes(input?.kind) ? input.kind : null;
+  const grace = Number.isInteger(input?.graceDays) && input.graceDays >= 0 && input.graceDays <= 90 ? input.graceDays : null;
+  const amount = money(input?.amount);
+  const max = input?.maxAmount == null ? null : money(input.maxAmount);
+  if (!kind) return { error: "Choose how the late fee is charged." };
+  if (grace === null) return { error: "Enter the days of grace, from 0 to 90." };
+  if (amount === null) return { error: "Enter the late fee amount." };
+  if (input.maxAmount != null && max === null) return { error: "Enter the most that can be charged, or leave it empty." };
+  if (max !== null && max < amount) return { error: "The most that can be charged cannot be less than the late fee itself." };
+  return { kind, grace, amount, max };
+}
+
+export async function previewLateRule(input: LateInput) {
+  if (!(await office())) return fail(NOT_ALLOWED);
+  const r = lateRow(input);
+  if ("error" in r) return fail(r.error);
+  const supabase = await createClient();
+  const db = await untyped();
+  const { data: cur } = await db.from("fee_late_rule").select("applies_from").maybeSingle();
+  const from = input.includeOld ? null : ((cur as { applies_from: string | null } | null)?.applies_from ?? todayIST());
+  const { data, error } = await supabase.rpc("late_fee_preview" as never, { p_grace: r.grace, p_kind: r.kind, p_amount: r.amount, p_max: r.max, p_from: from } as never);
+  if (error) return fail(TRY_AGAIN);
+  const row = ((data ?? []) as { invoices: number; extra: number | string }[])[0];
+  return { ok: true as const, invoices: row?.invoices ?? 0, extra: Number(row?.extra ?? 0) };
+}
+
+export async function saveLateRule(input: LateInput) {
+  const session = await office();
+  if (!session) return fail(NOT_ALLOWED);
+  const r = lateRow(input);
+  if ("error" in r) return fail(r.error);
+  const db = await untyped();
+  const { data: cur } = await db.from("fee_late_rule").select("applies_from").maybeSingle();
+  // By default only bills due from the day late fees were first switched on.
+  const appliesFrom = input.includeOld ? null : ((cur as { applies_from: string | null } | null)?.applies_from ?? todayIST());
+  const { error } = await db.from("fee_late_rule").upsert(
+    { school_id: session.schoolId, enabled: !!input.enabled, grace_days: r.grace, kind: r.kind, amount: r.amount, max_amount: r.max, applies_from: appliesFrom, updated_at: new Date().toISOString() },
+    { onConflict: "school_id" });
+  if (error) return fail(TRY_AGAIN);
+  let applied = 0;
+  if (input.enabled) {
+    const supabase = await createClient();
+    const { data, error: applyErr } = await supabase.rpc("apply_late_fees" as never, { p_school: session.schoolId } as never);
+    if (applyErr) return fail("The rule was saved, but late fees could not be added now. They will be added tonight.");
+    applied = Number(data ?? 0);
+  }
+  done();
+  return { ok: true as const, applied };
+}
+
+export async function waiveLateFee(input: { invoiceId: number; reason: string }) {
+  if (!(await office())) return fail(NOT_ALLOWED);
+  if (!isId(input?.invoiceId)) return fail(TRY_AGAIN);
+  const reason = text(input.reason, 300);
+  if (!reason) return fail("Enter the reason for waiving the late fee.");
+  const db = await untyped();
+  const { error } = await db.from("fee_invoice_line").update({ waived: true, waive_reason: reason })
+    .eq("invoice_id", input.invoiceId).eq("kind", "late_fee").eq("waived", false);
+  if (error) return fail(TRY_AGAIN);
+  done();
+  return { ok: true as const };
+}
+
+// ---------------------------------------------------------------------------
+// Tuition fee certificate (financial year April to March)
+// ---------------------------------------------------------------------------
+export async function getTuitionCertificate(input: { studentId: number; fyStartYear: number }) {
+  const session = await getSession();
+  if (!session) return fail(NOT_ALLOWED);
+  if (!isId(input?.studentId) || !Number.isInteger(input?.fyStartYear) || input.fyStartYear < 2000 || input.fyStartYear > 2100) return fail(TRY_AGAIN);
+  const supabase = await createClient();
+  let allowed = session.isAdminScope || (session.role === "student" && session.studentId === input.studentId);
+  if (!allowed && session.role === "guardian") {
+    // A parent sees only their own children's links.
+    const { data: mine } = await supabase.from("guardian_student").select("student_id").eq("student_id", input.studentId).limit(1);
+    allowed = !!mine?.length;
+  }
+  if (!allowed) return fail(NOT_ALLOWED);
+  const [{ data: st }, { data: tp }, { data: gs }] = await Promise.all([
+    supabase.from("student").select("full_name, admission_no").eq("id", input.studentId).single(),
+    supabase.rpc("tuition_paid" as never, { p_student: input.studentId, p_fy_start: `${input.fyStartYear}-04-01` } as never),
+    supabase.from("guardian_student").select("guardian(full_name)").eq("student_id", input.studentId),
+  ]);
+  if (!st) return fail("That student could not be found.");
+  const t = ((tp ?? []) as { paid: number | string; tuition: number | string }[])[0];
+  const parents = ((gs ?? []) as unknown as { guardian: { full_name: string } | null }[])
+    .map((g) => g.guardian?.full_name).filter((n): n is string => !!n);
+  return {
+    ok: true as const,
+    name: st.full_name, admissionNo: st.admission_no, parents,
+    fy: `${input.fyStartYear}-${String((input.fyStartYear + 1) % 100).padStart(2, "0")}`,
+    paid: Number(t?.paid ?? 0), tuition: Number(t?.tuition ?? 0),
+  };
+}

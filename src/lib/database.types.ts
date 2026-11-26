@@ -2498,6 +2498,7 @@ export type Database = {
       }
       route: {
         Row: {
+          annual_fee: number
           code: string
           created_at: string
           id: number
@@ -2508,6 +2509,7 @@ export type Database = {
           updated_at: string
         }
         Insert: {
+          annual_fee?: number
           code: string
           created_at?: string
           id?: never
@@ -2518,6 +2520,7 @@ export type Database = {
           updated_at?: string
         }
         Update: {
+          annual_fee?: number
           code?: string
           created_at?: string
           id?: never

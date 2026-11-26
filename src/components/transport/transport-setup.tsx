@@ -6,7 +6,7 @@ import { Field, Input, Select } from "@/components/ui/field";
 import { saveBus, saveRoute, saveRun, saveStops, type StopInput } from "@/app/dashboard/transport/setup/actions";
 
 export type BusRow = { id: number; code: string; registrationNo: string | null; capacity: number | null; active: boolean };
-export type RouteRow = { id: number; code: string; name: string; notes: string | null; active: boolean; stops: StopInput[] };
+export type RouteRow = { id: number; code: string; name: string; notes: string | null; active: boolean; annualFee: number; stops: StopInput[] };
 export type RunRow = { id: number; busId: number; routeId: number; driverId: number | null; conductorId: number | null; active: boolean };
 export type StaffOpt = { id: number; name: string; role: string };
 
@@ -93,14 +93,14 @@ function BusesCard({ buses }: { buses: BusRow[] }) {
 function RoutesCard({ routes }: { routes: RouteRow[] }) {
   const id = useId();
   const [open, setOpen] = useState<number | null>(routes[0]?.id ?? null);
-  const blank = { id: null as number | null, code: "", name: "", notes: "", active: true };
+  const blank = { id: null as number | null, code: "", name: "", notes: "", active: true, fee: "" };
   const [f, setF] = useState(blank);
   const [msg, setMsg] = useState<Msg>(null);
   const [pending, start] = useTransition();
   function save() {
     setMsg(null);
     start(async () => {
-      const res = await saveRoute({ id: f.id, code: f.code, name: f.name, notes: f.notes, active: f.active });
+      const res = await saveRoute({ id: f.id, code: f.code, name: f.name, notes: f.notes, active: f.active, annualFee: Number(f.fee || 0) });
       if (!res.ok) { setMsg({ text: res.error, ok: false }); return; }
       setMsg({ text: f.id ? "Route saved." : "Route added. Now add its stops.", ok: true });
       if (!f.id && res.id) setOpen(res.id);
@@ -120,7 +120,7 @@ function RoutesCard({ routes }: { routes: RouteRow[] }) {
                   <button type="button" onClick={() => { setOpen(r.id); setMsg(null); }} aria-pressed={open === r.id}
                     className={`w-full rounded-sm border px-3 py-2 text-left text-[14px] ${open === r.id ? "border-[#0F6CBD] bg-[#EBF3FC]" : "border-hair hover:bg-panel"}`}>
                     <span className={`font-medium ${r.active ? "text-ink-900" : "text-ink-500 line-through"}`}>{r.code} {r.name}</span>
-                    <span className="block text-[12px] text-ink-500">{r.stops.length} stop{r.stops.length === 1 ? "" : "s"}{r.active ? "" : " · not in use"}</span>
+                    <span className="block text-[12px] text-ink-500">{r.stops.length} stop{r.stops.length === 1 ? "" : "s"}{r.annualFee ? ` · ₹${r.annualFee.toLocaleString("en-IN")} a year` : ""}{r.active ? "" : " · not in use"}</span>
                   </button>
                 </li>
               ))}
@@ -131,11 +131,14 @@ function RoutesCard({ routes }: { routes: RouteRow[] }) {
                 <Field label="Code" htmlFor={`${id}-rc`}><Input id={`${id}-rc`} value={f.code} maxLength={12} placeholder="R3" onChange={(e) => setF({ ...f, code: e.target.value })} /></Field>
                 <Field label="Route name" htmlFor={`${id}-rn`}><Input id={`${id}-rn`} value={f.name} maxLength={80} placeholder="Baner and Aundh" onChange={(e) => setF({ ...f, name: e.target.value })} /></Field>
               </div>
+              <Field label="Transport fee for the year (₹)" htmlFor={`${id}-rf`} hint="Added to the fee instalments of every student on this route. 0 for none.">
+                <Input id={`${id}-rf`} inputMode="decimal" value={f.fee} placeholder="0" onChange={(e) => setF({ ...f, fee: e.target.value })} />
+              </Field>
               {f.id && <label className="flex items-center gap-1.5 text-[13px] text-ink-700"><input type="checkbox" checked={f.active} onChange={(e) => setF({ ...f, active: e.target.checked })} /> In use</label>}
               <div className="flex gap-2">
                 <Button size="sm" onClick={save} disabled={pending || !f.code.trim() || !f.name.trim()}>{f.id ? "Save route" : "Add route"}</Button>
                 {f.id && <Button size="sm" variant="subtle" onClick={() => setF(blank)}>Cancel</Button>}
-                {!f.id && current && <Button size="sm" variant="subtle" onClick={() => setF({ id: current.id, code: current.code, name: current.name, notes: current.notes ?? "", active: current.active })}>Edit {current.code}</Button>}
+                {!f.id && current && <Button size="sm" variant="subtle" onClick={() => setF({ id: current.id, code: current.code, name: current.name, notes: current.notes ?? "", active: current.active, fee: current.annualFee ? String(current.annualFee) : "" })}>Edit {current.code}</Button>}
               </div>
               <Note msg={msg} />
             </div>
