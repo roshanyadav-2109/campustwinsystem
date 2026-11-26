@@ -19,7 +19,7 @@ async function officeOnly(): Promise<string | null> {
 }
 
 function refresh() {
-  revalidatePath("/dashboard/manage/teachers");
+  revalidatePath("/dashboard/settings/teachers");
   revalidatePath("/dashboard/allotments");
   revalidatePath("/dashboard/marks");
   revalidatePath("/dashboard/attendance");

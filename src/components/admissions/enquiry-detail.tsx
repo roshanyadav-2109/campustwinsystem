@@ -125,14 +125,14 @@ export function EnquiryDetail({
         {enquiry.studentId ? (
           <p className="mt-3 rounded-sm border border-hair bg-panel px-3 py-2 text-[13px] text-ink-700">
             Admitted. The student and parent records were created.{" "}
-            <Link href="/dashboard/manage/students" className="font-medium text-[#0F6CBD] hover:underline">Open Students</Link>
+            <Link href="/dashboard/students/manage" className="font-medium text-[#0F6CBD] hover:underline">Open Students</Link>
           </p>
         ) : canEdit && enquiry.status !== "not_interested" ? (
           <AdmitPanel enquiry={enquiry} onDone={onSaved} />
         ) : showAdmittedHint ? (
           <p className="mt-3 rounded-sm border border-hair bg-panel px-3 py-2 text-[13px] text-ink-700">
             Marked admitted before automatic admission was available. Add the student in{" "}
-            <Link href="/dashboard/manage/students" className="font-medium text-[#0F6CBD] hover:underline">Manage School, Students</Link>.
+            <Link href="/dashboard/students/manage" className="font-medium text-[#0F6CBD] hover:underline">Students, Manage records</Link>.
           </p>
         ) : null}
       </section>
@@ -218,7 +218,7 @@ function AdmitPanel({ enquiry, onDone }: { enquiry: Enquiry; onDone: () => void 
       {!opts ? (
         <p className="mt-3 text-[13px] text-ink-500">{msg ? "" : "Loading…"}</p>
       ) : opts.sections.length === 0 ? (
-        <p className="mt-3 text-[13px] text-ink-700">{enquiry.className} has no sections yet. Add one in <Link href="/dashboard/manage/classes" className="font-medium text-[#0F6CBD] hover:underline">Manage School, Classes</Link>.</p>
+        <p className="mt-3 text-[13px] text-ink-700">{enquiry.className} has no sections yet. Add one in <Link href="/dashboard/settings/classes" className="font-medium text-[#0F6CBD] hover:underline">Settings, Classes and subjects</Link>.</p>
       ) : (
         <div className="mt-3 grid gap-3 sm:grid-cols-3">
           <Field label="Section" htmlFor={`${id}-sec`}>

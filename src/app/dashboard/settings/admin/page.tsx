@@ -17,7 +17,7 @@ import { analyticsConfigured, hostDetail } from "@/lib/console/health";
 
 type SP = Promise<Record<string, string | string[] | undefined>>;
 type View = "overview" | "activity" | "access" | "health";
-const BASE = "/dashboard/admin";
+const BASE = "/dashboard/settings/admin";
 const MODULES: { key: string; label: string }[] = [
   { key: "fees", label: "Fees" }, { key: "library", label: "Library" }, { key: "homework", label: "Homework" },
   { key: "admissions", label: "Admissions" }, { key: "hr", label: "Staff HR and payroll" }, { key: "transport", label: "Transport" },
@@ -170,7 +170,7 @@ async function Access() {
   return (
     <div className="grid items-start gap-5 xl:grid-cols-2">
       <Card>
-        <CardHeader title={`Logins (${people.length})`} action={<Link href="/dashboard/manage/access" className="text-[13px] font-medium text-[#0F6CBD] hover:underline">Give or remove access</Link>} />
+        <CardHeader title={`Logins (${people.length})`} action={<Link href="/dashboard/settings/access" className="text-[13px] font-medium text-[#0F6CBD] hover:underline">Give or remove access</Link>} />
         <CardBody className="overflow-x-auto pt-1">
           <table className="w-full min-w-[480px]">
             <thead><tr className="border-b border-hair"><th className={th}>Person</th><th className={th}>Signs in as</th><th className={th}>Last signed in</th></tr></thead>

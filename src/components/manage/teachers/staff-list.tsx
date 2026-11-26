@@ -7,7 +7,7 @@ import { Field, Input, Select } from "@/components/ui/field";
 import { EmptyState } from "@/components/ui/empty";
 import { PlusIcon } from "@/components/icons";
 import type { StaffRole } from "@/lib/session";
-import { addStaff, updateStaff, signStaffPhotoUpload, saveStaffPhoto, removeStaffPhoto, type ActionResult, type StaffInput } from "@/app/dashboard/manage/teachers/actions";
+import { addStaff, updateStaff, signStaffPhotoUpload, saveStaffPhoto, removeStaffPhoto, type ActionResult, type StaffInput } from "@/app/dashboard/settings/teachers/actions";
 import { PhotoUpload } from "@/components/photo-upload";
 
 export type StaffRow = {

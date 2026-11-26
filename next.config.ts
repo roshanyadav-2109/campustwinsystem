@@ -36,7 +36,18 @@ const nextConfig: NextConfig = {
       "allotments", "announcements", "attendance", "calendar", "feedback", "leave", "manage", "marks",
       "progress", "promotion", "reports", "schedule", "search", "students", "transport",
     ];
+    // Pages moved by the restructure (Nov 2026): setup lives in Settings.
+    // Query strings carry over to the new address on their own.
+    const moved = [
+      { source: "/dashboard/manage", destination: "/dashboard/settings", permanent: false },
+      { source: "/dashboard/manage/students", destination: "/dashboard/students/manage", permanent: false },
+      { source: "/dashboard/manage/:section(classes|teachers|exams|access)", destination: "/dashboard/settings/:section", permanent: false },
+      { source: "/dashboard/transport/setup", destination: "/dashboard/settings/transport", permanent: false },
+      { source: "/dashboard/admin", destination: "/dashboard/settings/admin", permanent: false },
+      { source: "/dashboard/fees", has: [{ type: "query" as const, key: "view", value: "setup" }], destination: "/dashboard/settings/fees", permanent: false },
+    ];
     return [
+      ...moved,
       ...tabs.flatMap((t) => [
         { source: `/${t}`, destination: `/dashboard/${t}`, permanent: false },
         { source: `/${t}/:rest*`, destination: `/dashboard/${t}/:rest*`, permanent: false },

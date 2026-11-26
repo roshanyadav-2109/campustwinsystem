@@ -1,3 +1,5 @@
+import { guardTab } from "@/lib/access";
+import { PageHeader } from "@/components/ui/page-header";
 import { createClient } from "@/lib/supabase/server";
 import { getCurrentYear } from "@/lib/session";
 import { EmptyState } from "@/components/ui/empty";
@@ -34,7 +36,7 @@ async function loadAssessments(supabase: Awaited<ReturnType<typeof createClient>
 }
 
 // Manage School › Exams: this year's exams, grouped by class and exam name.
-export default async function ManageExamsPage() {
+async function ManageExamsPageBody() {
   const supabase = await createClient();
   const year = await getCurrentYear();
   if (!year) return <EmptyState art="error" title="No current school year is set" hint="Ask the person who set up the portal to mark this year as current." />;
@@ -113,4 +115,16 @@ export default async function ManageExamsPage() {
   const allSubjects = (subjectRes.data ?? []).map((s) => ({ id: s.id, name: s.name }));
 
   return <ExamsAdmin yearName={year.name} exams={exams} classes={classes} allSubjects={allSubjects} />;
+}
+
+// Guarded on its own address, so a shared link cannot open it for the wrong role.
+export default async function ManageExamsPage() {
+  const denied = await guardTab("/dashboard/settings/exams");
+  if (denied) return denied;
+  return (
+    <div>
+      <PageHeader title="Exams" description="The exams of the year and how they are marked." />
+      {await ManageExamsPageBody()}
+    </div>
+  );
 }

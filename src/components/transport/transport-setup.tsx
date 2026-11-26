@@ -3,7 +3,7 @@ import { useId, useState, useTransition } from "react";
 import { Card, CardBody, CardHeader } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Field, Input, Select } from "@/components/ui/field";
-import { saveBus, saveRoute, saveRun, saveStops, type StopInput } from "@/app/dashboard/transport/setup/actions";
+import { saveBus, saveRoute, saveRun, saveStops, type StopInput } from "@/app/dashboard/settings/transport/actions";
 
 export type BusRow = { id: number; code: string; registrationNo: string | null; capacity: number | null; active: boolean };
 export type RouteRow = { id: number; code: string; name: string; notes: string | null; active: boolean; annualFee: number; stops: StopInput[] };

@@ -21,10 +21,10 @@ async function officeOnly(): Promise<string | null> {
 function refresh() {
   // Classes, sections and subjects are in the shared reference copy: drop it now.
   refreshReference();
-  revalidatePath("/dashboard/manage/classes");
-  revalidatePath("/dashboard/manage/teachers");
-  revalidatePath("/dashboard/manage/exams");
-  revalidatePath("/dashboard/manage/students");
+  revalidatePath("/dashboard/settings/classes");
+  revalidatePath("/dashboard/settings/teachers");
+  revalidatePath("/dashboard/settings/exams");
+  revalidatePath("/dashboard/students/manage");
   revalidatePath("/dashboard/allotments");
   revalidatePath("/dashboard/marks");
   revalidatePath("/dashboard/attendance");

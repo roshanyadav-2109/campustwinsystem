@@ -1,3 +1,5 @@
+import { guardTab } from "@/lib/access";
+import { PageHeader } from "@/components/ui/page-header";
 import { EmptyState } from "@/components/ui/empty";
 import { getCurrentYear } from "@/lib/session";
 import { getStaffScope } from "@/lib/data/scope";
@@ -10,7 +12,7 @@ type SP = Promise<Record<string, string | string[] | undefined>>;
 
 // Manage School → Students (office only; the layout checks). This year's
 // students, with search, class filter and paging in the address bar.
-export default async function ManageStudentsPage({ searchParams }: { searchParams: SP }) {
+async function ManageStudentsPageBody({ searchParams }: { searchParams: SP }) {
   const sp = await searchParams;
   const [year, scope] = await Promise.all([getCurrentYear(), getStaffScope()]);
   if (!year) {
@@ -39,5 +41,17 @@ export default async function ManageStudentsPage({ searchParams }: { searchParam
       sections={sections}
       yearName={year.name}
     />
+  );
+}
+
+// Guarded on its own address, so a shared link cannot open it for the wrong role.
+export default async function ManageStudentsPage(props: Parameters<typeof ManageStudentsPageBody>[0]) {
+  const denied = await guardTab("/dashboard/students/manage");
+  if (denied) return denied;
+  return (
+    <div>
+      <PageHeader title="Student records" description="Add, correct or upload student records." />
+      {await ManageStudentsPageBody(props)}
+    </div>
   );
 }

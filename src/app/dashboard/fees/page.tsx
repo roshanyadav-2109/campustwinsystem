@@ -10,12 +10,12 @@ import { Field, Input, Select } from "@/components/ui/field";
 import { getStaffScope } from "@/lib/data/scope";
 import { getMyChildren } from "@/lib/data/analytics";
 import {
-  FeesNotReady, getConcessionTypes, getDues, getFeeLetters, getFeeHeads, getFeeOverview, getFeeStructure, getInstalments, getLateRule, getRecentPayments,
+  FeesNotReady, getConcessionTypes, getDues, getFeeLetters, getFeeHeads, getFeeOverview, getFeeStructure, getInstalments, getRecentPayments,
   getStudentBrief, getStudentConcessions, getStudentLedger, searchStudents,
 } from "@/lib/data/fees";
-import { ConcessionTypesManager, HeadOptions, InstalmentPlanner, InstalmentRaise, LateFeeCard, StudentConcessions } from "@/components/fees/fees-plan";
+import { InstalmentRaise, StudentConcessions } from "@/components/fees/fees-plan";
 import { createClient } from "@/lib/supabase/server";
-import { FeeHeadsManager, FeeStructureGrid, InvoiceActions, RaiseFeesForm } from "@/components/fees/fees-office";
+import { InvoiceActions, RaiseFeesForm } from "@/components/fees/fees-office";
 import { FamilyFeeLetters, OfficeFeeLetters } from "@/components/fees/fees-letters";
 import { DemandNoticesButton, DuesExcelButton, TuitionCertificateButton } from "@/components/fees/fees-downloads";
 import { InvoiceTable, OverviewView, PaymentTable, SegLinks, Stat } from "@/components/fees/fees-views";
@@ -27,7 +27,6 @@ const BASE = "/dashboard/fees";
 
 const VIEWS = [
   { key: "overview", label: "Overview", officeOnly: false },
-  { key: "setup", label: "Fee setup", officeOnly: true },
   { key: "raise", label: "Raise fees", officeOnly: true },
   { key: "collect", label: "Collect", officeOnly: true },
   { key: "dues", label: "Dues list", officeOnly: false },
@@ -142,28 +141,6 @@ async function adminScreen(session: Session, sp: SP) {
 
   if (view === "overview") {
     return frame(<OverviewView data={await getFeeOverview(year.id, scope.sections)} yearName={year.name} />);
-  }
-
-  if (view === "setup") {
-    const supabase = await createClient();
-    const [heads, structure, instalments, types, lateRule, { data: yr }] = await Promise.all([
-      getFeeHeads(), getFeeStructure(year.id), getInstalments(year.id), getConcessionTypes(), getLateRule(),
-      supabase.from("academic_year").select("start_date").eq("id", year.id).single(),
-    ]);
-    return frame(
-      <div className="space-y-5">
-        <div className="grid gap-5 lg:grid-cols-[320px_1fr]">
-          <div className="self-start"><FeeHeadsManager heads={heads} /></div>
-          <FeeStructureGrid classes={scope.classes} heads={heads.filter((h) => h.is_active)} structure={structure} yearName={year.name} />
-        </div>
-        <InstalmentPlanner instalments={instalments} yearStart={yr?.start_date ?? `${new Date().getFullYear()}-04-01`} yearName={year.name} />
-        <div className="grid items-start gap-5 lg:grid-cols-2">
-          <HeadOptions heads={heads.filter((h) => h.is_active)} />
-          <ConcessionTypesManager types={types} heads={heads} />
-        </div>
-        <LateFeeCard rule={lateRule} />
-      </div>,
-    );
   }
 
   if (view === "raise") {

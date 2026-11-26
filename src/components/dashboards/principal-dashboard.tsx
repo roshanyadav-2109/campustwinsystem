@@ -1,11 +1,12 @@
 import { StudentsIcon, AttendanceIcon, AnnounceIcon } from "@/components/icons";
 import { getCurrentYear, type Session } from "@/lib/session";
 import { getT } from "@/i18n/server";
+import { TodoPanel } from "@/components/dashboards/todo-panel";
 import { fmtPercent } from "@/i18n/format";
 import { getSchoolOverview } from "@/lib/data/dashboard";
 import { Card, CardBody, CardHeader } from "@/components/ui/card";
 import { KVBarChart } from "@/components/charts";
-import { DashHeader, StatCard, AnnouncementsPanel, EventsPanel, QuickLinks, FleetStrip, ActionButtons } from "@/components/dashboards/parts";
+import { DashHeader, StatCard, AnnouncementsPanel, EventsPanel, FleetStrip, ActionButtons } from "@/components/dashboards/parts";
 
 // School-wide overview for the principal.
 export async function PrincipalDashboard({ session }: { session: Session }) {
@@ -22,6 +23,7 @@ export async function PrincipalDashboard({ session }: { session: Session }) {
         { href: "/dashboard/attendance", label: t("dashboard.ctaAttendanceToday"), icon: AttendanceIcon },
         { href: "/dashboard/announcements", label: t("dashboard.ctaPostNotice"), icon: AnnounceIcon },
       ]} />
+      <TodoPanel session={session} />
       <div className="mb-6 grid grid-cols-2 gap-3 lg:grid-cols-4">
         <StatCard label={t("common.students")} value={ov?.students ?? "—"} tone="gold" href="/dashboard/students" />
         <StatCard label={`${t("progress.overall")} ${t("progress.average")}`} value={fmtPercent(locale, ov?.avg ?? null, 1)} href="/dashboard/progress" />
@@ -37,8 +39,6 @@ export async function PrincipalDashboard({ session }: { session: Session }) {
       )}
 
       <FleetStrip />
-
-      <div className="mb-6"><QuickLinks role="principal" /></div>
       <div className="grid gap-5 lg:grid-cols-2">
         <AnnouncementsPanel />
         <EventsPanel />

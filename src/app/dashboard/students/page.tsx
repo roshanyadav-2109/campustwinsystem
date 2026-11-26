@@ -1,7 +1,7 @@
 import Link from "next/link";
 import { RosterGrid } from "@/components/students/roster-grid";
 import { getSession } from "@/lib/session";
-import { getStudentRecords } from "@/app/dashboard/manage/students/data";
+import { getStudentRecords } from "@/app/dashboard/students/manage/data";
 import { getT } from "@/i18n/server";
 import { PageHeader } from "@/components/ui/page-header";
 import { EmptyState } from "@/components/ui/empty";
@@ -26,6 +26,7 @@ export default async function StudentsPage({ searchParams }: { searchParams: SP 
     return (<div><PageHeader title={t("nav.students")} /><EmptyState title={t("common.noData")} /></div>);
   }
   const yearId = num(sp.year) ?? scope.currentYearId;
+  const canEditRecords = (await getSession())?.staffRole === "office";
 
   // Search from the top bar: name or admission number, across every section
   // this person may see (the database limits it to their own scope).
@@ -90,7 +91,7 @@ export default async function StudentsPage({ searchParams }: { searchParams: SP 
 
   return (
     <div>
-      <PageHeader title={t("nav.students")} />
+      <PageHeader title={t("nav.students")} actions={canEditRecords ? <Link href="/dashboard/students/manage" className="inline-flex h-9 items-center rounded-sm border border-hair bg-surface px-3 text-[14px] font-medium text-ink-900 hover:bg-panel">{t("nav.studentRecords")}</Link> : undefined} />
       <ScopeBar years={scope.years} sections={scope.sections} yearId={yearId} sectionId={section.id} />
       <Card>
         <CardBody>

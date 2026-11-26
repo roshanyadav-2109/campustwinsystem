@@ -34,7 +34,10 @@ function money(n: unknown, allowZero = false): number | null {
   return v;
 }
 
-const done = () => revalidatePath("/dashboard/fees");
+const done = () => {
+  revalidatePath("/dashboard/fees");
+  revalidatePath("/dashboard/settings/fees", "layout");
+};
 
 // ---------------------------------------------------------------------------
 // Fee setup

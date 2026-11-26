@@ -8,7 +8,7 @@ import { TransportSetup, type BusRow, type RouteRow, type RunRow, type StaffOpt 
 const hhmm = (t: string | null) => (t ? t.slice(0, 5) : "");
 
 export default async function TransportSetupPage() {
-  const denied = await guardTab("/dashboard/transport/setup");
+  const denied = await guardTab("/dashboard/settings/transport");
   if (denied) return denied;
   await getSession();
   const year = await getCurrentYear();

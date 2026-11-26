@@ -34,6 +34,8 @@ const pa: PartialMessages = {
     noAccess: "ਤੁਹਾਨੂੰ ਇਹ ਪੰਨਾ ਵੇਖਣ ਦੀ ਇਜਾਜ਼ਤ ਨਹੀਂ ਹੈ।",
   },
   nav: {
+    settings: "ਸੈਟਿੰਗਾਂ",
+    studentRecords: "ਵਿਦਿਆਰਥੀ ਰਿਕਾਰਡ",
     homework: "ਘਰ ਦਾ ਕੰਮ",
     admissions: "ਦਾਖ਼ਲਾ",
     hr: "ਸਟਾਫ਼ ਐੱਚਆਰ",
@@ -498,6 +500,33 @@ const pa: PartialMessages = {
     noPromotionsHint: "ਦਫ਼ਤਰ ਵੱਲੋਂ ਜਮਾਤ ਅੱਗੇ ਭੇਜਣ 'ਤੇ ਨਤੀਜੇ ਇੱਥੇ ਦਿਸਣਗੇ।",
     noNextYear: "ਅਗਲਾ ਸਾਲ ਨਹੀਂ ਹੈ",
     noNextYearHint: "ਵਿਦਿਆਰਥੀਆਂ ਨੂੰ ਅੱਗੇ ਭੇਜਣ ਤੋਂ ਪਹਿਲਾਂ ਅਗਲਾ ਅਕਾਦਮਿਕ ਸਾਲ ਬਣਾਓ।",
+  },
+  navGroup: {
+    academics: "ਪੜ੍ਹਾਈ",
+    students: "ਵਿਦਿਆਰਥੀ",
+    fees: "ਫੀਸ",
+    campus: "ਕੈਂਪਸ",
+    staff: "ਸਟਾਫ",
+  },
+  settings: {
+    title: "ਸੈਟਿੰਗਾਂ",
+    classes: "ਜਮਾਤਾਂ ਅਤੇ ਵਿਸ਼ੇ",
+    teachers: "ਅਧਿਆਪਕ ਅਤੇ ਜ਼ਿੰਮੇਵਾਰੀਆਂ",
+    exams: "ਪ੍ਰੀਖਿਆਵਾਂ",
+    fees: "ਫੀਸ",
+    transport: "ਬੱਸਾਂ ਅਤੇ ਰੂਟ",
+    access: "ਲੌਗਇਨ ਅਤੇ ਪਹੁੰਚ",
+    admin: "ਪਲਾਨ, ਗਤੀਵਿਧੀ ਅਤੇ ਸਥਿਤੀ",
+  },
+  todo: {
+    title: "ਅੱਜ ਦਾ ਕੰਮ",
+    none: "ਕੁਝ ਬਾਕੀ ਨਹੀਂ। ਸਭ ਕੁਝ ਅੱਪਡੇਟ ਹੈ।",
+    attendance: "ਸੈਕਸ਼ਨਾਂ ਵਿੱਚ ਅੱਜ ਹਾਜ਼ਰੀ ਨਹੀਂ ਲੱਗੀ",
+    marks: "ਅੰਕ ਅਜੇ ਪਰਿਵਾਰਾਂ ਨਾਲ ਸਾਂਝੇ ਨਹੀਂ ਹੋਏ",
+    enquiries: "ਨਵੀਆਂ ਦਾਖ਼ਲਾ ਪੁੱਛਗਿੱਛਾਂ ਨੂੰ ਫ਼ੋਨ ਕਰਨਾ ਹੈ",
+    overdue: "ਫੀਸ ਬਿੱਲ ਨਿਯਤ ਤਾਰੀਖ਼ ਲੰਘ ਗਏ ਹਨ",
+    letters: "ਫੀਸ ਪੱਤਰ ਬੇਨਤੀਆਂ ਉਡੀਕ ਵਿੱਚ ਹਨ",
+    open: "ਖੋਲ੍ਹੋ",
   },
 };
 export default pa;

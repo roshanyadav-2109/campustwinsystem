@@ -9,8 +9,8 @@ import { PlusIcon, SearchIcon } from "@/components/icons";
 import { cn } from "@/lib/utils";
 import { Dialog, StudentForm, type FormStudent } from "@/components/students/student-form";
 import { BulkUpload } from "@/components/manage/students/bulk-upload";
-import { saveStudent, setStudentLeft } from "@/app/dashboard/manage/students/actions";
-import type { SectionRef } from "@/app/dashboard/manage/students/rules";
+import { saveStudent, setStudentLeft } from "@/app/dashboard/students/manage/actions";
+import type { SectionRef } from "@/app/dashboard/students/manage/rules";
 import { useNavigate } from "@/components/nav-progress";
 
 export type AdminRow = FormStudent & { left: boolean };

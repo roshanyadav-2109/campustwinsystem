@@ -34,6 +34,9 @@ const bn: PartialMessages = {
     noAccess: "এই পৃষ্ঠায় আপনার প্রবেশাধিকার নেই।",
   },
   nav: {
+    settings: "সেটিংস",
+    studentRecords: "ছাত্রছাত্রীর রেকর্ড",
+    schoolAdmin: "স্কুল অ্যাডমিন",
     homework: "বাড়ির কাজ",
     admissions: "ভর্তি",
     hr: "স্টাফ এইচআর",
@@ -328,6 +331,33 @@ const bn: PartialMessages = {
     noPromotionsHint: "কার্যালয় উত্তরণ করলে ফলাফল এখানে দেখা যাবে।",
     noNextYear: "পরবর্তী সেশন নেই",
     noNextYearHint: "ছাত্রদের উত্তরণের আগে পরবর্তী শিক্ষাবর্ষ তৈরি করুন।",
+  },
+  navGroup: {
+    academics: "পড়াশোনা",
+    students: "ছাত্রছাত্রী",
+    fees: "ফি",
+    campus: "ক্যাম্পাস",
+    staff: "কর্মী",
+  },
+  settings: {
+    title: "সেটিংস",
+    classes: "শ্রেণি ও বিষয়",
+    teachers: "শিক্ষক ও দায়িত্ব",
+    exams: "পরীক্ষা",
+    fees: "ফি",
+    transport: "বাস ও রুট",
+    access: "লগইন ও অ্যাক্সেস",
+    admin: "প্ল্যান, কার্যকলাপ ও অবস্থা",
+  },
+  todo: {
+    title: "আজকের কাজ",
+    none: "কিছু বাকি নেই। সব হালনাগাদ।",
+    attendance: "সেকশনে আজ হাজিরা নেওয়া হয়নি",
+    marks: "নম্বর এখনও পরিবারকে জানানো হয়নি",
+    enquiries: "নতুন ভর্তির খোঁজে ফোন করতে হবে",
+    overdue: "ফি বিল নির্ধারিত তারিখ পেরিয়েছে",
+    letters: "ফি চিঠির অনুরোধ অপেক্ষায়",
+    open: "খুলুন",
   },
 };
 export default bn;

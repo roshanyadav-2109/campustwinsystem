@@ -2,7 +2,7 @@
 import { useId, useState, useTransition } from "react";
 import { Button } from "@/components/ui/button";
 import { Field, Select, Textarea } from "@/components/ui/field";
-import { requestUpgrade } from "@/app/dashboard/admin/actions";
+import { requestUpgrade } from "@/app/dashboard/settings/admin/actions";
 
 export function UpgradeRequest({ plans, current, pending: alreadyPending }: { plans: { code: string; name: string }[]; current: string; pending: string | null }) {
   const id = useId();

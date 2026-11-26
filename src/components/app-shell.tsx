@@ -7,6 +7,7 @@ import { SearchBox } from "@/components/search-box";
 import { NavProgress } from "@/components/nav-progress";
 import { cn } from "@/lib/utils";
 import { navFor, type NavRole } from "@/lib/nav";
+import { NAV_GROUPS } from "@/core/routes";
 import type { Edition } from "@/core/edition";
 import { useT } from "@/i18n/provider";
 import { SchoolEmblem } from "@/components/brand";
@@ -95,28 +96,39 @@ export function AppShell({
           )}
         </Link>
       )}
-      {items.map((item) => {
-        const active = isActive(item.href);
-        const Icon = item.icon;
+      {NAV_GROUPS.map((g) => {
+        const list = items.filter((i) => i.group === g);
+        if (!list.length) return null;
         return (
-          <Link
-            key={item.href + item.labelKey}
-            href={item.href}
-            onClick={() => setOpen(false)}
-            aria-current={active ? "page" : undefined}
-            className={cn(
-              "group relative flex items-center gap-3 rounded-sm px-3 py-2 text-[14px] transition-colors",
-              active ? "font-semibold text-ink-900" : "font-normal text-ink-500 hover:text-ink-900",
+          <div key={g} className={cn(g === "settings" && "mt-2 border-t border-hair pt-2", g !== "home" && g !== "settings" && "mt-3")}>
+            {g !== "home" && g !== "settings" && (
+              <div className="px-3 pb-1 text-[11px] font-semibold uppercase tracking-wide text-muted">{t(`navGroup.${g}`)}</div>
             )}
-          >
-            {active ? (
-              <span className="absolute left-0 top-1/2 h-5 w-[3px] -translate-y-1/2 rounded-full bg-[#0F6CBD]" />
-            ) : (
-              <span className="absolute left-0 top-1/2 h-5 w-[3px] -translate-y-1/2 rounded-full bg-[rgb(156,163,175)] opacity-0 transition-opacity group-hover:opacity-100" />
-            )}
-            <Icon size={20} active={active} />
-            {t(item.labelKey)}
-          </Link>
+            {list.map((item) => {
+              const active = isActive(item.href);
+              const Icon = item.icon;
+              return (
+                <Link
+                  key={item.href + item.labelKey}
+                  href={item.href}
+                  onClick={() => setOpen(false)}
+                  aria-current={active ? "page" : undefined}
+                  className={cn(
+                    "group relative flex items-center gap-3 rounded-sm px-3 py-2 text-[14px] transition-colors",
+                    active ? "font-semibold text-ink-900" : "font-normal text-ink-500 hover:text-ink-900",
+                  )}
+                >
+                  {active ? (
+                    <span className="absolute left-0 top-1/2 h-5 w-[3px] -translate-y-1/2 rounded-full bg-[#0F6CBD]" />
+                  ) : (
+                    <span className="absolute left-0 top-1/2 h-5 w-[3px] -translate-y-1/2 rounded-full bg-[rgb(156,163,175)] opacity-0 transition-opacity group-hover:opacity-100" />
+                  )}
+                  <Icon size={20} active={active} />
+                  {t(item.labelKey)}
+                </Link>
+              );
+            })}
+          </div>
         );
       })}
     </nav>

@@ -25,6 +25,6 @@ export async function requestUpgrade(input: { plan: string; note: string }): Pro
   if (error) {
     return { ok: false, error: error.code === "23505" ? "A request is already waiting. The Eternity team will contact you about it." : "The request could not be sent. Please try again." };
   }
-  revalidatePath("/dashboard/admin");
+  revalidatePath("/dashboard/settings/admin");
   return { ok: true };
 }

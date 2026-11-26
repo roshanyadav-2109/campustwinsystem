@@ -1,3 +1,5 @@
+import { guardTab } from "@/lib/access";
+import { PageHeader } from "@/components/ui/page-header";
 import { createClient } from "@/lib/supabase/server";
 import { getCurrentYear } from "@/lib/session";
 import { ClassesAdmin, type ClassRow } from "@/components/manage/classes/classes-admin";
@@ -23,7 +25,7 @@ async function countPupils(supabase: Awaited<ReturnType<typeof createClient>>, y
 }
 
 // Manage School › Classes & Subjects.
-export default async function ManageClassesPage() {
+async function ManageClassesPageBody() {
   const supabase = await createClient();
   const year = await getCurrentYear();
 
@@ -56,6 +58,18 @@ export default async function ManageClassesPage() {
         subjects={subjects}
         pairs={pairs}
       />
+    </div>
+  );
+}
+
+// Guarded on its own address, so a shared link cannot open it for the wrong role.
+export default async function ManageClassesPage() {
+  const denied = await guardTab("/dashboard/settings/classes");
+  if (denied) return denied;
+  return (
+    <div>
+      <PageHeader title="Classes and subjects" description="Classes, their sections and the subjects each class takes." />
+      {await ManageClassesPageBody()}
     </div>
   );
 }

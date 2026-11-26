@@ -3,8 +3,8 @@ import { useEffect, useId, useState, useTransition } from "react";
 import { Button } from "@/components/ui/button";
 import { Field, Input, Select } from "@/components/ui/field";
 import { CloseIcon } from "@/components/icons";
-import { checkStudentInput, type Gender, type SectionRef, type StudentInput } from "@/app/dashboard/manage/students/rules";
-import type { Result } from "@/app/dashboard/manage/students/actions";
+import { checkStudentInput, type Gender, type SectionRef, type StudentInput } from "@/app/dashboard/students/manage/rules";
+import type { Result } from "@/app/dashboard/students/manage/actions";
 
 // The student's details as the form needs them (from StudentRecord).
 export type FormStudent = {

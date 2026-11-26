@@ -34,6 +34,9 @@ const hi: PartialMessages = {
     noAccess: "आपको इस पृष्ठ तक पहुँच नहीं है।",
   },
   nav: {
+    settings: "सेटिंग्स",
+    studentRecords: "छात्र रिकॉर्ड",
+    schoolAdmin: "स्कूल एडमिन",
     homework: "गृहकार्य",
     admissions: "प्रवेश",
     hr: "स्टाफ एचआर",
@@ -328,6 +331,33 @@ const hi: PartialMessages = {
     noPromotionsHint: "कार्यालय द्वारा पदोन्नति के बाद परिणाम यहाँ दिखेंगे।",
     noNextYear: "अगला सत्र नहीं",
     noNextYearHint: "छात्रों की पदोन्नति से पहले अगला शैक्षणिक वर्ष बनाएँ।",
+  },
+  navGroup: {
+    academics: "पढ़ाई",
+    students: "छात्र",
+    fees: "फीस",
+    campus: "कैंपस",
+    staff: "स्टाफ",
+  },
+  settings: {
+    title: "सेटिंग्स",
+    classes: "कक्षाएँ और विषय",
+    teachers: "शिक्षक और ज़िम्मेदारियाँ",
+    exams: "परीक्षाएँ",
+    fees: "फीस",
+    transport: "बसें और रूट",
+    access: "लॉगिन और पहुँच",
+    admin: "प्लान, गतिविधि और स्थिति",
+  },
+  todo: {
+    title: "आज का काम",
+    none: "कुछ बाकी नहीं है। सब कुछ अद्यतन है।",
+    attendance: "सेक्शन में आज हाज़िरी नहीं लगी",
+    marks: "अंक अभी परिवारों से साझा नहीं हुए",
+    enquiries: "नई प्रवेश पूछताछ पर वापस फ़ोन करना है",
+    overdue: "फीस बिल नियत तारीख़ से आगे हैं",
+    letters: "फीस पत्र अनुरोध प्रतीक्षा में हैं",
+    open: "खोलें",
   },
 };
 export default hi;

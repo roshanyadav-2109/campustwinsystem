@@ -1,3 +1,5 @@
+import { guardTab } from "@/lib/access";
+import { PageHeader } from "@/components/ui/page-header";
 import { createClient } from "@/lib/supabase/server";
 import { getStaffScope } from "@/lib/data/scope";
 import { AccessAdmin, type AccessRow, type StaffOption, type SectionOption } from "@/components/manage/access/access-admin";
@@ -13,7 +15,7 @@ const STAFF_LABEL: Record<string, string> = {
 // Manage School → Give access (office only; the layout checks). Everyone whose
 // school record has an email — they sign in with Google using it — and a form
 // to give someone a dashboard.
-export default async function ManageAccessPage() {
+async function ManageAccessPageBody() {
   const supabase = await createClient();
   const [staffRes, guardianRes, studentRes, loginRes, scope] = await Promise.all([
     supabase.from("staff").select("id, full_name, role, email, phone").order("full_name"),
@@ -47,4 +49,16 @@ export default async function ManageAccessPage() {
   const sections: SectionOption[] = scope.sections.map((s) => ({ id: s.id, label: `${s.class_name}-${s.name}` }));
 
   return <AccessAdmin rows={rows} staff={staff} sections={sections} />;
+}
+
+// Guarded on its own address, so a shared link cannot open it for the wrong role.
+export default async function ManageAccessPage() {
+  const denied = await guardTab("/dashboard/settings/access");
+  if (denied) return denied;
+  return (
+    <div>
+      <PageHeader title="Logins and access" description="Who can sign in, and as what." />
+      {await ManageAccessPageBody()}
+    </div>
+  );
 }

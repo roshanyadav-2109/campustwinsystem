@@ -21,7 +21,7 @@ const NOT_ALLOWED = "Only the school office can do this.";
 const TRY_AGAIN = "Something went wrong while saving. Please try again.";
 
 function refresh() {
-  revalidatePath("/dashboard/manage/students");
+  revalidatePath("/dashboard/students/manage");
   revalidatePath("/dashboard/students");
 }
 

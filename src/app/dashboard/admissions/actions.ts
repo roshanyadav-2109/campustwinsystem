@@ -3,7 +3,7 @@ import { revalidatePath } from "next/cache";
 import { createClient } from "@/lib/supabase/server";
 import { getSession, getCurrentYear } from "@/lib/session";
 import { untyped } from "@/lib/data/schedule";
-import { saveStudent } from "@/app/dashboard/manage/students/actions";
+import { saveStudent } from "@/app/dashboard/students/manage/actions";
 import { EMAIL_RE, LIMITS, cleanPhone, isIsoDate, isSource, isStatus, todayIso } from "@/components/admissions/shared";
 
 export type Result = { ok: true } | { ok: false; error: string };

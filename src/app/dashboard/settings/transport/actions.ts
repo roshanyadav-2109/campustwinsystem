@@ -20,7 +20,7 @@ async function leader() {
 }
 const NOT_ALLOWED = fail("Only the principal or the office can change transport setup.");
 function refresh() {
-  revalidatePath("/dashboard/transport/setup");
+  revalidatePath("/dashboard/settings/transport");
   revalidatePath("/dashboard/transport");
   revalidatePath("/dashboard/transport/riders");
 }

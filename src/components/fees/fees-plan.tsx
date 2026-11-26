@@ -231,7 +231,7 @@ export function InstalmentRaise({ instalments, classes, sections, enrolled }: { 
   const [msg, setMsg] = useState<{ ok: boolean; text: string } | null>(null);
   const [pending, start] = useTransition();
   if (!instalments.length) return (
-    <Card><CardBody><p className="text-[14px] text-ink-700">Set up the year&apos;s instalments in <a className="font-medium text-[#0F6CBD] hover:underline" href="/dashboard/fees?view=setup">Fee setup</a> first. Then each instalment is raised for the whole school in one step, with concessions already taken off.</p></CardBody></Card>
+    <Card><CardBody><p className="text-[14px] text-ink-700">Set up the year&apos;s instalments in <a className="font-medium text-[#0F6CBD] hover:underline" href="/dashboard/settings/fees/instalments">Settings, Fees, Instalments</a> first. Then each instalment is raised for the whole school in one step, with concessions already taken off.</p></CardBody></Card>
   );
   const ins = instalments.find((i) => i.id === insId);
   const raise = () => {

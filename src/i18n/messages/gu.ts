@@ -34,6 +34,8 @@ const gu: PartialMessages = {
     noAccess: "તમને આ પેજ જોવાની પરવાનગી નથી.",
   },
   nav: {
+    settings: "સેટિંગ્સ",
+    studentRecords: "વિદ્યાર્થી રેકોર્ડ",
     homework: "ગૃહકાર્ય",
     admissions: "પ્રવેશ",
     hr: "સ્ટાફ એચઆર",
@@ -498,6 +500,33 @@ const gu: PartialMessages = {
     noPromotionsHint: "ઓફિસ કોઈ ધોરણને પ્રમોટ કરશે એટલે પરિણામ અહીં દેખાશે.",
     noNextYear: "આગલું વર્ષ નથી",
     noNextYearHint: "વિદ્યાર્થીઓને પ્રમોટ કરતા પહેલાં આગલું શૈક્ષણિક વર્ષ બનાવો.",
+  },
+  navGroup: {
+    academics: "અભ્યાસ",
+    students: "વિદ્યાર્થીઓ",
+    fees: "ફી",
+    campus: "કેમ્પસ",
+    staff: "સ્ટાફ",
+  },
+  settings: {
+    title: "સેટિંગ્સ",
+    classes: "વર્ગો અને વિષયો",
+    teachers: "શિક્ષકો અને સોંપણી",
+    exams: "પરીક્ષાઓ",
+    fees: "ફી",
+    transport: "બસો અને રૂટ",
+    access: "લૉગિન અને ઍક્સેસ",
+    admin: "પ્લાન, પ્રવૃત્તિ અને સ્થિતિ",
+  },
+  todo: {
+    title: "આજનું કામ",
+    none: "કંઈ બાકી નથી. બધું અપડેટ છે.",
+    attendance: "વિભાગોમાં આજે હાજરી પુરાઈ નથી",
+    marks: "ગુણ હજી પરિવારો સાથે શેર થયા નથી",
+    enquiries: "નવી પ્રવેશ પૂછપરછને ફોન કરવાનો છે",
+    overdue: "ફી બિલ નિયત તારીખ વટાવી ગયા છે",
+    letters: "ફી પત્રની વિનંતીઓ બાકી છે",
+    open: "ખોલો",
   },
 };
 export default gu;

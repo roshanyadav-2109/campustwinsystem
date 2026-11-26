@@ -2,8 +2,8 @@
 import { useId, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { readSpreadsheet, SpreadsheetError } from "@/lib/xlsx-read";
-import { parseCsv } from "@/app/dashboard/manage/students/rules";
-import { importStaff, type StaffImportRow } from "@/app/dashboard/manage/teachers/actions";
+import { parseCsv } from "@/app/dashboard/students/manage/rules";
+import { importStaff, type StaffImportRow } from "@/app/dashboard/settings/teachers/actions";
 import { Card, CardBody, CardHeader } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { ExcelIcon } from "@/components/icons";

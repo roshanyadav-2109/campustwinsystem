@@ -4,8 +4,8 @@ import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { ArrowRightIcon } from "@/components/icons";
 import { Dialog, StudentForm, type FormStudent } from "@/components/students/student-form";
-import { saveStudent, updateStudentDetails } from "@/app/dashboard/manage/students/actions";
-import type { SectionRef } from "@/app/dashboard/manage/students/rules";
+import { saveStudent, updateStudentDetails } from "@/app/dashboard/students/manage/actions";
+import type { SectionRef } from "@/app/dashboard/students/manage/rules";
 
 type RosterItem = { id: number; name: string; admissionNo: string; roll: number | null };
 

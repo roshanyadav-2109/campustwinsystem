@@ -1,8 +1,9 @@
 import Link from "next/link";
 import { getCurrentYear, type Session } from "@/lib/session";
 import { getT } from "@/i18n/server";
+import { TodoPanel } from "@/components/dashboards/todo-panel";
 import { getOfficeStats } from "@/lib/data/dashboard";
-import { StatCard, DashHeader, AnnouncementsPanel, EventsPanel, QuickLinks, FleetStrip, ActionButtons } from "@/components/dashboards/parts";
+import { StatCard, DashHeader, AnnouncementsPanel, EventsPanel, FleetStrip, ActionButtons } from "@/components/dashboards/parts";
 import { MarksIcon, AnnounceIcon, AllotmentIcon } from "@/components/icons";
 
 // Administration overview for the office.
@@ -19,6 +20,7 @@ export async function OfficeDashboard({ session }: { session: Session }) {
         { href: "/dashboard/announcements", label: t("dashboard.ctaPostNotice"), icon: AnnounceIcon },
         { href: "/dashboard/allotments", label: t("dashboard.ctaAssignedTeachers"), icon: AllotmentIcon },
       ]} />
+      <TodoPanel session={session} />
       <div className="mb-6 grid grid-cols-2 gap-3 lg:grid-cols-4">
         <StatCard label={t("common.students")} value={s?.students ?? "—"} tone="gold" />
         <StatCard label={t("roles.staff")} value={s?.staff ?? "—"} />
@@ -34,8 +36,6 @@ export async function OfficeDashboard({ session }: { session: Session }) {
       )}
 
       <FleetStrip />
-
-      <div className="mb-6"><QuickLinks role="office" /></div>
       <div className="grid gap-5 lg:grid-cols-2">
         <AnnouncementsPanel />
         <EventsPanel />

@@ -6,7 +6,7 @@ import { Button } from "@/components/ui/button";
 import { Field, Input, Textarea } from "@/components/ui/field";
 import { Dialog } from "@/components/students/student-form";
 import { cn } from "@/lib/utils";
-import { parseCsv } from "@/app/dashboard/manage/students/rules";
+import { parseCsv } from "@/app/dashboard/students/manage/rules";
 import { importBooks, saveBook, setBookActive } from "@/app/dashboard/library/actions";
 import {
   BULK_HEADERS, CATEGORY_SUGGESTIONS, availabilityText, cleanBook, tdCls, thCls,

@@ -33,6 +33,8 @@ const en = {
     noAccess: "You don't have access to this page.",
   },
   nav: {
+    settings: "Settings",
+    studentRecords: "Student records",
     homework: "Homework",
     admissions: "Admissions",
     hr: "Staff HR",
@@ -497,6 +499,33 @@ const en = {
     noPromotionsHint: "Results will show here once the office promotes a class.",
     noNextYear: "No next year",
     noNextYearHint: "Create the next academic year before promoting students.",
+  },
+  navGroup: {
+    academics: "Academics",
+    students: "Students",
+    fees: "Fees",
+    campus: "Campus",
+    staff: "Staff",
+  },
+  settings: {
+    title: "Settings",
+    classes: "Classes and subjects",
+    teachers: "Teachers and assignments",
+    exams: "Exams",
+    fees: "Fees",
+    transport: "Buses and routes",
+    access: "Logins and access",
+    admin: "Plan, activity and health",
+  },
+  todo: {
+    title: "Today's work",
+    none: "Nothing is waiting. Everything is up to date.",
+    attendance: "sections have not marked attendance today",
+    marks: "marks are not shared with families yet",
+    enquiries: "new admission enquiries to call back",
+    overdue: "fee bills are past their due date",
+    letters: "fee letter requests are waiting",
+    open: "Open",
   },
 } as const;
 export default en;

@@ -9,7 +9,7 @@ import { cn } from "@/lib/utils";
 import {
   giveAccess, removeAccess, findStudents, parentsOf,
   type Dashboard, type StudentHit, type ParentOption,
-} from "@/app/dashboard/manage/access/actions";
+} from "@/app/dashboard/settings/access/actions";
 
 export type AccessRow = { kind: "staff" | "guardian" | "student"; id: number; name: string; email: string; phone: string | null; dashboard: string; signedIn: boolean };
 export type StaffOption = { id: number; name: string; role: string };

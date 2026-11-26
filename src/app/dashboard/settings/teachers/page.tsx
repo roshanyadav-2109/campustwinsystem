@@ -1,3 +1,5 @@
+import { guardTab } from "@/lib/access";
+import { PageHeader } from "@/components/ui/page-header";
 import { createClient } from "@/lib/supabase/server";
 import { getCurrentYear } from "@/lib/session";
 import { EmptyState } from "@/components/ui/empty";
@@ -25,7 +27,7 @@ async function loadAllotments(supabase: Awaited<ReturnType<typeof createClient>>
 
 // Manage School › Assigned Teachers: the staff list, and who teaches which
 // subject in which section (plus each section's class teacher) this year.
-export default async function ManageTeachersPage() {
+async function ManageTeachersPageBody() {
   const supabase = await createClient();
   const year = await getCurrentYear();
   if (!year) return <EmptyState art="error" title="No current school year is set" hint="Ask the person who set up the portal to mark this year as current." />;
@@ -76,6 +78,18 @@ export default async function ManageTeachersPage() {
         classSubjects={classSubjects}
         rows={rows}
       />
+    </div>
+  );
+}
+
+// Guarded on its own address, so a shared link cannot open it for the wrong role.
+export default async function ManageTeachersPage() {
+  const denied = await guardTab("/dashboard/settings/teachers");
+  if (denied) return denied;
+  return (
+    <div>
+      <PageHeader title="Teachers and assignments" description="Staff, and who teaches which subject in which section this year." />
+      {await ManageTeachersPageBody()}
     </div>
   );
 }

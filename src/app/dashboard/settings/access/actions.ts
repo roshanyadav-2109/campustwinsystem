@@ -2,7 +2,7 @@
 import { revalidatePath } from "next/cache";
 import { createClient } from "@/lib/supabase/server";
 import { getCurrentYear, getSession } from "@/lib/session";
-import { setClassTeacher } from "@/app/dashboard/manage/teachers/actions";
+import { setClassTeacher } from "@/app/dashboard/settings/teachers/actions";
 
 // Manage School → Give access. The office puts a name and an email against a
 // dashboard; that person then signs in with Google using the email. Access is
@@ -36,9 +36,9 @@ async function officeOnly() {
 }
 
 function refresh() {
-  revalidatePath("/dashboard/manage/access");
-  revalidatePath("/dashboard/manage/teachers");
-  revalidatePath("/dashboard/manage/students");
+  revalidatePath("/dashboard/settings/access");
+  revalidatePath("/dashboard/settings/teachers");
+  revalidatePath("/dashboard/students/manage");
 }
 
 const exact = (email: string) => email.replace(/[\\%_]/g, (c) => `\\${c}`);
