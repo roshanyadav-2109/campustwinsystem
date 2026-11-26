@@ -25,7 +25,7 @@ export default async function PlatformLayout({ children }: { children: React.Rea
           addresses={addresses}
         />
       }
-      crumbs={<Crumbs trail={[{ label: "Console", href: "/console" }]} base="/console" zones={{ institutions: "Institutions", new: "New institution", owners: "Team", health: "Health" }} />}
+      crumbs={<Crumbs trail={[{ label: "Console", href: "/console" }]} base="/console" zones={{ institutions: "Institutions", new: "New institution", plans: "Plans", owners: "Team", health: "Health" }} />}
     >
       {children}
     </Shell>

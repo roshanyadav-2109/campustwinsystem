@@ -10,6 +10,8 @@ export default async function UniversitySettingsZone({ params }: { params: Promi
   const admin = createAdminClient();
   const { data: u } = await admin.from("university").select("id, name, slug, status, plan, logo_url, primary_color").eq("id", uid).maybeSingle();
   if (!u) notFound();
+  const { data: planRows } = await admin.schema("core" as never).from("plan" as never).select("code, name, active").eq("product_code", "campustwin").order("price_paise");
+  const plans = (planRows ?? []) as { code: string; name: string; active: boolean }[];
 
   return (
     <div className="max-w-4xl">
@@ -39,11 +41,16 @@ export default async function UniversitySettingsZone({ params }: { params: Promi
           </form>
         </Section>
 
-        <Section title="Plan" desc="Billing tier for every campus">
+        <Section title="Plan" desc="Decides the modules of every campus">
           <form action={setPlan} className="flex flex-wrap items-end gap-2">
             <input type="hidden" name="id" value={u.id} /><input type="hidden" name="kind" value="university" />
-            <div className="min-w-[200px] flex-1"><label className={labelCls}>Plan name</label><input name="plan" defaultValue={u.plan ?? "standard"} className={inputCls} /></div>
-            <button className={btnGhost}>Update plan</button>
+            <div className="min-w-[200px] flex-1">
+              <label className={labelCls} htmlFor="u-plan">Plan</label>
+              <select id="u-plan" name="plan" defaultValue={u.plan ?? "standard"} className={inputCls}>
+                {plans.filter((p) => p.active || p.code === u.plan).map((p) => <option key={p.code} value={p.code}>{p.name}</option>)}
+              </select>
+            </div>
+            <button className={btnGhost}>Change plan</button>
           </form>
         </Section>
       </div>

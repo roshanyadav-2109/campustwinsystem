@@ -1,5 +1,6 @@
 import { loadSchool, modulesOf } from "@/lib/console/tenant";
-import { updateBranding, setPlan, toggleModule, setSchoolStatus } from "@/app/console/actions";
+import { updateBranding, setPlan, toggleModule, resetModules, setSchoolStatus } from "@/app/console/actions";
+import { createAdminClient } from "@/lib/supabase/admin";
 import { ZoneHeader } from "@/components/console/table";
 import { Section, StatusBadge, inputCls, labelCls, btnPrimary, btnGhost, btnDanger } from "@/components/console/ui";
 
@@ -18,6 +19,12 @@ export default async function SettingsZone({ params }: { params: Promise<{ id: s
   const s = await loadSchool(id);
   const mods = modulesOf(s.modules);
   const active = s.status === "active";
+  const admin = createAdminClient();
+  const { data: planRows } = await admin.schema("core" as never).from("plan" as never).select("code, name, active, features").eq("product_code", "campustwin").order("price_paise");
+  const plans = (planRows ?? []) as { code: string; name: string; active: boolean; features: { modules?: Record<string, boolean> } | null }[];
+  const planMods = plans.find((p) => p.code === s.plan)?.features?.modules ?? {};
+  const overrides = modulesOf((s as { module_overrides?: unknown }).module_overrides);
+  const campus = !!(s as { university_id?: number | null }).university_id;
 
   return (
     <div>
@@ -49,12 +56,21 @@ export default async function SettingsZone({ params }: { params: Promise<{ id: s
             </form>
           </Section>
 
-          <Section title="Plan" desc="Billing tier recorded for this institution">
-            <form action={setPlan} className="flex flex-wrap items-end gap-2">
-              <input type="hidden" name="id" value={s.id} /><input type="hidden" name="kind" value="school" />
-              <div className="min-w-[220px] flex-1"><label className={labelCls} htmlFor="p-plan">Plan name</label><input id="p-plan" name="plan" defaultValue={s.plan ?? "standard"} className={inputCls} /></div>
-              <button className={btnGhost}>Update plan</button>
-            </form>
+          <Section title="Plan" desc={campus ? "This campus follows its university's plan" : "Decides which modules this institution has"}>
+            {campus ? (
+              <p className="text-[13px] text-cx-text-2">Plan: <span className="font-medium text-cx-text">{plans.find((p) => p.code === s.plan)?.name ?? s.plan}</span>. Change it on the university.</p>
+            ) : (
+              <form action={setPlan} className="flex flex-wrap items-end gap-2">
+                <input type="hidden" name="id" value={s.id} /><input type="hidden" name="kind" value="school" />
+                <div className="min-w-[220px] flex-1">
+                  <label className={labelCls} htmlFor="p-plan">Plan</label>
+                  <select id="p-plan" name="plan" defaultValue={s.plan ?? "standard"} className={inputCls}>
+                    {plans.filter((p) => p.active || p.code === s.plan).map((p) => <option key={p.code} value={p.code}>{p.name}</option>)}
+                  </select>
+                </div>
+                <button className={btnGhost}>Change plan</button>
+              </form>
+            )}
           </Section>
 
           <section className="rounded-lg border border-cx-bad/30 bg-cx-card">
@@ -72,19 +88,22 @@ export default async function SettingsZone({ params }: { params: Promise<{ id: s
           </section>
         </div>
 
-        <Section title="Modules" desc="Paid features this institution can use" flush>
+        <Section title="Modules" desc="From the plan, plus any exceptions for this institution" flush
+          right={!campus && Object.keys(overrides).length ? (
+            <form action={resetModules}><input type="hidden" name="id" value={s.id} /><input type="hidden" name="kind" value="school" /><button className={btnGhost}>Reset to plan</button></form>
+          ) : undefined}>
           <ul className="divide-y divide-cx-line">
             {MODULES.map((m) => {
               const on = !!mods[m.key];
               return (
                 <li key={m.key}>
                   <form action={toggleModule} className="flex items-center justify-between gap-3 px-5 py-3">
-                    <input type="hidden" name="id" value={s.id} /><input type="hidden" name="key" value={m.key} />
+                    <input type="hidden" name="id" value={s.id} /><input type="hidden" name="key" value={m.key} /><input type="hidden" name="kind" value="school" />
                     <div className="min-w-0">
                       <p className="text-[13.5px] font-medium text-cx-text">{m.label}</p>
-                      <p className="text-[12px] text-cx-muted">{m.desc}</p>
+                      <p className="text-[12px] text-cx-muted">{m.desc} · {m.key in overrides ? (overrides[m.key] ? "Added for this institution" : "Removed for this institution") : planMods[m.key] ? "In plan" : "Not in plan"}</p>
                     </div>
-                    <button role="switch" aria-checked={on} aria-label={`${m.label} module`} className={`relative h-5 w-9 shrink-0 rounded-full transition-colors ${on ? "bg-cx-text" : "bg-cx-line-strong"}`}>
+                    <button role="switch" aria-checked={on} disabled={campus} aria-label={`${m.label} module`} className={`relative h-5 w-9 shrink-0 rounded-full transition-colors ${on ? "bg-cx-text" : "bg-cx-line-strong"}`}>
                       <span className={`absolute left-0.5 top-0.5 h-4 w-4 rounded-full bg-white shadow-sm transition-transform ${on ? "translate-x-4" : ""}`} />
                     </button>
                   </form>

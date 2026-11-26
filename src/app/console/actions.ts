@@ -89,28 +89,83 @@ export async function setUniversityStatus(formData: FormData) {
   revalidatePath("/console");
 }
 
+// Switching a module for one institution records an exception on top of its
+// plan (the database recomputes modules = plan + exceptions). Matching the plan
+// again drops the exception.
 export async function toggleModule(formData: FormData) {
   const admin = await guard();
   const id = Number(formData.get("id"));
   const key = String(formData.get("key"));
+  const kind = String(formData.get("kind") || "school") === "university" ? "university" : "school";
   if (!id || !key) return;
-  const { data } = await admin.from("school").select("modules").eq("id", id).single();
-  const modules = { ...(data?.modules as Record<string, boolean> | null ?? {}) };
-  modules[key] = !modules[key];
-  await admin.from("school").update({ modules }).eq("id", id);
+  const { data } = await admin.from(kind).select("modules, module_overrides, plan").eq("id", id).single();
+  const current = !!(data?.modules as Record<string, boolean> | null)?.[key];
+  const { data: planMods } = await admin.rpc("plan_modules" as never, { p_plan: data?.plan ?? "" } as never);
+  const inPlan = !!(planMods as Record<string, boolean> | null)?.[key];
+  const overrides = { ...((data?.module_overrides as Record<string, boolean> | null) ?? {}) };
+  const want = !current;
+  if (want === inPlan) delete overrides[key]; else overrides[key] = want;
+  await admin.from(kind).update({ module_overrides: overrides }).eq("id", id);
   refreshBrand();
   revalidatePath("/console");
 }
 
+// Back to exactly what the plan includes.
+export async function resetModules(formData: FormData) {
+  const admin = await guard();
+  const id = Number(formData.get("id"));
+  const kind = String(formData.get("kind") || "school") === "university" ? "university" : "school";
+  if (!id) return;
+  await admin.from(kind).update({ module_overrides: {} }).eq("id", id);
+  refreshBrand();
+  revalidatePath("/console");
+}
+
+// Moving an institution to another plan switches its modules at once (and a
+// university's campuses follow it).
 export async function setPlan(formData: FormData) {
   const admin = await guard();
   const id = Number(formData.get("id"));
   const plan = String(formData.get("plan") || "").trim();
   const kind = String(formData.get("kind"));
   if (!id || !plan) return;
+  const { data: exists } = await admin.schema("core" as never).from("plan" as never).select("code").eq("product_code", "campustwin").eq("code", plan).maybeSingle();
+  if (!exists) return;
   await admin.from(kind === "university" ? "university" : "school").update({ plan }).eq("id", id);
   refreshBrand();
   revalidatePath("/console");
+}
+
+// ------------------------------------------------------------------ plans
+const PLAN_MODULES = ["fees", "library", "homework", "admissions", "hr", "transport"] as const;
+export type PlanResult = { ok: boolean; message: string } | null;
+
+// Create or change a CampusTwin plan. Changing which modules it includes
+// updates every institution on the plan immediately (database trigger).
+export async function savePlan(_prev: PlanResult, formData: FormData): Promise<PlanResult> {
+  const admin = await guard();
+  const id = String(formData.get("planId") || "");
+  const name = String(formData.get("name") || "").replace(/\s+/g, " ").trim().slice(0, 40);
+  const code = (String(formData.get("code") || "") || name).toLowerCase().trim().replace(/[^a-z0-9]+/g, "-").replace(/^-+|-+$/g, "").slice(0, 30);
+  const rupees = Number(formData.get("price") || 0);
+  if (!name) return { ok: false, message: "Give the plan a name." };
+  if (!/^[a-z][a-z0-9_-]{1,40}$/.test(code)) return { ok: false, message: "The plan code should start with a letter, like premium." };
+  if (!Number.isFinite(rupees) || rupees < 0) return { ok: false, message: "The price should be a number of rupees." };
+  const modules: Record<string, boolean> = { twin: false };
+  for (const m of PLAN_MODULES) modules[m] = formData.get(`m_${m}`) === "on";
+  const core = admin.schema("core" as never);
+  if (id) {
+    const { data: cur } = await core.from("plan" as never).select("features").eq("id", id).single();
+    const features = { ...((cur as { features?: Record<string, unknown> } | null)?.features ?? {}), modules, unit: "student" };
+    const { error } = await core.from("plan" as never).update({ name, price_paise: Math.round(rupees * 100), features, active: formData.get("active") === "on" } as never).eq("id", id);
+    if (error) return { ok: false, message: "The plan could not be saved." };
+  } else {
+    const { error } = await core.from("plan" as never).insert({ product_code: "campustwin", code, name, price_paise: Math.round(rupees * 100), period: "year", features: { modules, unit: "student" }, active: true } as never);
+    if (error) return { ok: false, message: error.code === "23505" ? `A plan with the code ${code} already exists.` : "The plan could not be added." };
+  }
+  refreshBrand();
+  revalidatePath("/console");
+  return { ok: true, message: id ? `${name} saved. Every institution on it now has these modules.` : `${name} added.` };
 }
 
 export async function updateBranding(formData: FormData) {

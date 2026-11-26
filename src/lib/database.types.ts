@@ -2616,6 +2616,7 @@ export type Database = {
           max_twin_messages: number | null
           max_users: number | null
           modules: Json
+          module_overrides: Json
           monogram: string | null
           name: string
           place: string | null
@@ -2639,6 +2640,7 @@ export type Database = {
           max_twin_messages?: number | null
           max_users?: number | null
           modules?: Json
+          module_overrides?: Json
           monogram?: string | null
           name: string
           place?: string | null
@@ -2662,6 +2664,7 @@ export type Database = {
           max_twin_messages?: number | null
           max_users?: number | null
           modules?: Json
+          module_overrides?: Json
           monogram?: string | null
           name?: string
           place?: string | null
@@ -3725,6 +3728,7 @@ export type Database = {
           id: number
           logo_url: string | null
           modules: Json | null
+          module_overrides: Json
           name: string
           plan: string | null
           primary_color: string | null
@@ -3737,6 +3741,7 @@ export type Database = {
           id?: number
           logo_url?: string | null
           modules?: Json | null
+          module_overrides?: Json
           name: string
           plan?: string | null
           primary_color?: string | null
@@ -3749,6 +3754,7 @@ export type Database = {
           id?: number
           logo_url?: string | null
           modules?: Json | null
+          module_overrides?: Json
           name?: string
           plan?: string | null
           primary_color?: string | null

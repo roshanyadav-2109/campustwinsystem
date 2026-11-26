@@ -37,13 +37,14 @@ export function PlatformPanel({ universities, schools, addresses = [] }: { unive
     );
   }
 
-  if (p.startsWith("/console/institutions") || p.startsWith("/console/new")) {
+  if (p.startsWith("/console/institutions") || p.startsWith("/console/new") || p.startsWith("/console/plans")) {
     return (
       <>
         <Title>Institutions</Title>
         <div className="space-y-0.5">
           <PanelLink href="/console/institutions" icon="institution" label="All institutions" meta={String(all.length)} />
           <PanelLink href="/console/new" icon="new" label="New institution" />
+          <PanelLink href="/console/plans" icon="overview" label="Plans" />
           {universities.length > 0 && (
             <NavGroup id="plat-unis" label="Universities" icon="campuses" hrefs={universities.map((u) => u.href)}>
               {universities.map((u) => <PanelLink key={u.href} sub href={u.href} label={u.name} dot={dot(u.status)} />)}
