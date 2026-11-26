@@ -45,6 +45,7 @@ export const SHARED_ROUTES: RouteDef[] = [
   // Settings: one entry in the menu; its sections are listed inside Settings.
   { href: "/dashboard/settings", icon: ManageIcon, labelKey: "nav.settings", roles: ["office", "principal"], group: "settings" },
   { href: "/dashboard/settings/institution", labelKey: "settings.institution", roles: ["office"], group: "settings", menu: false },
+  { href: "/dashboard/settings/programmes", labelKey: "settings.programmes", roles: ["office", "principal"], group: "settings", menu: false, editions: ["college", "university"] },
   { href: "/dashboard/settings/classes", labelKey: "settings.classes", roles: ["office"], group: "settings", menu: false },
   { href: "/dashboard/settings/teachers", labelKey: "settings.teachers", roles: ["office"], group: "settings", menu: false },
   { href: "/dashboard/settings/exams", labelKey: "settings.exams", roles: ["office"], group: "settings", menu: false },

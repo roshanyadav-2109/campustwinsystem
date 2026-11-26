@@ -528,6 +528,7 @@ const en = {
     transport: "Buses and routes",
     access: "Logins and access",
     messages: "Messages and alerts",
+    programmes: "Programmes and courses",
     payments: "Online payment",
     reportCards: "Report cards",
     admin: "Plan, activity and health",

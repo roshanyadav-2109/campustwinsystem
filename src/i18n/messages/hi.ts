@@ -360,6 +360,7 @@ const hi: PartialMessages = {
     transport: "बसें और रूट",
     access: "लॉगिन और पहुँच",
     messages: "संदेश और सूचनाएँ",
+    programmes: "कार्यक्रम और पाठ्यक्रम",
     payments: "ऑनलाइन भुगतान",
     reportCards: "रिपोर्ट कार्ड",
     admin: "प्लान, गतिविधि और स्थिति",
