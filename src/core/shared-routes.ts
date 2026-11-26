@@ -15,6 +15,7 @@ export const SHARED_ROUTES: RouteDef[] = [
   { href: "/dashboard/progress", icon: ProgressIcon, labelKey: "nav.myProgress", roles: ["student"], group: "academics" },
   { href: "/dashboard/progress", icon: ProgressIcon, labelKey: "nav.childProgress", roles: ["guardian"], group: "academics" },
   { href: "/dashboard/progress", icon: ProgressIcon, labelKey: "nav.progress", roles: ["subject_teacher", "class_teacher", "principal"], group: "academics" },
+  { href: "/dashboard/courses", icon: MarksIcon, labelKey: "nav.courses", roles: ["office", "principal", "student"], group: "academics", editions: ["college", "university"] },
   { href: "/dashboard/attendance", icon: AttendanceIcon, labelKey: "nav.attendance", roles: ALL, group: "academics" },
   { href: "/dashboard/schedule", icon: CalendarIcon, labelKey: "nav.schedule", roles: ALL, group: "academics" },
   { href: "/dashboard/marks", icon: MarksIcon, labelKey: "nav.marks", roles: ["subject_teacher", "class_teacher", "office"], group: "academics" },

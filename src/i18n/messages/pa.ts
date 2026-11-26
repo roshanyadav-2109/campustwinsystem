@@ -34,6 +34,7 @@ const pa: PartialMessages = {
     noAccess: "ਤੁਹਾਨੂੰ ਇਹ ਪੰਨਾ ਵੇਖਣ ਦੀ ਇਜਾਜ਼ਤ ਨਹੀਂ ਹੈ।",
   },
   nav: {
+    courses: "ਕੋਰਸ",
     hostel: "ਹੋਸਟਲ",
     inventory: "ਭੰਡਾਰ",
     frontDesk: "ਫ੍ਰੰਟ ਡੈਸਕ",
