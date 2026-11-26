@@ -65,3 +65,4 @@ swap-db.log
 .test-admit.mjs
 .test-console-login.mjs
 .test-calendar.mjs
+.test-leave-types.mjs
