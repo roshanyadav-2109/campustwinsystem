@@ -60,3 +60,5 @@ swap-db.log
 .alum-e2e.mjs
 .shot-local.mjs
 .desk-e2e.mjs
+.shot-eternity.mjs
+.check-alum-dir.mjs
