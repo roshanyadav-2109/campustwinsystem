@@ -62,7 +62,7 @@ export async function saveStudentIdentity(studentId: number, input: Partial<Stud
     religion: clean(input.religion, 40), special_needs: !!input.special_needs,
     special_needs_note: input.special_needs ? clean(input.special_needs_note, 200) : null, bpl: !!input.bpl,
   }, { onConflict: "student_id" }).select("student_id");
-  if (error) return fail(error.code === "23505" ? "Another student already has this APAAR ID or PEN." : TRY_AGAIN);
+  if (error) return fail(error.code === "23505" ? "Another student in this school already has this APAAR ID or PEN." : TRY_AGAIN);
   if (!data?.length) return fail("You cannot change this student's identity details.");
   revalidatePath(`/dashboard/students/${studentId}`);
   return { ok: true };
