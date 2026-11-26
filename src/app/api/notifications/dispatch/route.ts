@@ -8,12 +8,15 @@ import { sendDelivery, type Delivery } from "@/core/notifications/providers";
 export async function POST(request: NextRequest) {
   const key = process.env.NOTIFY_DISPATCH_KEY ?? "";
   const given = request.headers.get("x-dispatch-key") ?? "";
-  const same = key.length >= 32 && given.length === key.length && timingSafeEqual(Buffer.from(given), Buffer.from(key));
+  const a = Buffer.from(given), b = Buffer.from(key);
+  const same = b.length >= 32 && a.length === b.length && timingSafeEqual(a, b);
   if (!same) return NextResponse.json({ error: "forbidden" }, { status: 403 });
 
   const admin = createAdminClient();
   let sent = 0, failed = 0;
-  for (let round = 0; round < 4; round++) {
+  const started = Date.now();
+  // Work for up to ~20 seconds per call; the database calls again every minute.
+  for (let round = 0; round < 40 && Date.now() - started < 20000; round++) {
     const { data, error } = await admin.rpc("take_deliveries" as never, { p_limit: 25 } as never);
     if (error) return NextResponse.json({ error: "could not read the queue" }, { status: 500 });
     const batch = (data ?? []) as Delivery[];

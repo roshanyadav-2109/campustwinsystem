@@ -6,8 +6,8 @@ import { Field, Input, Select, Textarea } from "@/components/ui/field";
 import { saveChannel, saveChannelKeys, sendTestMessage, type Channel, type Provider } from "@/app/dashboard/settings/messages/actions";
 
 export type ChannelState = {
-  channel: Channel; provider: Provider; hasKeys: boolean;
-  config: { region?: string; from?: string; url?: string; method?: string; body?: string; headers?: Record<string, string> };
+  channel: Channel; provider: Provider; hasKeys: boolean; dailyLimit: number | null;
+  config: { region?: string; from?: string; url?: string; method?: string; body?: string; headers?: Record<string, string>; content_type?: string };
 };
 
 const TITLE: Record<Channel, string> = { email: "Email", sms: "SMS", whatsapp: "WhatsApp" };
@@ -49,6 +49,8 @@ function ChannelCard({ state }: { state: ChannelState }) {
   const [method, setMethod] = useState(state.config.method ?? "POST");
   const [headers, setHeaders] = useState(state.config.headers && Object.keys(state.config.headers).length ? JSON.stringify(state.config.headers) : "");
   const [body, setBody] = useState(state.config.body ?? '{"to": "{to}", "message": "{text}", "template_id": "{template_id}"}');
+  const [contentType, setContentType] = useState<"json" | "form">(state.config.content_type === "form" ? "form" : "json");
+  const [dailyLimit, setDailyLimit] = useState(state.dailyLimit == null ? "" : String(state.dailyLimit));
   const [keys, setKeys] = useState("");
   const [msg, setMsg] = useState<{ ok: boolean; text: string } | null>(null);
   const [keyMsg, setKeyMsg] = useState<{ ok: boolean; text: string } | null>(null);
@@ -91,13 +93,25 @@ function ChannelCard({ state }: { state: ChannelState }) {
             <Field label="Headers (optional)" htmlFor={`${uid}-h`} hint='For example {"Authorization": "Bearer {api_key}"}'>
               <Input id={`${uid}-h`} value={headers} onChange={(e) => setHeaders(e.target.value)} />
             </Field>
-            <Field label="Body" htmlFor={`${uid}-b`}>
-              <Textarea id={`${uid}-b`} rows={3} value={body} onChange={(e) => setBody(e.target.value)} />
-            </Field>
+            <div className="grid gap-3 sm:grid-cols-[1fr_160px]">
+              <Field label="Body" htmlFor={`${uid}-b`}>
+                <Textarea id={`${uid}-b`} rows={3} value={body} onChange={(e) => setBody(e.target.value)} />
+              </Field>
+              <Field label="Body format" htmlFor={`${uid}-t`}>
+                <Select id={`${uid}-t`} value={contentType} onChange={(e) => setContentType(e.target.value as "json" | "form")}>
+                  <option value="json">JSON</option><option value="form">Form fields</option>
+                </Select>
+              </Field>
+            </div>
           </div>
         )}
+        {provider !== "off" && (
+          <Field label="Daily limit (optional)" htmlFor={`${uid}-l`} hint="Most messages this channel may send in a day. Empty means no limit.">
+            <Input id={`${uid}-l`} inputMode="numeric" value={dailyLimit} onChange={(e) => setDailyLimit(e.target.value)} />
+          </Field>
+        )}
         <Button disabled={pending} onClick={() => start(async () => {
-          const r = await saveChannel({ channel: c, provider, region, from, url, method, headers, body });
+          const r = await saveChannel({ channel: c, provider, region, from, url, method, headers, body, contentType, dailyLimit });
           setMsg(r.ok ? { ok: true, text: r.message ?? "Saved." } : { ok: false, text: r.error });
         })}>{pending ? "Saving…" : `Save ${TITLE[c]}`}</Button>
         <Msg m={msg} />

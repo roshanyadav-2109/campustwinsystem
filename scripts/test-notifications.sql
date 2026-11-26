@@ -17,16 +17,23 @@ begin
   set local role authenticated;
   insert into public.notification_setting (channel, provider, config) values ('email', 'log', '{}'), ('sms', 'http', '{"url":"https://sms.example/send"}');
   perform public.set_notification_secret('sms', '{"api_key":"QA-SECRET"}');
+  -- the office cannot point its setting at another secret, nor bypass validation
+  ok := false; begin update public.notification_setting set secret_id = gen_random_uuid() where channel = 'sms'; exception when insufficient_privilege then ok := true; end;
+  if not ok then raise exception 'FAIL office can set secret_id'; end if;
+  ok := false; begin update public.notification_setting set provider = 'ses' where channel = 'sms'; exception when others then ok := true; end;
+  if not ok then raise exception 'FAIL SES accepted for SMS'; end if;
+  ok := false; begin update public.notification_setting set config = '{"url":"http://plain"}' where channel = 'sms'; exception when others then ok := true; end;
+  if not ok then raise exception 'FAIL insecure url accepted'; end if;
   reset role;
 
   -- an event
-  n := public.notify(8, 'qa_event', 'qa:1', v_g, null, v_kid, '{"name":"Asha","date":"27/11"}', 'Hello {name}', '{name} was absent on {date}.');
+  n := public.notify(8, 'test', 'qa:1', v_g, null, v_kid, '{"name":"Asha","date":"27/11"}', 'Hello {name}', '{name} was absent on {date}.');
   if n is null then raise exception 'FAIL no inbox message'; end if;
   if (select body from public.notification where id = n) <> 'Asha was absent on 27/11.' then raise exception 'FAIL template not rendered: %', (select body from public.notification where id = n); end if;
   select count(*) into c from public.notification_delivery where notification_id = n;
   if c <> 2 then raise exception 'FAIL deliveries %', c; end if;
   -- the same event again sends nothing
-  n2 := public.notify(8, 'qa_event', 'qa:1', v_g, null, v_kid, '{}', 'x', 'y');
+  n2 := public.notify(8, 'test', 'qa:1', v_g, null, v_kid, '{}', 'x', 'y');
   if n2 is not null or (select count(*) from public.notification where dedupe_key = 'qa:1') <> 1 then raise exception 'FAIL duplicate sent'; end if;
 
   -- log provider completes in the database
@@ -40,6 +47,34 @@ begin
   update public.notification_delivery set attempts = 3, status = 'sending' where id = r.id;
   perform public.delivery_result(r.id, false, null, 'timeout');
   if (select status from public.notification_delivery where id = r.id) <> 'failed' then raise exception 'FAIL not failed after 3 attempts'; end if;
+
+  -- defaults per event: homework sends nothing outside the app; announcement goes by email only
+  n2 := public.notify(8, 'homework', 'qa:hw', v_g, null, v_kid, '{}', 'Homework', 'x');
+  if (select count(*) from public.notification_delivery where notification_id = n2) <> 0 then raise exception 'FAIL homework went outside the app'; end if;
+  -- the office switches SMS on for homework
+  insert into public.notification_event_channel (school_id, event_key, channel, enabled) values (8, 'homework', 'sms', true);
+  n2 := public.notify(8, 'homework', 'qa:hw2', v_g, null, v_kid, '{}', 'Homework', 'x');
+  if (select count(*) from public.notification_delivery where notification_id = n2 and channel = 'sms') <> 1 then raise exception 'FAIL per-event choice ignored'; end if;
+  if (select to_address from public.notification_delivery where notification_id = n2 and channel = 'sms') <> '919800000001' then raise exception 'FAIL phone not normalised'; end if;
+  -- non-urgent SMS waits for quiet hours to end
+  if public.after_quiet_hours('2026-11-27 23:30+05:30') <> '2026-11-28 07:00+05:30' or public.after_quiet_hours('2026-11-27 05:00+05:30') <> '2026-11-27 07:00+05:30'
+     or public.after_quiet_hours('2026-11-27 12:00+05:30') <> '2026-11-27 12:00+05:30' then raise exception 'FAIL quiet hours'; end if;
+  -- a second parent with the same phone: their own inbox message, but no second SMS
+  update public.guardian set phone = '+91 98000 00001' where id = v_g2;
+  n2 := public.notify(8, 'test', 'qa:1', v_g2, null, null, '{}', 'x', 'y');
+  if n2 is null then raise exception 'FAIL second parent got no inbox message'; end if;
+  if (select count(*) from public.notification_delivery where notification_id = n2 and channel = 'sms') <> 0 then raise exception 'FAIL shared phone got two SMS'; end if;
+  -- invalid phone is skipped with a reason; a recipient from another institution is refused
+  update public.guardian set phone = '12345' where id = v_g2;
+  n2 := public.notify(8, 'test', 'qa:bad', v_g2, null, null, '{}', 'x', 'y');
+  if (select last_error from public.notification_delivery where notification_id = n2 and channel = 'sms') <> 'Phone number is not a valid mobile number' then raise exception 'FAIL invalid phone not skipped'; end if;
+  ok := false; begin perform public.notify(1, 'test', 'qa:x', v_g, null, null, '{}', 'x', 'y'); exception when others then ok := true; end;
+  if not ok then raise exception 'FAIL recipient from another institution accepted'; end if;
+  -- daily limit
+  update public.notification_setting set daily_limit = 0 where school_id = 8 and channel = 'email';
+  update public.guardian set phone = '9800000002', email = 'qa-parent2-ntf@example.com' where id = v_g2;
+  n2 := public.notify(8, 'test', 'qa:lim', v_g2, null, null, '{}', 'x', 'y');
+  if (select last_error from public.notification_delivery where notification_id = n2 and channel = 'email') is distinct from 'Daily limit reached' then raise exception 'FAIL daily limit'; end if;
 
   -- the parent sees their own inbox; cannot see secrets, other parents, or send
   perform set_config('request.jwt.claims', json_build_object('sub', pa, 'role', 'authenticated')::text, true);
