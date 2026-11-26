@@ -18,46 +18,28 @@ const term = (t: number) => Number.isInteger(t) && t >= 0 && t <= 6;
 const msg = (e: { message: string } | null, fallback: string) =>
   e ? (e.message.length < 200 && !e.message.includes("violates") ? e.message : fallback) : fallback;
 
-export async function saveEntry(input: {
-  studentId: number; term: number;
-  grades: { areaId: number; grade: string }[];
-  remark: string; resultText: string; present: string; working: string;
-}): Promise<Result> {
+export type EntryRow = { studentId: number; grades: { areaId: number; grade: string }[]; remark: string; resultText: string; present: string; working: string };
+
+// Grades, remarks, result line and attendance for many students, all or nothing.
+export async function saveEntries(input: { term: number; rows: EntryRow[] }): Promise<Result> {
   const c = await ctx();
   if (!c) return { ok: false, error: "You cannot change report cards." };
-  if (!term(input.term) || !Number.isInteger(input.studentId)) return { ok: false, error: "Choose a student and a term." };
-  const { supabase, year } = c;
-  const yid = year.id, sid = input.studentId;
-  for (const g of input.grades) {
-    if (!g.grade) {
-      await supabase.from("report_coscholastic_grade" as never).delete().eq("student_id", sid).eq("academic_year_id", yid).eq("area_id", g.areaId).eq("term", input.term);
-      continue;
-    }
-    const { error } = await supabase.from("report_coscholastic_grade" as never)
-      .upsert({ academic_year_id: yid, student_id: sid, area_id: g.areaId, term: input.term, grade: g.grade, entered_by: c.session.staffId, updated_at: new Date().toISOString() } as never,
-        { onConflict: "student_id,academic_year_id,area_id,term" });
-    if (error) return { ok: false, error: msg(error, "Could not save the grades.") };
+  if (!term(input.term) || !Array.isArray(input.rows) || input.rows.length > 300) return { ok: false, error: "Choose a term." };
+  for (const r of input.rows) {
+    const p = r.present.trim(), w = r.working.trim();
+    if ((p || w) && (!/^\d{1,3}$/.test(p) || !/^\d{1,3}$/.test(w) || Number(w) < 1 || Number(p) > Number(w)))
+      return { ok: false, error: "Attendance: give days present and working days, and present cannot be more than working days." };
   }
-  const remark = input.remark.trim().slice(0, 500), resultText = input.resultText.trim().slice(0, 120);
-  if (remark || resultText) {
-    const { error } = await supabase.from("report_remark" as never)
-      .upsert({ academic_year_id: yid, student_id: sid, term: input.term, remark: remark || "", result_text: resultText || null, entered_by: c.session.staffId, updated_at: new Date().toISOString() } as never,
-        { onConflict: "student_id,academic_year_id,term" });
-    if (error) return { ok: false, error: msg(error, "Could not save the remark.") };
-  } else {
-    await supabase.from("report_remark" as never).delete().eq("student_id", sid).eq("academic_year_id", yid).eq("term", input.term);
-  }
-  const p = input.present.trim(), w = input.working.trim();
-  if (p || w) {
-    if (!/^\d{1,3}$/.test(p) || !/^\d{1,3}$/.test(w) || Number(w) < 1 || Number(p) > Number(w)) return { ok: false, error: "Attendance: days present cannot be more than working days." };
-    const { error } = await supabase.from("report_attendance" as never)
-      .upsert({ academic_year_id: yid, student_id: sid, term: input.term, present: Number(p), working: Number(w) } as never, { onConflict: "student_id,academic_year_id,term" });
-    if (error) return { ok: false, error: msg(error, "Could not save attendance.") };
-  } else {
-    await supabase.from("report_attendance" as never).delete().eq("student_id", sid).eq("academic_year_id", yid).eq("term", input.term);
-  }
+  const rows = input.rows.map((r) => ({
+    student_id: r.studentId,
+    grades: r.grades.map((g) => ({ area_id: g.areaId, grade: g.grade })),
+    remark: r.remark.trim().slice(0, 500), result_text: r.resultText.trim().slice(0, 120),
+    present: r.present.trim(), working: r.working.trim(),
+  }));
+  const { error } = await c.supabase.rpc("save_report_entries" as never, { p_year: c.year.id, p_term: input.term, p_rows: rows } as never);
+  if (error) return { ok: false, error: msg(error, "Could not save. Nothing was changed.") };
   revalidatePath(PATH);
-  return { ok: true, message: "Saved." };
+  return { ok: true, message: `Saved for ${rows.length} ${rows.length === 1 ? "student" : "students"}.` };
 }
 
 export async function lockTerm(sectionId: number, t: number): Promise<Result> {
@@ -66,7 +48,7 @@ export async function lockTerm(sectionId: number, t: number): Promise<Result> {
   const { error } = await c.supabase.from("report_lock" as never).insert({ academic_year_id: c.year.id, section_id: sectionId, term: t, locked_by: c.session.staffId } as never);
   if (error && !error.message.includes("duplicate")) return { ok: false, error: msg(error, "Only the office or the class teacher can lock marks.") };
   revalidatePath(PATH);
-  return { ok: true, message: "Marks locked for this term. Nobody can change them until the office unlocks." };
+  return { ok: true, message: "Marks locked for this term. Marks and exams can no longer change until the office unlocks; grades and remarks can still be corrected." };
 }
 
 export async function unlockTerm(sectionId: number, t: number): Promise<Result> {

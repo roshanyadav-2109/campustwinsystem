@@ -80,21 +80,30 @@ export default async function ReportCardsPage({ searchParams }: { searchParams: 
   const locked = new Set(((lockRes.data ?? []) as unknown as { term: number }[]).map((l) => l.term));
   const termLocked = t === 0 ? terms.every((x) => locked.has(x.term)) : locked.has(t);
 
-  const [reportRes, cardsRes, gradesRes, remarksRes, attRes] = await Promise.all([
-    supabase.rpc("compute_report" as never, { p_section: section.id, p_year: year.id, p_term: t } as never),
+  const reportRes = await supabase.rpc("compute_report" as never, { p_section: section.id, p_year: year.id, p_term: t } as never);
+  const ids = ((reportRes.data ?? []) as unknown as { student_id: number }[]).map((r) => r.student_id);
+  const inIds = ids.length ? ids : [0];
+  const [cardsRes, gradesRes, remarksRes, attRes] = await Promise.all([
     supabase.from("report_card" as never).select("id, student_id, published_at").eq("section_id", section.id).eq("academic_year_id", year.id).eq("term", t).eq("status", "published"),
-    supabase.from("report_coscholastic_grade" as never).select("student_id, area_id, grade").eq("academic_year_id", year.id).eq("term", t === 0 ? -1 : t),
-    supabase.from("report_remark" as never).select("student_id, remark, result_text").eq("academic_year_id", year.id).eq("term", t),
-    supabase.from("report_attendance" as never).select("student_id, present, working").eq("academic_year_id", year.id).eq("term", t),
+    supabase.from("report_coscholastic_grade" as never).select("student_id, area_id, grade, updated_at").eq("academic_year_id", year.id).eq("term", t === 0 ? -1 : t).in("student_id", inIds).limit(5000),
+    supabase.from("report_remark" as never).select("student_id, remark, result_text, updated_at").eq("academic_year_id", year.id).eq("term", t).in("student_id", inIds),
+    supabase.from("report_attendance" as never).select("student_id, present, working").eq("academic_year_id", year.id).eq("term", t).in("student_id", inIds),
   ]);
   if (reportRes.error) return (<div className="space-y-4"><PageHeader title="Report cards" />{picker}<EmptyState art="error" title="Could not prepare report cards" hint={reportRes.error.message} /></div>);
   const published = new Map(((cardsRes.data ?? []) as unknown as { id: number; student_id: number; published_at: string }[]).map((c) => [c.student_id, c]));
-  const grades = (gradesRes.data ?? []) as unknown as { student_id: number; area_id: number; grade: string }[];
-  const remarks = new Map(((remarksRes.data ?? []) as unknown as { student_id: number; remark: string; result_text: string | null }[]).map((r) => [r.student_id, r]));
+  const grades = (gradesRes.data ?? []) as unknown as { student_id: number; area_id: number; grade: string; updated_at: string }[];
+  const remarks = new Map(((remarksRes.data ?? []) as unknown as { student_id: number; remark: string; result_text: string | null; updated_at: string }[]).map((r) => [r.student_id, r]));
+  // something entered after the card was published (publish again to include it)
+  const changedAfter = (sid: number) => {
+    const card = published.get(sid);
+    if (!card) return false;
+    const last = [remarks.get(sid)?.updated_at, ...grades.filter((g) => g.student_id === sid).map((g) => g.updated_at)].filter(Boolean) as string[];
+    return last.some((x) => x > card.published_at);
+  };
   const att = new Map(((attRes.data ?? []) as unknown as { student_id: number; present: number; working: number }[]).map((a) => [a.student_id, a]));
   const rows: DeskRow[] = ((reportRes.data ?? []) as unknown as { student_id: number; report: Record<string, unknown> }[]).map((r) => ({
     studentId: r.student_id, report: r.report,
-    published: published.get(r.student_id) ? { id: published.get(r.student_id)!.id, at: published.get(r.student_id)!.published_at } : null,
+    published: published.get(r.student_id) ? { id: published.get(r.student_id)!.id, at: published.get(r.student_id)!.published_at, changed: changedAfter(r.student_id) } : null,
     grades: Object.fromEntries(grades.filter((g) => g.student_id === r.student_id).map((g) => [g.area_id, g.grade])),
     remark: remarks.get(r.student_id)?.remark ?? "", resultText: remarks.get(r.student_id)?.result_text ?? "",
     present: att.get(r.student_id)?.present?.toString() ?? "", working: att.get(r.student_id)?.working?.toString() ?? "",
@@ -115,7 +124,7 @@ export default async function ReportCardsPage({ searchParams }: { searchParams: 
       <Card>
         <CardHeader title={termTabs.find((x) => x.term === t)?.name ?? ""} />
         <CardBody className="p-0">
-          <ReportCardsDesk sectionId={section.id} term={t} termLocked={termLocked} canUnlock={session.staffRole === "office"}
+          <ReportCardsDesk key={`${section.id}-${t}`} sectionId={section.id} term={t} termLocked={termLocked} canUnlock={session.staffRole === "office"}
             rows={rows} areas={t === 0 ? [] : areas} isFinal={t === 0} verifyBase={`https://verify.${process.env.NEXT_PUBLIC_BASE_DOMAIN || "campustwin.org"}/verify/`} />
         </CardBody>
       </Card>

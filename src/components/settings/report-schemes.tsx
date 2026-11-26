@@ -143,7 +143,7 @@ function Editor({ initial, examTypes, subjects, onDone }: { initial: SchemeInput
               <tbody>{s.areas.map((a, i) => (
                 <tr key={i}>
                   <td className={TD}><Input className={small} aria-label={`Area ${i + 1} name`} value={a.name} onChange={(e) => upd("areas", i, { name: e.target.value })} /></td>
-                  <td className={TD}><Input className={small} aria-label={`Area ${i + 1} grades`} value={a.grades.join(", ")} placeholder="A, B, C" onChange={(e) => upd("areas", i, { grades: e.target.value.split(",") })} /></td>
+                  <td className={TD}><Input className={small} aria-label={`Area ${i + 1} grades`} value={a.grades.join(",")} placeholder="A,B,C" onChange={(e) => upd("areas", i, { grades: e.target.value.split(",") })} /></td>
                   <td className={TD}><Button size="sm" variant="ghost" onClick={() => del("areas", i)}>Remove</Button></td>
                 </tr>))}
               </tbody></table>
@@ -180,6 +180,9 @@ function Editor({ initial, examTypes, subjects, onDone }: { initial: SchemeInput
 
 export function ReportSchemesAdmin({ schemes, examTypes, subjects, classes }: { schemes: SchemeView[]; examTypes: Option[]; subjects: Option[]; classes: ClassOpt[] }) {
   const [editing, setEditing] = useState<SchemeInput | null>(null);
+  const [editKey, setEditKey] = useState(0);
+  const [confirmDel, setConfirmDel] = useState<number | null>(null);
+  const edit = (x: SchemeInput) => { setEditing(x); setEditKey((k) => k + 1); };
   const [msg, setMsg] = useState<{ ok: boolean; text: string } | null>(null);
   const [pending, start] = useTransition();
   const router = useRouter();
@@ -191,7 +194,7 @@ export function ReportSchemesAdmin({ schemes, examTypes, subjects, classes }: { 
   return (
     <div className="space-y-5">
       <Card>
-        <CardHeader title="Schemes" action={<Button size="sm" onClick={() => setEditing(blank())}>New scheme</Button>} />
+        <CardHeader title="Schemes" action={<Button size="sm" onClick={() => edit(blank())}>New scheme</Button>} />
         <CardBody className="p-0">
           {schemes.length === 0 ? (
             <p className="px-4 py-3 text-[13px] text-ink-500">No schemes yet. Create one for each board or pattern your school follows.</p>
@@ -202,15 +205,17 @@ export function ReportSchemesAdmin({ schemes, examTypes, subjects, classes }: { 
                   <p className="text-[14px] font-medium text-ink-900">{s.name}{s.board && <span className="ml-2 text-[12px] font-normal text-ink-500">{s.board}</span>}</p>
                   <p className="text-[12px] text-ink-500">{s.terms.map((t) => t.name).join(", ")} · {s.components.length} parts · {s.bands.length} grades · {s.areas.length} co-scholastic areas</p>
                 </div>
-                <Button size="sm" variant="subtle" onClick={() => setEditing(s)}>Edit</Button>
-                <Button size="sm" variant="ghost" onClick={() => setEditing({ ...s, id: null, name: `${s.name} (copy)`, components: s.components.map((c) => ({ ...c, id: null })), areas: s.areas.map((a) => ({ ...a, id: null })) })}>Copy</Button>
-                <Button size="sm" variant="ghost" disabled={pending} onClick={() => start(async () => { const r = await deleteScheme(s.id); setMsg(r.ok ? { ok: true, text: "Deleted." } : { ok: false, text: r.error }); router.refresh(); })}>Delete</Button>
+                <Button size="sm" variant="subtle" onClick={() => edit(s)}>Edit</Button>
+                <Button size="sm" variant="ghost" onClick={() => edit({ ...s, id: null, name: `${s.name} (copy)`, components: s.components.map((c) => ({ ...c, id: null })), areas: s.areas.map((a) => ({ ...a, id: null })) })}>Copy</Button>
+                {confirmDel === s.id
+                  ? <Button size="sm" variant="danger" disabled={pending} onClick={() => start(async () => { const r = await deleteScheme(s.id); setConfirmDel(null); setMsg(r.ok ? { ok: true, text: "Deleted." } : { ok: false, text: r.error }); router.refresh(); })}>Delete, with its grades</Button>
+                  : <Button size="sm" variant="ghost" disabled={pending} onClick={() => setConfirmDel(s.id)}>Delete</Button>}
               </li>))}
             </ul>
           )}
         </CardBody>
       </Card>
-      {editing && <Editor key={editing.id ?? "new"} initial={editing} examTypes={examTypes} subjects={subjects} onDone={() => setEditing(null)} />}
+      {editing && <Editor key={editKey} initial={editing} examTypes={examTypes} subjects={subjects} onDone={() => setEditing(null)} />}
       <Card>
         <CardHeader title="Which class uses which scheme" action={<Msg m={msg} />} />
         <CardBody className="p-0">

@@ -83,7 +83,7 @@ export async function deleteScheme(id: number): Promise<Result> {
   if (!(await office())) return { ok: false, error: "Only the office can change report card schemes." };
   const supabase = await createClient();
   const { count } = await supabase.from("report_card" as never).select("id", { count: "exact", head: true }).eq("scheme_id", id);
-  if (count) return { ok: false, error: "Report cards were published with this scheme. Switch it off instead of deleting it." };
+  if (count) return { ok: false, error: "Report cards were published with this scheme, so it is kept. Choose another scheme for its classes instead." };
   const { error } = await supabase.from("report_scheme" as never).delete().eq("id", id);
   if (error) return { ok: false, error: error.message.includes("violates") ? "A class still uses this scheme. Choose another scheme for it first." : "Could not delete." };
   revalidatePath("/dashboard/settings/report-cards");
@@ -96,15 +96,9 @@ export async function setAssignment(input: { classId: number; sectionId: number 
   const year = await getCurrentYear();
   if (!year) return { ok: false, error: "No current year is set." };
   const supabase = await createClient();
-  let q = supabase.from("report_scheme_assignment" as never).delete().eq("academic_year_id", year.id).eq("class_id", input.classId);
-  q = input.sectionId ? q.eq("section_id", input.sectionId) : q.is("section_id", null);
-  const { error: delErr } = await q;
-  if (delErr) return { ok: false, error: "Could not save." };
-  if (input.schemeId) {
-    const { error } = await supabase.from("report_scheme_assignment" as never)
-      .insert({ academic_year_id: year.id, class_id: input.classId, section_id: input.sectionId, scheme_id: input.schemeId } as never);
-    if (error) return { ok: false, error: "Could not save." };
-  }
+  const { error } = await supabase.rpc("set_report_assignment" as never,
+    { p_year: year.id, p_class: input.classId, p_section: input.sectionId, p_scheme: input.schemeId } as never);
+  if (error) return { ok: false, error: error.message.includes("another institution") ? "That section is not in this class." : "Could not save." };
   revalidatePath("/dashboard/settings/report-cards");
   return { ok: true, message: "Saved." };
 }
