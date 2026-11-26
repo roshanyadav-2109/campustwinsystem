@@ -24,9 +24,8 @@ export default async function CoursesPage() {
       supabase.from("course_registration" as never).select("programme_course_id, status").eq("semester_id", s.id).eq("student_id", session.studentId).neq("status", "dropped"),
     ]);
     const reg = new Map(((regs.data ?? []) as unknown as { programme_course_id: number; status: string }[]).map((r) => [r.programme_course_id, r.status]));
-    const { data: used } = await supabase.from("course_registration" as never).select("programme_course_id").eq("semester_id", s.id).neq("status", "dropped").in("programme_course_id", ((pcs.data ?? []) as unknown as { id: number }[]).map((x) => x.id)).limit(10000);
-    const count = new Map<number, number>();
-    for (const u of (used ?? []) as unknown as { programme_course_id: number }[]) count.set(u.programme_course_id, (count.get(u.programme_course_id) ?? 0) + 1);
+    const { data: used } = await supabase.rpc("course_seat_usage" as never, { p_semester: s.id } as never);
+    const count = new Map(((used ?? []) as unknown as { programme_course_id: number; used: number }[]).map((u) => [u.programme_course_id, u.used]));
     const courses: MyCourse[] = ((pcs.data ?? []) as unknown as { id: number; elective_group: string | null; seat_limit: number | null; course: { code: string; name: string; kind: string; credits: number } }[])
       .map((x) => ({ id: x.id, group: x.elective_group, seats: x.seat_limit, used: count.get(x.id) ?? 0, status: reg.get(x.id) ?? null, ...x.course }));
     return (
