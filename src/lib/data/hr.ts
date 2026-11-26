@@ -106,9 +106,13 @@ export function spanDays(from: string, to: string): number {
 }
 
 /** Days from `from` to `to` (both included) that are not Sundays. */
-export function workingDaysBetween(from: string, to: string): number {
+/** Days between two dates that are neither Sundays nor school holidays. */
+export function workingDaysBetween(from: string, to: string, holidays?: Set<string>): number {
   let count = 0;
-  for (let t = utc(from), end = utc(to); t <= end; t += DAY_MS) if (new Date(t).getUTCDay() !== 0) count++;
+  for (let t = utc(from), end = utc(to); t <= end; t += DAY_MS) {
+    const d = new Date(t);
+    if (d.getUTCDay() !== 0 && !holidays?.has(d.toISOString().slice(0, 10))) count++;
+  }
   return count;
 }
 

@@ -1,5 +1,20 @@
 import { createClient } from "@/lib/supabase/server";
 
+// The calendar holiday (if any) that covers this date for this section: a
+// school-wide holiday, one for its class, or one for the section itself.
+export async function getHolidayFor(sectionId: number, date: string): Promise<string | null> {
+  const supabase = await createClient();
+  const { data: sec } = await supabase.from("section").select("class_id").eq("id", sectionId).maybeSingle();
+  const { data } = await supabase
+    .from("event")
+    .select("title, start_date, end_date, class_id, section_id")
+    .eq("event_type", "holiday")
+    .lte("start_date", date);
+  const hit = (data ?? []).find((e) => (e.end_date ?? e.start_date) >= date &&
+    ((!e.class_id && !e.section_id) || e.section_id === sectionId || (sec && e.class_id === sec.class_id)));
+  return hit?.title ?? null;
+}
+
 // Students in a section whose approved leave covers this date.
 export async function getApprovedLeaveIds(sectionId: number, date: string) {
   const supabase = await createClient();

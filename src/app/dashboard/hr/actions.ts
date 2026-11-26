@@ -46,12 +46,21 @@ export async function applyStaffLeave(input: { typeId: number; fromDate: string;
   const reason = text(input?.reason, 500);
   if (reason.length < 3) return fail("Give a short reason for the leave.");
 
-  // Sundays are not counted as leave.
-  const working = workingDaysBetween(from, to);
-  if (working === 0) return fail("Those dates fall on a Sunday, so no leave is needed.");
+  // Sundays and whole-school holidays on the calendar are not counted as leave.
+  const db = await untyped();
+  const { data: hols } = await db.from("event").select("start_date, end_date")
+    .eq("event_type", "holiday").is("class_id", null).is("section_id", null)
+    .lte("start_date", to).gte("end_date", from);
+  const holidays = new Set<string>();
+  for (const h of (hols ?? []) as { start_date: string; end_date: string | null }[]) {
+    for (let t = Date.parse(`${h.start_date}T00:00:00Z`), e = Date.parse(`${h.end_date ?? h.start_date}T00:00:00Z`); t <= e; t += 86_400_000) {
+      holidays.add(new Date(t).toISOString().slice(0, 10));
+    }
+  }
+  const working = workingDaysBetween(from, to, holidays);
+  if (working === 0) return fail("Those dates are Sundays or school holidays, so no leave is needed.");
   const days = halfDay ? 0.5 : working;
 
-  const db = await untyped();
   const { data: typeRow } = await db.from("staff_leave_type").select("id, code, name, days_per_year, is_paid").eq("id", typeId).maybeSingle();
   const type = typeRow as LeaveType | null;
   if (!type) return fail("That leave type was not found.");

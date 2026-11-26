@@ -292,6 +292,7 @@ const en = {
     markAllPresent: "Mark all present",
     markAllAbsent: "Mark all absent",
     onApprovedLeave: "On approved leave",
+    calendarHoliday: "{name} is a holiday on the school calendar.",
     markHoliday: "Mark as holiday",
     saveAttendance: "Save attendance",
     date: "Date",

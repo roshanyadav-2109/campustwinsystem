@@ -13,7 +13,7 @@ import { AttendanceAdminControls } from "@/components/attendance/attendance-admi
 import { DetailedSectionAttendance } from "@/components/attendance/detailed-section-attendance";
 import { getStaffScope, getSectionStudents } from "@/lib/data/scope";
 import { getMyChildren } from "@/lib/data/analytics";
-import { getDateAttendance, getApprovedLeaveIds, getSectionAttendanceSummary, getStudentAttendance, getLatestAttendanceDate, getLatestAttendanceDateAll, getAttendanceOverview, getSectionAttendanceRange } from "@/lib/data/attendance";
+import { getDateAttendance, getApprovedLeaveIds, getHolidayFor, getSectionAttendanceSummary, getStudentAttendance, getLatestAttendanceDate, getLatestAttendanceDateAll, getAttendanceOverview, getSectionAttendanceRange } from "@/lib/data/attendance";
 import type { AttStatus } from "@/app/dashboard/attendance/actions";
 
 import { numParam, strParam } from "@/lib/utils";
@@ -157,11 +157,12 @@ export default async function AttendancePage({ searchParams }: { searchParams: S
   const canMark = ctIds.has(section.id);
   const date = str(sp.date) ?? (await getLatestAttendanceDate(section.id)) ?? new Date().toISOString().slice(0, 10);
 
-  const [roster, initialMap, summaryMap, onLeave] = await Promise.all([
+  const [roster, initialMap, summaryMap, onLeave, holidayName] = await Promise.all([
     getSectionStudents(section.id, yearId),
     getDateAttendance(section.id, date),
     getSectionAttendanceSummary(section.id, yearId),
     getApprovedLeaveIds(section.id, date),
+    getHolidayFor(section.id, date),
   ]);
   const initial: Record<number, AttStatus> = {};
   for (const [k, v] of initialMap) if (v !== "holiday") initial[k] = v as AttStatus;
@@ -173,7 +174,7 @@ export default async function AttendancePage({ searchParams }: { searchParams: S
       <PageHeader title={t("attendance.title")}
         description={canMark ? undefined : t("x.attViewOnly")} />
       <ScopeBar years={scope.years} sections={sections} yearId={yearId} sectionId={section.id} date={date} />
-      <AttendanceBoard key={`${section.id}-${date}`} sectionId={section.id} yearId={yearId} date={date} roster={roster} initial={initial} summary={summary} onLeave={onLeave} readOnly={!canMark} />
+      <AttendanceBoard key={`${section.id}-${date}`} sectionId={section.id} yearId={yearId} date={date} roster={roster} initial={initial} summary={summary} onLeave={onLeave} holidayName={holidayName} readOnly={!canMark} />
     </div>
   );
 }

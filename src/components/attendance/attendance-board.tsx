@@ -19,7 +19,7 @@ const STATUSES: { key: AttStatus; short: string; cls: string }[] = [
 const statusStyle: Record<AttStatus, Status> = { present: "up", absent: "down", late: "watch", leave: "flat", holiday: "flat" };
 
 export function AttendanceBoard({
-  sectionId, yearId, date, roster, initial, summary, onLeave = [], readOnly = false,
+  sectionId, yearId, date, roster, initial, summary, onLeave = [], holidayName = null, readOnly = false,
 }: {
   sectionId: number;
   yearId: number;
@@ -28,6 +28,7 @@ export function AttendanceBoard({
   initial: Record<number, AttStatus>;
   summary: Record<number, { pct: number; present: number; total: number }>;
   onLeave?: number[];          // students whose approved leave covers this date
+  holidayName?: string | null; // a calendar holiday on this date, if any
   readOnly?: boolean;
 }) {
   const { t, locale } = useI18n();
@@ -41,7 +42,9 @@ export function AttendanceBoard({
   const [saved, setSaved] = useState(false);
   // Whole-day holiday toggle: when on, per-student P/A can't be set and the
   // whole section is saved as "holiday" (excluded from attendance %).
-  const [holiday, setHoliday] = useState(() => roster.length > 0 && roster.every((r) => initial[r.id] === "holiday"));
+  // Already saved as a holiday, or not marked yet and the calendar says holiday.
+  const [holiday, setHoliday] = useState(() => roster.length > 0 &&
+    (roster.every((r) => initial[r.id] === "holiday") || (!!holidayName && roster.every((r) => !initial[r.id]))));
 
   // "Mark all" never overrides a student who is on approved leave.
   const setAll = (status: AttStatus) => setMarks(Object.fromEntries(roster.map((r) => [r.id, leave.has(r.id) ? "leave" : status])));
@@ -76,6 +79,11 @@ export function AttendanceBoard({
             </div>
           )} />
         <CardBody className="pt-2">
+          {holidayName && (
+            <p className="mb-2 rounded-sm border border-hair bg-panel px-3 py-2 text-[13px] text-ink-700">
+              {t("attendance.calendarHoliday", { name: holidayName })}
+            </p>
+          )}
           <ul className="divide-y divide-hair">
             {roster.map((r) => (
               <li key={r.id} className="flex items-center gap-3 py-2">

@@ -293,6 +293,7 @@ const pa: PartialMessages = {
     markAllPresent: "ਸਭ ਨੂੰ ਹਾਜ਼ਰ ਲਾਓ",
     markAllAbsent: "ਸਭ ਨੂੰ ਗੈਰਹਾਜ਼ਰ ਲਾਓ",
     onApprovedLeave: "ਮਨਜ਼ੂਰ ਛੁੱਟੀ ਤੇ",
+    calendarHoliday: "ਸਕੂਲ ਕੈਲੰਡਰ ਵਿੱਚ {name} ਦੀ ਛੁੱਟੀ ਹੈ।",
     markHoliday: "ਛੁੱਟੀ ਦਾ ਦਿਨ ਲਾਓ",
     saveAttendance: "ਹਾਜ਼ਰੀ ਸੇਵ ਕਰੋ",
     date: "ਤਾਰੀਖ",

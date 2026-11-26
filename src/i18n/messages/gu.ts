@@ -293,6 +293,7 @@ const gu: PartialMessages = {
     markAllPresent: "બધાને હાજર કરો",
     markAllAbsent: "બધાને ગેરહાજર કરો",
     onApprovedLeave: "મંજૂર રજા પર",
+    calendarHoliday: "શાળાના કેલેન્ડરમાં {name} ની રજા છે.",
     markHoliday: "રજાનો દિવસ જાહેર કરો",
     saveAttendance: "હાજરી સેવ કરો",
     date: "તારીખ",

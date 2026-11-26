@@ -151,6 +151,7 @@ const bn: PartialMessages = {
     markAllPresent: "সবাইকে উপস্থিত করুন",
     markAllAbsent: "সবাইকে অনুপস্থিত করুন",
     onApprovedLeave: "অনুমোদিত ছুটিতে",
+    calendarHoliday: "স্কুলের ক্যালেন্ডারে {name} ছুটি।",
     markHoliday: "ছুটি হিসেবে চিহ্নিত করুন",
     saveAttendance: "উপস্থিতি সংরক্ষণ করুন",
     date: "তারিখ",
