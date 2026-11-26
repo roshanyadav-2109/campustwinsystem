@@ -4,7 +4,7 @@ import { useRouter } from "next/navigation";
 import { Card, CardBody, CardHeader } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Field, Input, Select } from "@/components/ui/field";
-import { addVisitor, visitorOut, requestGatePass, decideGatePass, addHealthVisit, findStudents } from "@/app/dashboard/front-desk/actions";
+import { addVisitor, visitorOut, requestGatePass, decideGatePass, addHealthVisit, findStudents, studentHealth } from "@/app/dashboard/front-desk/actions";
 
 export type VisitorRow = { id: number; name: string; phone: string | null; purpose: string | null; meeting: string | null; badge_no: string | null; in_at: string; out_at: string | null };
 export type PassRow = { id: number; student_id: number; reason: string; pickup_name: string; pickup_relation: string | null; pickup_phone: string | null; leave_at: string; status: string;
@@ -148,7 +148,10 @@ export function GatePassDesk({ passes }: { passes: PassRow[] }) {
 
 export function HealthDesk({ visits }: { visits: HealthRow[] }) {
   const uid = useId();
-  const [student, setStudent] = useState<{ id: number; name: string } | null>(null);
+  const [student, setStudentRaw] = useState<{ id: number; name: string } | null>(null);
+  const [health, setHealth] = useState<{ blood_group: string | null; allergies: string | null; medical_notes: string | null; emergency: string | null } | null>(null);
+  const [, startH] = useTransition();
+  const setStudent = (s: { id: number; name: string } | null) => { setStudentRaw(s); setHealth(null); if (s) startH(async () => setHealth(await studentHealth(s.id))); };
   const [f, setF] = useState({ complaint: "", action: "", sentHome: false, tellParent: true });
   const { msg, pending, run } = useAct();
   return (
@@ -162,6 +165,13 @@ export function HealthDesk({ visits }: { visits: HealthRow[] }) {
           <label className="flex items-center gap-1.5 pb-2 text-[13px]"><input type="checkbox" checked={f.sentHome} onChange={(e) => setF({ ...f, sentHome: e.target.checked })} className="h-4 w-4 accent-[#0F6CBD]" />Send home</label>
           <label className="flex items-center gap-1.5 pb-2 text-[13px]"><input type="checkbox" checked={f.tellParent} onChange={(e) => setF({ ...f, tellParent: e.target.checked })} className="h-4 w-4 accent-[#0F6CBD]" />Tell the parents</label>
           <Button disabled={pending || !student} onClick={() => run(() => addHealthVisit({ studentId: student!.id, ...f }), () => setF({ complaint: "", action: "", sentHome: false, tellParent: true }))}>Save</Button>
+          {student && (
+            <p className="col-span-full rounded-sm border border-hair bg-[#fafafa] px-3 py-2 text-[13px]">
+              {health ? <>Blood group: <b>{health.blood_group ?? "not recorded"}</b> · Allergies: <b className={health.allergies ? "text-down" : ""}>{health.allergies ?? "none recorded"}</b>
+                {health.medical_notes ? <> · Notes: {health.medical_notes}</> : null} · Emergency contact: {health.emergency ?? "not recorded"}</> : "No health details are recorded for this student."}
+              {f.sentHome && <span className="block text-[12px] text-ink-500">Sending home also raises an approved gate pass, so the gate lets the child leave with a parent.</span>}
+            </p>
+          )}
         </CardBody>
       </Card>
       <Card>

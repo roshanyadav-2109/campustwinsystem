@@ -17,6 +17,9 @@ begin
   if not ok then raise exception 'FAIL parent asked for another child'; end if;
   ok := false; begin update public.gate_pass set status = 'approved' where id = gp; exception when others then ok := true; end;
   if not ok and (select status from public.gate_pass where id = gp) = 'approved' then raise exception 'FAIL parent approved their own pass'; end if;
+  -- a parent cannot move the pass to another child or rewrite it
+  ok := false; begin update public.gate_pass set student_id = v_other, status = 'cancelled' where id = gp; exception when others then ok := true; end;
+  if not ok then raise exception 'FAIL parent moved the pass to another child'; end if;
   ok := false; begin insert into public.visitor (name) values ('x'); exception when others then ok := true; end;
   if not ok then raise exception 'FAIL parent wrote the visitor log'; end if;
   reset role;
@@ -26,6 +29,8 @@ begin
   set local role authenticated;
   update public.gate_pass set status = 'approved', decided_by = v_staff where id = gp;
   update public.gate_pass set status = 'left', left_at = now() where id = gp;
+  ok := false; begin update public.gate_pass set status = 'approved' where id = gp; exception when others then ok := sqlerrm like '%cannot go from%'; end;
+  if not ok then raise exception 'FAIL left went back to approved'; end if;
   insert into public.visitor (name, phone, purpose, meeting) values ('QA Visitor', '9800000000', 'Meeting', 'Principal');
   update public.visitor set out_at = now() where name = 'QA Visitor';
   insert into public.health_visit (student_id, complaint, action_taken, sent_home) values (v_kid, 'Headache', 'Rested, given water', true) returning id into hv;
@@ -33,6 +38,7 @@ begin
   select count(*) into n from public.notification where student_id = v_kid and event_key = 'gate_pass';
   if n < 2 * (select count(*) from public.guardian_student where student_id = v_kid) then raise exception 'FAIL parents not told about the gate pass (% messages)', n; end if;
   if not exists (select 1 from public.notification where student_id = v_kid and event_key = 'health_visit' and body like '%collect%') then raise exception 'FAIL parent not told about the health visit'; end if;
+  if not exists (select 1 from public.notification where student_id = v_kid and event_key = 'gate_pass' and staff_id = v_staff) then raise exception 'FAIL office not told of the request'; end if;
 
   -- the parent sees their child's health visit; not another child's
   insert into public.health_visit (school_id, student_id, complaint) values (8, v_other, 'QA other');

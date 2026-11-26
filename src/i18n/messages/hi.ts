@@ -34,6 +34,8 @@ const hi: PartialMessages = {
     noAccess: "आपको इस पृष्ठ तक पहुँच नहीं है।",
   },
   nav: {
+    hostel: "छात्रावास",
+    inventory: "भंडार",
     frontDesk: "फ्रंट डेस्क",
     pickupHealth: "पिक-अप और स्वास्थ्य",
     substitutions: "प्रतिस्थापन",

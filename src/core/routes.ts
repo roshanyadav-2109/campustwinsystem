@@ -9,7 +9,7 @@ export type NavRole = "student" | "guardian" | "subject_teacher" | "class_teache
 
 // Paid modules an institution can switch on or off. Pages with no module are
 // always available.
-export type GateModule = "twin" | "fees" | "library" | "homework" | "admissions" | "hr" | "transport";
+export type GateModule = "twin" | "fees" | "library" | "homework" | "admissions" | "hr" | "transport" | "hostel";
 
 /** The seven fixed places of the menu, the same for every edition. */
 export type NavGroup = "home" | "academics" | "students" | "fees" | "campus" | "staff" | "settings";

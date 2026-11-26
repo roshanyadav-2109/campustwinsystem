@@ -37,7 +37,7 @@ export default async function FrontDeskPage({ searchParams }: { searchParams: SP
   const tab = (v: string, label: string) => <Link href={`?view=${v}`} className={`rounded-sm border px-2.5 py-1 text-[13px] ${view === v ? "border-ink-900 bg-ink-900 text-white" : "border-hair bg-white text-ink-700 hover:bg-panel"}`}>{label}</Link>;
   let body;
   if (view === "passes") {
-    const { data } = await supabase.from("gate_pass" as never).select(passSel).gte("leave_at", new Date(Date.now() - 7 * 86400000).toISOString()).order("leave_at").limit(500);
+    const { data } = await supabase.from("gate_pass" as never).select(passSel).gte("leave_at", new Date(Date.now() - 7 * 86400000).toISOString()).order("leave_at", { ascending: false }).limit(500);
     body = <GatePassDesk passes={(data ?? []) as unknown as PassRow[]} />;
   } else if (view === "health") {
     const { data } = await supabase.from("health_visit" as never).select(healthSel).gte("visited_at", new Date(Date.now() - 30 * 86400000).toISOString()).order("visited_at", { ascending: false }).limit(500);

@@ -25,14 +25,15 @@ export async function addVisitor(input: { name: string; phone: string; purpose: 
 export async function visitorOut(id: number): Promise<R> {
   if (!(await staffOnly())) return { ok: false, error: "Not allowed." };
   const supabase = await createClient();
-  const { error } = await supabase.from("visitor" as never).update({ out_at: new Date().toISOString() } as never).eq("id", id).is("out_at", null);
-  if (error) return { ok: false, error: "Could not save." };
+  const { data, error } = await supabase.from("visitor" as never).update({ out_at: new Date().toISOString() } as never).eq("id", id).is("out_at", null).select("id");
+  if (error || !(data as unknown[] | null)?.length) return { ok: false, error: "Already signed out." };
   revalidatePath(PATH);
   return { ok: true, message: "Signed out." };
 }
 
 export async function requestGatePass(input: { studentId: number; reason: string; pickupName: string; relation: string; phone: string; leaveAt: string }): Promise<R> {
-  if (!(await getSession())) return { ok: false, error: "Please sign in again." };
+  const s = await getSession();
+  if (!s || s.role === "student") return { ok: false, error: "A parent or the school office asks for an early pick-up." };
   if (!input.reason.trim() || !input.pickupName.trim()) return { ok: false, error: "Give the reason and who will pick the child up." };
   if (!/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}$/.test(input.leaveAt)) return { ok: false, error: "Choose the date and time." };
   const supabase = await createClient();
@@ -46,11 +47,16 @@ export async function requestGatePass(input: { studentId: number; reason: string
 export async function decideGatePass(id: number, status: "approved" | "rejected" | "left" | "cancelled", note: string): Promise<R> {
   const s = await getSession();
   if (!s) return { ok: false, error: "Please sign in again." };
+  const staff = s.staffRole === "office" || s.staffRole === "principal";
+  if (status !== "cancelled" && !staff) return { ok: false, error: "Only the office decides gate passes." };
+  const expected = status === "left" ? "approved" : status === "cancelled" ? (staff ? null : "requested") : "requested";
   const supabase = await createClient();
   const patch: Record<string, unknown> = { status };
   if (status === "approved" || status === "rejected") { patch.decided_by = s.staffId; patch.decision_note = t(note, 200) || null; }
   if (status === "left") patch.left_at = new Date().toISOString();
-  const { data, error } = await supabase.from("gate_pass" as never).update(patch as never).eq("id", id).select("id");
+  let q = supabase.from("gate_pass" as never).update(patch as never).eq("id", id);
+  if (expected) q = q.eq("status", expected);
+  const { data, error } = await q.select("id");
   if (error || !(data as unknown[] | null)?.length) return { ok: false, error: "Not allowed." };
   revalidatePath(PATH);
   return { ok: true, message: status === "approved" ? "Approved. The parents are told." : status === "left" ? "Recorded. The parents are told." : status === "rejected" ? "Not approved. The parents are told." : "Cancelled." };
@@ -64,8 +70,23 @@ export async function addHealthVisit(input: { studentId: number; complaint: stri
   const { error } = await supabase.from("health_visit" as never).insert({ student_id: input.studentId, complaint: t(input.complaint, 200), action_taken: t(input.action, 300) || null,
     sent_home: input.sentHome, tell_parent: input.tellParent, recorded_by: s.staffId } as never);
   if (error) return { ok: false, error: "Could not save." };
+  // sent home: a gate pass is raised and approved, so the gate knows the child may leave
+  if (input.sentHome) {
+    const { data: gp } = await supabase.from("gate_pass" as never).insert({ student_id: input.studentId, reason: `Sent home from the health room: ${t(input.complaint, 150)}`,
+      pickup_name: "Parent or guardian", leave_at: new Date().toISOString() } as never).select("id").single();
+    const gpId = (gp as { id: number } | null)?.id;
+    if (gpId) await supabase.from("gate_pass" as never).update({ status: "approved", decided_by: s.staffId } as never).eq("id", gpId);
+  }
   revalidatePath(PATH);
   return { ok: true, message: input.tellParent ? "Saved. The parents are told." : "Saved." };
+}
+
+export async function studentHealth(studentId: number): Promise<{ blood_group: string | null; allergies: string | null; medical_notes: string | null; emergency: string | null } | null> {
+  if (!(await staffOnly())) return null;
+  const supabase = await createClient();
+  const { data } = await supabase.from("student_profile" as never).select("blood_group, allergies, medical_notes, emergency_name, emergency_phone").eq("student_id", studentId).maybeSingle();
+  const p = data as unknown as { blood_group: string | null; allergies: string | null; medical_notes: string | null; emergency_name: string | null; emergency_phone: string | null } | null;
+  return p ? { blood_group: p.blood_group, allergies: p.allergies, medical_notes: p.medical_notes, emergency: [p.emergency_name, p.emergency_phone].filter(Boolean).join(", ") || null } : null;
 }
 
 export async function findStudents(q: string): Promise<{ id: number; name: string; admission_no: string }[]> {
