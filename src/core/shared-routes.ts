@@ -43,9 +43,11 @@ export const SHARED_ROUTES: RouteDef[] = [
   { href: "/dashboard/settings/fees", labelKey: "settings.fees", roles: ["office"], module: "fees", group: "settings", menu: false },
   { href: "/dashboard/settings/transport", labelKey: "settings.transport", roles: ["principal", "office"], module: "transport", group: "settings", menu: false },
   { href: "/dashboard/settings/access", labelKey: "settings.access", roles: ["office"], group: "settings", menu: false },
+  { href: "/dashboard/settings/messages", labelKey: "settings.messages", roles: ["office", "principal"], group: "settings", menu: false },
   { href: "/dashboard/settings/admin", labelKey: "settings.admin", roles: ["office", "principal"], group: "settings", menu: false },
 
   // Opened from elsewhere, not listed in the menu.
+  { href: "/dashboard/notifications", labelKey: "nav.notifications", roles: ALL, group: "home", menu: false },
   { href: "/dashboard/search", labelKey: "nav.search", roles: ALL, group: "home", menu: false },
   { href: "/dashboard/feedback", labelKey: "nav.feedback", roles: ["guardian", "class_teacher", "principal"], group: "home", menu: false },
 ];

@@ -34,6 +34,7 @@ const gu: PartialMessages = {
     noAccess: "તમને આ પેજ જોવાની પરવાનગી નથી.",
   },
   nav: {
+    notifications: "સૂચનાઓ",
     settings: "સેટિંગ્સ",
     studentRecords: "વિદ્યાર્થી રેકોર્ડ",
     homework: "ગૃહકાર્ય",
@@ -517,6 +518,7 @@ const gu: PartialMessages = {
     fees: "ફી",
     transport: "બસો અને રૂટ",
     access: "લૉગિન અને ઍક્સેસ",
+    messages: "સંદેશા અને સૂચનાઓ",
     admin: "પ્લાન, પ્રવૃત્તિ અને સ્થિતિ",
   },
   todo: {

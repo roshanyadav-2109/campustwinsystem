@@ -24,6 +24,15 @@ function HamburgerIcon() {
   );
 }
 
+// The notifications bell, drawn plainly like the menu button.
+function BellIcon() {
+  return (
+    <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
+      <path d="M6 16V11a6 6 0 1 1 12 0v5l1.5 2h-15L6 16Z" /><path d="M10 20.5a2 2 0 0 0 4 0" />
+    </svg>
+  );
+}
+
 export function AppShell({
   name,
   role,
@@ -33,6 +42,7 @@ export function AppShell({
   institutions = [],
   brand,
   university,
+  unread = 0,
   children,
 }: {
   name: string;
@@ -44,6 +54,8 @@ export function AppShell({
   institutions?: { name: string; slug: string; role: string; current: boolean }[];
   brand?: { name: string; place: string | null; logo: string | null; monogram: string | null };
   university?: { name: string; activeCampusName: string | null } | null;
+  /** Unread notifications, for the bell. */
+  unread?: number;
   children: React.ReactNode;
 }) {
   const bName = brand?.name || SCHOOL.name;
@@ -246,6 +258,13 @@ export function AppShell({
           )}
           <div className="ml-auto flex items-center gap-2">
             {role === "guardian" && isDashboard && <LocaleSwitcher />}
+            <Link href="/dashboard/notifications" aria-label={unread ? `Notifications, ${unread} unread` : "Notifications"} title="Notifications"
+              className="relative rounded-sm p-1.5 text-ink-700 hover:bg-panel">
+              <BellIcon />
+              {unread > 0 && (
+                <span className="absolute -right-0.5 -top-0.5 min-w-[16px] rounded-full bg-down px-1 text-center text-[10px] font-semibold leading-4 text-white">{unread > 99 ? "99+" : unread}</span>
+              )}
+            </Link>
           </div>
         </header>
 

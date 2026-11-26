@@ -34,6 +34,7 @@ const pa: PartialMessages = {
     noAccess: "ਤੁਹਾਨੂੰ ਇਹ ਪੰਨਾ ਵੇਖਣ ਦੀ ਇਜਾਜ਼ਤ ਨਹੀਂ ਹੈ।",
   },
   nav: {
+    notifications: "ਸੂਚਨਾਵਾਂ",
     settings: "ਸੈਟਿੰਗਾਂ",
     studentRecords: "ਵਿਦਿਆਰਥੀ ਰਿਕਾਰਡ",
     homework: "ਘਰ ਦਾ ਕੰਮ",
@@ -517,6 +518,7 @@ const pa: PartialMessages = {
     fees: "ਫੀਸ",
     transport: "ਬੱਸਾਂ ਅਤੇ ਰੂਟ",
     access: "ਲੌਗਇਨ ਅਤੇ ਪਹੁੰਚ",
+    messages: "ਸੁਨੇਹੇ ਅਤੇ ਸੂਚਨਾਵਾਂ",
     admin: "ਪਲਾਨ, ਗਤੀਵਿਧੀ ਅਤੇ ਸਥਿਤੀ",
   },
   todo: {

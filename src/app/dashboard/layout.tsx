@@ -32,7 +32,11 @@ export default async function AppLayout({ children }: { children: React.ReactNod
   }
   const { t } = await getT();
   const { createClient } = await import("@/lib/supabase/server");
-  const { data: inst } = await (await createClient()).rpc("my_institutions" as never);
+  const supabase = await createClient();
+  const [{ data: inst }, { data: unread }] = await Promise.all([
+    supabase.rpc("my_institutions" as never),
+    supabase.rpc("my_unread_notifications" as never),
+  ]);
   const institutions = ((inst ?? []) as { slug: string; name: string; role: string; school_id: number }[])
     .map((i) => ({ name: i.name, slug: i.slug, role: i.role, current: i.slug === session.school.slug }));
   const roleLabel = t(`roles.${session.navRole}`);
@@ -40,7 +44,7 @@ export default async function AppLayout({ children }: { children: React.ReactNod
     ? { name: session.university.name, activeCampusName: session.school.name }
     : null;
   return (
-    <AppShell name={session.fullName} role={session.navRole as NavRole} roleLabel={roleLabel} modules={session.school.modules} edition={session.school.edition} institutions={institutions} brand={{ name: session.school.name, place: session.school.place, logo: session.school.logoUrl, monogram: session.school.monogram }} university={university}>
+    <AppShell name={session.fullName} role={session.navRole as NavRole} roleLabel={roleLabel} modules={session.school.modules} edition={session.school.edition} institutions={institutions} brand={{ name: session.school.name, place: session.school.place, logo: session.school.logoUrl, monogram: session.school.monogram }} university={university} unread={typeof unread === "number" ? unread : 0}>
       {children}
     </AppShell>
   );

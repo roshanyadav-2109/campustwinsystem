@@ -34,6 +34,7 @@ const hi: PartialMessages = {
     noAccess: "आपको इस पृष्ठ तक पहुँच नहीं है।",
   },
   nav: {
+    notifications: "सूचनाएँ",
     settings: "सेटिंग्स",
     studentRecords: "छात्र रिकॉर्ड",
     schoolAdmin: "स्कूल एडमिन",
@@ -348,6 +349,7 @@ const hi: PartialMessages = {
     fees: "फीस",
     transport: "बसें और रूट",
     access: "लॉगिन और पहुँच",
+    messages: "संदेश और सूचनाएँ",
     admin: "प्लान, गतिविधि और स्थिति",
   },
   todo: {
