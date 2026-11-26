@@ -3,6 +3,7 @@ import { revalidatePath } from "next/cache";
 import { createClient } from "@/lib/supabase/server";
 import { getSession, getCurrentYear } from "@/lib/session";
 import { untyped } from "@/lib/data/schedule";
+import { saveStudent } from "@/app/dashboard/manage/students/actions";
 import { EMAIL_RE, LIMITS, cleanPhone, isIsoDate, isSource, isStatus, todayIso } from "@/components/admissions/shared";
 
 export type Result = { ok: true } | { ok: false; error: string };
@@ -175,4 +176,94 @@ export async function addFollowup(id: number, input: { note: string; nextFollowU
   }
   revalidatePath(TAB);
   return { ok: true };
+}
+
+// --- Admit: turn an enquiry into a student -----------------------------------
+
+export type AdmitOptions =
+  | { ok: true; sections: { id: number; name: string }[]; suggestedAdmissionNo: string }
+  | { ok: false; error: string };
+
+// The next admission number in the school's own pattern: the most common
+// "letters + digits" shape, with the highest number + 1 and the same width.
+function nextAdmissionNo(existing: string[]): string {
+  const shapes = new Map<string, { count: number; max: number; width: number }>();
+  for (const a of existing) {
+    const m = a.trim().match(/^(.*?)(\d+)$/);
+    if (!m) continue;
+    const key = `${m[1]}|${m[2].length}`;
+    const cur = shapes.get(key) ?? { count: 0, max: 0, width: m[2].length };
+    cur.count += 1;
+    cur.max = Math.max(cur.max, Number(m[2]));
+    shapes.set(key, cur);
+  }
+  if (!shapes.size) return "";
+  const [key, best] = [...shapes.entries()].sort((a, b) => b[1].count - a[1].count)[0];
+  const prefix = key.split("|")[0];
+  return prefix + String(best.max + 1).padStart(best.width, "0");
+}
+
+export async function getAdmitOptions(enquiryId: number): Promise<AdmitOptions> {
+  const session = await officeSession();
+  if (!session) return { ok: false, error: OFFICE_ONLY };
+  const id = posInt(enquiryId);
+  if (!id) return { ok: false, error: "That enquiry was not found." };
+  const db = await untyped();
+  const { data: enq } = await db.from("admission_enquiry").select("class_id").eq("id", id).maybeSingle();
+  if (!enq) return { ok: false, error: "That enquiry was not found." };
+  const supabase = await createClient();
+  const [{ data: sections }, { data: nos }] = await Promise.all([
+    supabase.from("section").select("id, name").eq("class_id", enq.class_id).order("name"),
+    supabase.from("student").select("admission_no").order("id", { ascending: false }).limit(5000),
+  ]);
+  return {
+    ok: true,
+    sections: (sections ?? []).map((s) => ({ id: s.id, name: s.name })),
+    suggestedAdmissionNo: nextAdmissionNo((nos ?? []).map((n) => n.admission_no ?? "").filter(Boolean)),
+  };
+}
+
+// Creates the student, their parent (so the parent can sign in with Google on
+// the email given) and this year's class place, then marks the enquiry admitted
+// and links it to the new record. Runs once per enquiry.
+export async function admitEnquiry(
+  enquiryId: number,
+  input: { sectionId: number; admissionNo: string; rollNo: string },
+): Promise<Result> {
+  const session = await officeSession();
+  if (!session) return { ok: false, error: OFFICE_ONLY };
+  const id = posInt(enquiryId);
+  if (!id) return { ok: false, error: "That enquiry was not found." };
+  const db = await untyped();
+  const { data: enq } = await db
+    .from("admission_enquiry")
+    .select("id, student_id, child_name, date_of_birth, class_id, guardian_name, phone, email")
+    .eq("id", id).maybeSingle();
+  if (!enq) return { ok: false, error: "That enquiry was not found." };
+  if (enq.student_id) return { ok: false, error: "This child has already been admitted." };
+
+  const supabase = await createClient();
+  const { data: sec } = await supabase.from("section").select("id, class_id").eq("id", input.sectionId).maybeSingle();
+  if (!sec || sec.class_id !== enq.class_id) return { ok: false, error: "Choose a section of the class the child is joining." };
+
+  const admissionNo = text(input.admissionNo);
+  const res = await saveStudent({
+    fullName: enq.child_name,
+    admissionNo,
+    dob: enq.date_of_birth ?? "",
+    gender: "",
+    sectionId: sec.id,
+    rollNo: text(input.rollNo),
+    studentEmail: "",
+    studentPhone: "",
+    guardian: { id: null, fullName: enq.guardian_name ?? "", relation: "", phone: enq.phone ?? "", email: enq.email ?? "" },
+  });
+  // Link the enquiry whenever the student record exists, even if the parent
+  // part failed, so the child is never admitted twice.
+  const { data: student } = await supabase.from("student").select("id").eq("admission_no", admissionNo).maybeSingle();
+  if (student) {
+    await db.from("admission_enquiry").update({ status: "admitted", student_id: student.id }).eq("id", id);
+    revalidatePath(TAB);
+  }
+  return res;
 }

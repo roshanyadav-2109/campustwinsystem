@@ -14,6 +14,7 @@ import {
 
 type EnquiryDb = {
   id: number;
+  student_id: number | null;
   child_name: string;
   date_of_birth: string | null;
   class_id: number;
@@ -31,7 +32,7 @@ type EnquiryDb = {
 };
 
 const ENQUIRY_COLS =
-  "id, child_name, date_of_birth, class_id, guardian_name, phone, email, address, previous_school, message, source, status, assigned_to, next_follow_up, created_at";
+  "id, student_id, child_name, date_of_birth, class_id, guardian_name, phone, email, address, previous_school, message, source, status, assigned_to, next_follow_up, created_at";
 
 const PAGE = 1000;
 const MAX_ROWS = 5000;
@@ -80,6 +81,7 @@ export async function getEnquiries(
   const staffName = new Map(staff.map((s) => [s.id, s.name]));
   const rows: Enquiry[] = all.map((r) => ({
     id: r.id,
+    studentId: r.student_id ?? null,
     childName: r.child_name,
     dateOfBirth: r.date_of_birth,
     classId: r.class_id,

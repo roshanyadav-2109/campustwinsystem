@@ -37,6 +37,7 @@ export type StaffRef = { id: number; name: string };
 // One enquiry as the screens show it.
 export type Enquiry = {
   id: number;
+  studentId: number | null;   // the student record this enquiry became, once admitted
   childName: string;
   dateOfBirth: string | null;
   classId: number;
