@@ -34,6 +34,7 @@ const hi: PartialMessages = {
     noAccess: "आपको इस पृष्ठ तक पहुँच नहीं है।",
   },
   nav: {
+    substitutions: "प्रतिस्थापन",
     staffAttendance: "स्टाफ़ उपस्थिति",
     gateScan: "गेट स्कैन",
     idCard: "पहचान पत्र और विवरण",

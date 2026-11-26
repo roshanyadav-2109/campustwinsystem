@@ -34,6 +34,7 @@ const bn: PartialMessages = {
     noAccess: "এই পৃষ্ঠায় আপনার প্রবেশাধিকার নেই।",
   },
   nav: {
+    substitutions: "বিকল্প শিক্ষক",
     staffAttendance: "কর্মী উপস্থিতি",
     gateScan: "গেট স্ক্যান",
     idCard: "পরিচয়পত্র ও বিবরণ",
