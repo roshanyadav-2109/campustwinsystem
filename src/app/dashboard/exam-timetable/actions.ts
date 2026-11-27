@@ -73,7 +73,7 @@ export async function deletePaper(id: number): Promise<Result> {
   return { ok: true, message: "Removed." };
 }
 
-export type AdmitRow = { student_id: number; student_name: string; admission_no: string; roll_no: number | null; class_label: string; withheld: boolean; reason: string | null; verify_token: string };
+export type AdmitRow = { student_id: number; student_name: string; admission_no: string; roll_no: number | null; class_label: string; withheld: boolean; reason: string | null; verify_token: string; subject_ids: number[] | null };
 
 // Admit cards for a section (office, class teacher) or one student (their family).
 export async function admitCards(sessionId: number, sectionId: number, studentId?: number): Promise<{ ok: true; rows: AdmitRow[] } | { ok: false; error: string }> {

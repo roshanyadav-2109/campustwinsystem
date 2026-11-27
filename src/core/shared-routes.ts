@@ -18,6 +18,8 @@ export const SHARED_ROUTES: RouteDef[] = [
   { href: "/dashboard/courses", icon: MarksIcon, labelKey: "nav.courses", roles: ["office", "principal", "student"], group: "academics", editions: ["college", "university"] },
   { href: "/dashboard/lectures", icon: AttendanceIcon, labelKey: "nav.lectures", roles: ["subject_teacher", "class_teacher", "principal", "office", "student"], group: "academics", editions: ["college", "university"] },
   { href: "/dashboard/results", icon: ReportIcon, labelKey: "nav.results", roles: ["class_teacher", "principal", "office", "student", "guardian"], group: "academics", editions: ["college", "university"] },
+  // Exam timetable and admit cards (hall tickets in colleges: registered courses only)
+  { href: "/dashboard/exam-timetable", icon: CalendarIcon, labelKey: "nav.examTimetable", roles: ["subject_teacher", "class_teacher", "principal", "office", "guardian", "student"], group: "academics" },
   { href: "/dashboard/attendance", icon: AttendanceIcon, labelKey: "nav.attendance", roles: ALL, group: "academics" },
   { href: "/dashboard/schedule", icon: CalendarIcon, labelKey: "nav.schedule", roles: ALL, group: "academics" },
   { href: "/dashboard/marks", icon: MarksIcon, labelKey: "nav.marks", roles: ["subject_teacher", "class_teacher", "office"], group: "academics" },

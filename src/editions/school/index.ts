@@ -3,12 +3,11 @@
 // another edition folder (scripts/arch/check-boundaries.mjs enforces this).
 import type { RouteDef } from "@/core/routes";
 import type { EditionWords } from "@/core/words";
-import { ReportIcon, CalendarIcon } from "@/components/icons";
+import { ReportIcon } from "@/components/icons";
 
 export const routes: RouteDef[] = [
   // Report cards: the school defines its own schemes (board formats are data, not code).
   { href: "/dashboard/report-cards", icon: ReportIcon, labelKey: "nav.reportCards", roles: ["class_teacher", "principal", "office", "guardian", "student"], group: "academics" },
-  { href: "/dashboard/exam-timetable", icon: CalendarIcon, labelKey: "nav.examTimetable", roles: ["subject_teacher", "class_teacher", "principal", "office", "guardian", "student"], group: "academics" },
   { href: "/dashboard/settings/report-cards", labelKey: "settings.reportCards", roles: ["office"], group: "settings", menu: false },
 ];
 

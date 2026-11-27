@@ -73,12 +73,15 @@ export function ExamsDesk({ canEdit, sessions, sessionId, papers, types, classes
     if (!sec) return;
     const r = await admitCards(s.id, sec.id);
     if (!r.ok) { setMsg({ ok: false, text: r.error }); return; }
-    const mine = papers.filter((p) => p.class_id === sec.classId).map((p) => ({ date: p.exam_date, start: p.starts_at, end: p.ends_at, subject: p.subject?.name ?? "", note: p.note }));
-    if (!mine.length) { setMsg({ ok: false, text: `No papers are set for ${sec.label} in this exam.` }); return; }
+    const classPapers = papers.filter((p) => p.class_id === sec.classId);
+    if (!classPapers.length) { setMsg({ ok: false, text: `No papers are set for ${sec.label} in this exam.` }); return; }
+    // colleges: a hall ticket lists only the student's registered courses
+    const papersFor = (ids: number[] | null) => classPapers.filter((p) => !ids || ids.includes(p.subject_id))
+      .map((p) => ({ date: p.exam_date, start: p.starts_at, end: p.ends_at, subject: p.subject?.name ?? "", note: p.note }));
     const ok = r.rows.filter((x) => !x.withheld);
     setWithheld(r.rows.filter((x) => x.withheld).map((x) => ({ name: x.student_name, reason: x.reason ?? "" })));
     if (!ok.length) { setMsg({ ok: false, text: "Every admit card in this section is held back." }); return; }
-    await downloadPdfBook(ok.map((x) => admitCardPdf({ exam: s.name, school, student: x.student_name, admissionNo: x.admission_no, roll: x.roll_no, classLabel: x.class_label, instructions: s.instructions, papers: mine, verifyUrl: verifyBase + x.verify_token })), `Admit cards ${sec.label} ${s.name}`);
+    await downloadPdfBook(ok.map((x) => admitCardPdf({ exam: s.name, school, student: x.student_name, admissionNo: x.admission_no, roll: x.roll_no, classLabel: x.class_label, instructions: s.instructions, papers: papersFor(x.subject_ids), verifyUrl: verifyBase + x.verify_token })), `Admit cards ${sec.label} ${s.name}`);
     setMsg({ ok: true, text: `${ok.length} admit cards downloaded.` });
   });
 
@@ -198,7 +201,7 @@ export function FamilyExams({ sessions, papers, children, school, verifyBase }: 
                 if (!row) { setMsg({ ok: false, text: "No admit card is available yet." }); return; }
                 if (row.withheld) { setMsg({ ok: false, text: `The admit card is held back: ${row.reason}. Please contact the school office.` }); return; }
                 await downloadPdf(admitCardPdf({ exam: s.name, school, student: row.student_name, admissionNo: row.admission_no, roll: row.roll_no, classLabel: row.class_label, instructions: s.instructions,
-                  papers: mine.map((p) => ({ date: p.exam_date, start: p.starts_at, end: p.ends_at, subject: p.subject?.name ?? "", note: p.note })), verifyUrl: verifyBase + row.verify_token }));
+                  papers: mine.filter((p) => !row.subject_ids || row.subject_ids.includes(p.subject_id)).map((p) => ({ date: p.exam_date, start: p.starts_at, end: p.ends_at, subject: p.subject?.name ?? "", note: p.note })), verifyUrl: verifyBase + row.verify_token }));
               })}>Download admit card</Button>} />
             <CardBody className="p-0">
               <table className="w-full text-[13px]">
