@@ -14,7 +14,7 @@ const check = (ok, label) => { console.log(ok ? "PASS" : "FAIL", label); if (!ok
 const made = { users: [], staff: [], old: null, neu: null, guardians: [] };
 const settle = (p) => p.waitForLoadState("networkidle", { timeout: 45000 }).catch(() => {});
 const b = await chromium.launch({ executablePath: process.env.LOCALAPPDATA + "/ms-playwright/chromium-1243/chrome-win64/chrome.exe" });
-const errors = [];
+const errors = []; let step = "start";
 try {
   const email = `qa-un-${stamp}@example.com`;
   const { data: st } = await admin.from("staff").insert({ school_id: S, full_name: "QA Central (temporary)", email, role: "office" }).select("id").single(); made.staff.push(st.id);
@@ -55,18 +55,18 @@ try {
   }
   const { data: cityClass } = await admin.from("class").select("id, programme_id, name").eq("school_id", 15).order("id").limit(1).single();
   made.cityClass = cityClass; await admin.from("class").update({ programme_id: tp.id }).eq("id", cityClass.id);
-  await p.getByLabel("Admission number").fill(kid.admission_no);
-  await p.getByRole("button", { name: "Find", exact: true }).click();
-  await p.getByText(/^Student:/).waitFor({ timeout: 60000 });
   await p.getByLabel("Transfer from campus").selectOption({ label: "Westbridge North Campus" });
+  await p.getByLabel("Admission number").fill(kid.admission_no);
+  step = "find"; await p.getByRole("button", { name: "Find", exact: true }).click();
+  await p.getByText(/^Student:/).waitFor({ timeout: 60000 });
   await p.getByLabel("Transfer to campus").selectOption({ label: "Westbridge City Campus" });
-  await p.getByRole("button", { name: "Choose section" }).click();
+  step = "choose section"; await p.getByRole("button", { name: "Choose section" }).click();
   await p.getByLabel("Section at the new campus").waitFor({ timeout: 60000 });
   const opts = await p.getByLabel("Section at the new campus").locator("option").allTextContents();
   await p.getByLabel("Section at the new campus").selectOption({ label: opts.find((x) => x.startsWith(cityClass.name + "-")) });
   await p.getByLabel("Reason").fill("QA test transfer");
   await p.getByLabel(/Transfer even if/).check();
-  await p.getByRole("button", { name: "Transfer", exact: true }).click();
+  step = "transfer"; await p.getByRole("button", { name: "Transfer", exact: true }).click();
   await p.getByText(/^Transferred as /).waitFor({ timeout: 90000 });
   const { data: tr } = await admin.from("student_transfer").select("to_student, carried").eq("from_student", kid.id).single(); made.neu = tr.to_student;
   const { data: gs } = await admin.from("guardian_student").select("guardian_id").eq("student_id", tr.to_student); made.guardians = (gs ?? []).map((x) => x.guardian_id);
@@ -75,7 +75,7 @@ try {
   await settle(p);
   check(await p.getByText(/QA|results carried/).count() >= 1, "the transfer is listed");
   check(errors.length === 0, `no page errors${errors.length ? ": " + errors.join(" | ") : ""}`);
-} catch (e) { failures++; console.log("FAIL", e.message ?? e); }
+} catch (e) { failures++; console.log("FAIL", step, e.message ?? e); }
 finally {
   if (made.neu) {
     for (const id of made.logins ?? []) await admin.from("profile").update({ school_id: S, student_id: made.old }).eq("id", id);

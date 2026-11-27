@@ -46,7 +46,7 @@ export function CentralTools({ campuses, exams, transfers }: { campuses: Campus[
         <CardBody className="space-y-2 text-[13px]">
           <p className="text-ink-700">Grades and CGPA carry over where the new campus has the same course code and semester. Parents and the student keep their logins. Fees due must be cleared first.</p>
           <div className="flex flex-wrap items-end gap-2">
-            <label>From<Select aria-label="Transfer from campus" className="mt-1" value={tFrom} onChange={(e) => setTFrom(Number(e.target.value))}>{opts}</Select></label>
+            <label>From<Select aria-label="Transfer from campus" className="mt-1" value={tFrom} onChange={(e) => { setTFrom(Number(e.target.value)); setWho(null); }}>{opts}</Select></label>
             <label>Admission number<Input aria-label="Admission number" className="mt-1 w-40" value={adm} onChange={(e) => { setAdm(e.target.value); setWho(null); }} /></label>
             <Button size="sm" variant="subtle" disabled={pending || !adm.trim()} onClick={() => start(async () => { const s = await lookupStudent(tFrom, adm); setWho(s ? `${s.full_name}${s.class_label ? `, ${s.class_label}` : ""}${s.status !== "active" ? ` (${s.status})` : ""}` : "No such student at this campus"); })}>Find</Button>
             <label>To<Select aria-label="Transfer to campus" className="mt-1" value={tTo} onChange={(e) => { const v = Number(e.target.value); setTTo(v); setSecs([]); setSec(0); }}>{opts}</Select></label>
