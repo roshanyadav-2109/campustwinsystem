@@ -82,6 +82,10 @@ begin
   reset role;
   if public.attendance_shortage(k, v_sem.id) is not null then raise exception 'FAIL relaxed still short'; end if;
   if (select count(*) from public.relaxation_step where request_id = v_req) <> 2 then raise exception 'FAIL steps not recorded'; end if;
+  -- staff can read requests and steps through the API (policies)
+  perform set_config('request.jwt.claims', as_pr, true); set local role authenticated;
+  if (select count(*) from public.relaxation_request where id = v_req) <> 1 or (select count(*) from public.relaxation_step where request_id = v_req) <> 2 then raise exception 'FAIL principal cannot read requests'; end if;
+  reset role;
   -- fees: overdue holds the result live; an extension releases it
   insert into public.semester_result (school_id, semester_id, student_id, credits_registered, credits_earned, sgpa, cgpa, backlogs) values (11, v_sem.id, k, 20, 20, 8, 8, 0);
   insert into public.fee_invoice (student_id, section_id, academic_year_id, title, amount, paid_amount, due_date, status, school_id)

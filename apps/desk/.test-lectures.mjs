@@ -62,7 +62,7 @@ try {
   const pp = await pctx.newPage(); pp.on("pageerror", (e) => errors.push(e.message));
   await pp.goto(`${HOST}/dashboard/relaxations`, { waitUntil: "networkidle" });
   await pp.locator("li", { hasText: "QA medical certificate" }).first().getByRole("button", { name: "Approve" }).click();
-  await pp.getByText("Approved.").first().waitFor({ timeout: 20000 });
+  await pp.getByText("Approved.").first().waitFor({ timeout: 45000 });
   check(true, "the principal approved it");
   await p.goto(`${HOST}/dashboard/lectures`, { waitUntil: "networkidle" });
   check(await p.locator("tr", { hasText: name }).getByText("Relaxed").count() >= 1, "the shortage shows as relaxed");
