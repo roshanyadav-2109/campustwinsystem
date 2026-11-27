@@ -36,17 +36,35 @@ export async function saveTitle(input: { id?: number | null; name: string; acces
   return { ok: true, message: "Saved." };
 }
 
-export async function saveUnit(input: { id?: number | null; code: string; name: string; kind: string }): Promise<R> {
+export async function saveUnit(input: { id?: number | null; code: string; name: string; kind: string; parentId?: number | null }): Promise<R> {
   if (!(await admin())) return { ok: false, error: "Only the office or the head can change this." };
   const code = input.code.trim().toUpperCase(), name = input.name.trim();
   if (!/^[A-Z0-9-]{1,12}$/.test(code) || name.length < 2) return { ok: false, error: "Give a short code and a name." };
   if (!["faculty", "school", "institute", "centre"].includes(input.kind)) return { ok: false, error: "Choose the kind." };
   const supabase = await createClient();
-  const row = { code, name, kind: input.kind };
+  const row = { code, name, kind: input.kind, parent_id: input.parentId ?? null };
   const { error } = input.id ? await supabase.from("academic_unit" as never).update(row as never).eq("id", input.id) : await supabase.from("academic_unit" as never).insert(row as never);
   if (error) return { ok: false, error: error.message.includes("duplicate") ? "This code is taken." : clean(error, "Could not save.") };
   revalidatePath(PATH);
   return { ok: true, message: "Saved." };
+}
+
+export async function setUnitParent(unitId: number, parentId: number | null): Promise<R> {
+  if (!(await admin())) return { ok: false, error: "Only the office or the head can change this." };
+  const supabase = await createClient();
+  const { error } = await supabase.from("academic_unit" as never).update({ parent_id: parentId } as never).eq("id", unitId);
+  if (error) return { ok: false, error: clean(error, "Could not save.") };
+  revalidatePath(PATH);
+  return { ok: true, message: "Saved." };
+}
+
+export async function transferPosition(id: number, toStaff: number, on: string): Promise<R> {
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(on)) return { ok: false, error: "Give the date." };
+  const supabase = await createClient();
+  const { error } = await supabase.rpc("transfer_position" as never, { p_id: id, p_to_staff: toStaff, p_on: on, p_acting: false } as never);
+  if (error) return { ok: false, error: clean(error, "Could not hand it over.") };
+  revalidatePath(PATH); revalidatePath("/dashboard/settings/teachers");
+  return { ok: true, message: "Handed over." };
 }
 
 export async function setDepartmentUnit(departmentId: number, unitId: number | null): Promise<R> {

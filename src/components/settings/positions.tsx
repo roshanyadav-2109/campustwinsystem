@@ -4,10 +4,10 @@ import { useRouter } from "next/navigation";
 import { Card, CardBody, CardHeader } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input, Select } from "@/components/ui/field";
-import { addUsualTitles, saveTitle, saveUnit, setDepartmentUnit, assignPosition, endPosition } from "@/app/dashboard/settings/positions/actions";
+import { addUsualTitles, saveTitle, saveUnit, setDepartmentUnit, setUnitParent, assignPosition, endPosition } from "@/app/dashboard/settings/positions/actions";
 
 export type TitleRow = { id: number; name: string; access_type: string; scope_level: string; active: boolean; sort: number };
-export type UnitRow = { id: number; code: string; name: string; kind: string };
+export type UnitRow = { id: number; code: string; name: string; kind: string; parent_id?: number | null };
 export type PositionRow = { id: number; staff_id: number; title_id: number; unit_id: number | null; department_id: number | null; programme_id: number | null; starts_on: string; ends_on: string | null; acting: boolean };
 
 // What each kind of role will be able to do (access follows the type, never the name).
@@ -66,8 +66,12 @@ function Units({ units, departments, canEdit }: { units: UnitRow[]; departments:
     <Card>
       <CardHeader title="Faculties and schools" action={<Msg m={msg} />} />
       <CardBody className="space-y-3 text-[13px]">
-        <p className="text-[12px] text-ink-500">Group departments under a faculty or school, so a Dean or Director can be placed over them.</p>
-        <ul className="space-y-1">{units.map((u) => <li key={u.id}><b>{u.name}</b> <span className="text-ink-500">{u.code} · {KIND_LABEL[u.kind]}</span></li>)}</ul>
+        <p className="text-[12px] text-ink-500">Group departments under a faculty or school, and groups under larger ones (for example a CS and EC group under the School of Engineering). A Dean or Director covers everything below them.</p>
+        <ul className="space-y-1">{units.map((u) => (
+          <li key={u.id} className="flex flex-wrap items-center gap-2"><b>{u.name}</b> <span className="text-ink-500">{u.code} · {KIND_LABEL[u.kind]}</span>
+            <Select className="ml-auto h-8 text-[12px]" aria-label={`Above ${u.name}`} disabled={!canEdit || pending} value={u.parent_id ?? ""}
+              onChange={(e) => run(() => setUnitParent(u.id, e.target.value ? Number(e.target.value) : null))}>
+              <option value="">Directly under the institution</option>{units.filter((x) => x.id !== u.id).map((x) => <option key={x.id} value={x.id}>Under {x.name}</option>)}</Select></li>))}</ul>
         {canEdit && (
           <div className="flex flex-wrap items-end gap-2">
             <Input className="h-8 w-24 text-[13px]" aria-label="Faculty code" placeholder="Code" value={code} onChange={(e) => setCode(e.target.value)} />

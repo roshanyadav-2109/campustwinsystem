@@ -30,7 +30,8 @@ function useAct() {
   return { msg, pending, run };
 }
 
-function Row({ r, canAct, me, canRevoke }: { r: RelaxRow; canAct: boolean; me: string; canRevoke: boolean }) {
+function Row({ r, canAct, me, canRevoke, labels }: { r: RelaxRow; canAct: boolean; me: string; canRevoke: boolean; labels: Record<string, string | null> }) {
+  const who = (t: string) => labels[t] ?? WHO[t] ?? t;
   const [note, setNote] = useState("");
   const [why, setWhy] = useState("");
   const { msg, pending, run } = useAct();
@@ -42,7 +43,7 @@ function Row({ r, canAct, me, canRevoke }: { r: RelaxRow; canAct: boolean; me: s
         <span className="text-[13px] font-semibold">{KIND[r.kind]}</span>
         <span className="text-[13px]">{what}</span>
         <span className={`text-[12px] font-medium ${r.status === "approved" ? "text-up" : r.status === "rejected" ? "text-down" : "text-ink-500"}`}>
-          {r.status === "pending" ? `Waiting for ${WHO[r.chain[r.step]] ?? r.chain[r.step]}` : r.status[0].toUpperCase() + r.status.slice(1)}</span>
+          {r.status === "pending" ? `Waiting for ${who(r.chain[r.step])}` : r.status[0].toUpperCase() + r.status.slice(1)}</span>
         <span className="text-[12px] text-ink-500">{day(r.created_at.slice(0, 10))}</span>
       </div>
       <p className="text-[13px] text-ink-700">{r.reason}</p>
@@ -50,7 +51,7 @@ function Row({ r, canAct, me, canRevoke }: { r: RelaxRow; canAct: boolean; me: s
         {r.chain.map((t, i) => {
           const s = r.steps.find((x) => x.step_no === i + 1);
           return <li key={i} className={`rounded-sm border px-2 py-0.5 ${s?.decision === "approved" ? "border-up text-up" : s?.decision === "rejected" ? "border-down text-down" : "border-hair text-ink-500"}`}>
-            {i + 1}. {WHO[t] ?? t}{s ? `: ${s.decision} by ${s.staff?.full_name ?? ""}${s.note ? ` (${s.note})` : ""}` : ""}</li>;
+            {i + 1}. {who(t)}{s ? `: ${s.decision} by ${s.staff?.full_name ?? ""}${s.note ? ` (${s.note})` : ""}` : ""}</li>;
         })}
       </ol>
       {canRevoke && r.status === "approved" && (
@@ -75,12 +76,12 @@ function Row({ r, canAct, me, canRevoke }: { r: RelaxRow; canAct: boolean; me: s
   );
 }
 
-export function RelaxationList({ title, rows, canAct = false, empty, me, canRevoke }: { title: string; rows: RelaxRow[]; canAct?: boolean; chain: Record<string, string[]>; empty: string; me: string; canRevoke: boolean }) {
+export function RelaxationList({ title, rows, canAct = false, empty, me, canRevoke, labels = {} }: { title: string; rows: RelaxRow[]; canAct?: boolean; chain: Record<string, string[]>; empty: string; me: string; canRevoke: boolean; labels?: Record<string, string | null> }) {
   return (
     <Card>
       <CardHeader title={`${title} (${rows.length})`} />
       <CardBody className="p-0">
-        {rows.length === 0 ? <p className="px-4 py-3 text-[13px] text-ink-500">{empty}</p> : <ul>{rows.map((r) => <Row key={r.id} r={r} canAct={canAct} me={me} canRevoke={canRevoke} />)}</ul>}
+        {rows.length === 0 ? <p className="px-4 py-3 text-[13px] text-ink-500">{empty}</p> : <ul>{rows.map((r) => <Row key={r.id} r={r} canAct={canAct} me={me} canRevoke={canRevoke} labels={labels} />)}</ul>}
       </CardBody>
     </Card>
   );

@@ -16,23 +16,23 @@ const MODES: [string, string][] = [
 const TYPES: [string, string][] = [["advisor", "Class teacher"], ["hod", "Head of Department"], ["dean", "Dean"], ["office", "Office"], ["exams", "Examinations head"], ["head", "Principal / head"]];
 const KINDS: [string, string][] = [["attendance", "Attendance relaxation"], ["fees", "Fee extension"], ["unlock", "Unlock locked attendance"]];
 
-function Chain({ value, onChange, disabled, label }: { value: string[]; onChange: (v: string[]) => void; disabled: boolean; label: string }) {
+function Chain({ value, onChange, disabled, label, labels }: { value: string[]; onChange: (v: string[]) => void; disabled: boolean; label: string; labels: Record<string, string | null> }) {
   return (
     <div className="flex flex-wrap items-center gap-1.5">
       {value.map((t, i) => (
         <span key={i} className="inline-flex items-center gap-1">
           {i > 0 && <span className="text-ink-500">→</span>}
           <Select className="h-8 text-[13px]" aria-label={`${label}, step ${i + 1}`} disabled={disabled} value={t} onChange={(e) => onChange(value.map((x, j) => (j === i ? e.target.value : x)))}>
-            {TYPES.map(([k, l]) => <option key={k} value={k}>{l}</option>)}</Select>
+            {TYPES.map(([k, l]) => <option key={k} value={k}>{labels[k] ?? l}</option>)}</Select>
           {!disabled && value.length > 1 && <Button size="sm" variant="ghost" aria-label={`Remove step ${i + 1} from ${label}`} onClick={() => onChange(value.filter((_, j) => j !== i))}>×</Button>}
         </span>
       ))}
-      {!disabled && value.length < 4 && <Button size="sm" variant="ghost" onClick={() => onChange([...value, "head"])}>Add step</Button>}
+      {!disabled && value.length < 5 && <Button size="sm" variant="ghost" onClick={() => onChange([...value, "head"])}>Add step</Button>}
     </div>
   );
 }
 
-export function AttendanceRules({ initial, canEdit, hasSemester }: { initial: Rules; canEdit: boolean; hasSemester: boolean }) {
+export function AttendanceRules({ initial, canEdit, hasSemester, labels = {} }: { initial: Rules; canEdit: boolean; hasSemester: boolean; labels?: Record<string, string | null> }) {
   const [r, setR] = useState<Rules>({ ...initial, chain: { attendance: ["advisor", "head"], fees: ["office"], unlock: ["head"], ...initial.chain } });
   const [msg, setMsg] = useState<{ ok: boolean; text: string } | null>(null);
   const [pending, start] = useTransition();
@@ -75,7 +75,7 @@ export function AttendanceRules({ initial, canEdit, hasSemester }: { initial: Ru
         <CardBody className="space-y-3 text-[13px]">
           {KINDS.map(([k, l]) => (
             <div key={k} className="flex flex-wrap items-center gap-3"><span className="w-52 font-medium">{l}</span>
-              <Chain label={l} disabled={off} value={r.chain[k] ?? ["head"]} onChange={(v) => setR({ ...r, chain: { ...r.chain, [k]: v } })} /></div>
+              <Chain label={l} labels={labels} disabled={off} value={r.chain[k] ?? ["head"]} onChange={(v) => setR({ ...r, chain: { ...r.chain, [k]: v } })} /></div>
           ))}
           <p className="text-[12px] text-ink-500">Each person approves in turn; the principal can approve at any step. Department heads and deans join this list with roles and positions.</p>
         </CardBody>

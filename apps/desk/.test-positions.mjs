@@ -43,6 +43,16 @@ try {
   await p.locator("tr", { hasText: `QA Lecturer ${stamp}` }).getByText(/^Acting Programme Coordinator/).waitFor({ timeout: 60000 });
   check(true, "a position was assigned (acting)");
 
+  // the hierarchy chart, and handing the position over to someone else
+  const { data: t2 } = await admin.from("staff").insert({ school_id: S, full_name: `QA Successor ${stamp}`, email: `qa-pos-s-${stamp}@example.com`, role: "subject_teacher" }).select("id").single(); made.staff.push(t2.id);
+  await p.reload({ waitUntil: "load", timeout: 90000 }); await p.waitForLoadState("networkidle", { timeout: 45000 }).catch(() => {});
+  check(await p.getByText("Hierarchy", { exact: true }).count() >= 1 && await p.getByText("Faculty of Engineering and Technology").count() >= 1, "the hierarchy chart shows the faculty");
+  await p.getByRole("button", { name: "Transfer Programme Coordinator" }).first().click();
+  await p.getByLabel("New holder of Programme Coordinator").selectOption({ label: `QA Successor ${stamp}` });
+  await p.getByRole("button", { name: "Hand over" }).click();
+  await p.getByText("Handed over.").waitFor({ timeout: 60000 });
+  const { data: got } = await admin.from("staff_position").select("id").eq("staff_id", t2.id);
+  check((got ?? []).length === 1, "the position was handed over");
   await p.goto(`${HOST}/dashboard/settings/teachers`, { waitUntil: "load", timeout: 90000 });
   check(await p.getByText(/^Acting Programme Coordinator, /).count() >= 1, "the staff list shows the title under the name");
 

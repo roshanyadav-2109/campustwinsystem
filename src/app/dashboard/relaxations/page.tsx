@@ -28,8 +28,9 @@ export default async function RelaxationsPage() {
   if (!session.staffRole) return null;
 
   // requests waiting for the caller, and the students held back this semester
-  const [{ data: q }, { data: holds }] = await Promise.all([
+  const [{ data: q }, { data: lab }, { data: holds }] = await Promise.all([
     supabase.rpc("my_relaxation_queue" as never),
+    supabase.rpc("chain_labels" as never),
     supabase.rpc("current_holds" as never, { p_section: null } as never),
   ]);
   // a set-returning function comes back as [{ my_relaxation_queue: id }]
@@ -39,9 +40,9 @@ export default async function RelaxationsPage() {
     <div className="space-y-4">
       <PageHeader title="Relaxations" description="Attendance relaxation, fee extensions and unlocking locked attendance, raised by staff. Each request passes through the people the institution has chosen, in order." />
       {session.staffRole === "office" && <FeeExtensionForm />}
-      <RelaxationList title="Waiting for you" rows={rows.filter((r) => mine.has(r.id))} canAct chain={chain} me={session.userId} canRevoke={false} empty="Nothing is waiting for you." />
+      <RelaxationList title="Waiting for you" rows={rows.filter((r) => mine.has(r.id))} canAct chain={chain} labels={(lab ?? {}) as unknown as Record<string, string | null>} me={session.userId} canRevoke={false} empty="Nothing is waiting for you." />
       <HoldsList rows={(holds ?? []) as unknown as HoldRow[]} />
-      <RelaxationList title="All requests" rows={rows.filter((r) => !mine.has(r.id))} chain={chain} me={session.userId} canRevoke={session.staffRole === "office" || session.staffRole === "principal"} empty="No requests yet." />
+      <RelaxationList title="All requests" rows={rows.filter((r) => !mine.has(r.id))} chain={chain} labels={(lab ?? {}) as unknown as Record<string, string | null>} me={session.userId} canRevoke={session.staffRole === "office" || session.staffRole === "principal"} empty="No requests yet." />
     </div>
   );
 }

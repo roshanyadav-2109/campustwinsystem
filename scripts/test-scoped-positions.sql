@@ -50,10 +50,10 @@ begin
   if not public.relax_can_act(v_reg) or public.relax_can_act(v_rb) then raise exception 'FAIL hod step scope'; end if;
   reset role;
 
-  -- the whole-campus attendance summary is refused to an HoD
+  -- Deans and HoDs may see the attendance summary (owner, 27 Nov)
   perform set_config('request.jwt.claims', json_build_object('sub', te, 'role', 'authenticated')::text, true); set local role authenticated;
-  ok := false; begin perform count(*) from public.course_attendance(null, null); exception when others then ok := true; end;
-  if not ok then raise exception 'FAIL HoD read the whole campus attendance'; end if;
+  ok := true; begin perform count(*) from public.course_attendance(null, null); exception when others then ok := false; end;
+  if not ok then raise exception 'FAIL HoD cannot see the attendance summary'; end if;
   -- the HoD cannot act on a request they raised
   reset role;
   insert into public.relaxation_request (school_id, kind, semester_id, student_id, subject_id, reason, chain, requested_by)
