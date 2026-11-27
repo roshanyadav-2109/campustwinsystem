@@ -94,6 +94,87 @@ Owner (27 Nov): role names should match how colleges and universities actually w
 
 Tests: an SQL self-test per slice (scope limits, no self-promotion, ended positions lose access). Live suites on Meridian (college), Westbridge North and the Westbridge central login (university). The school suites must still pass untouched.
 
+### Examination department (its own roles and its own dashboard)
+
+Owner (27 Nov): the examination department has its own roles and a separate dashboard.
+
+**The department is a unit.** "Examination department" (exam cell, or Office of the Controller of Examinations) is a unit like a department. At a university it can sit at university level (central exam cell for all campuses) or per campus. At an affiliated college it is the college exam cell that works with the university.
+
+**Exam access types** (the fixed list; titles stay institution-named):
+
+| Type | Gives | Usual titles |
+|---|---|---|
+| Examinations head | Everything below; publishes results; signs grade cards and transcripts | Controller of Examinations (CoE) |
+| Exam deputy | Everything except publishing and settings | Additional or Deputy CoE, Assistant Registrar (Exams) |
+| Exam section staff | Exam registrations, exam fees, timetable, hall tickets, seating, marks import, data entry | Superintendent, Section Officer, Exam Assistant |
+| Confidential section | Question paper setters and moderators, paper status, dummy (coded) numbers, the decoding key; nobody else sees these | Confidential Officer |
+| Evaluator | Enters marks only for the answer scripts given to them, by dummy number, with no student names | Examiner, Valuer |
+| Moderator / scrutiniser | Checks and adjusts marks for a course within set limits, logged | Chief Examiner, Moderator, Scrutiniser |
+| Exam-centre staff | On exam days, for their centre or room: attendance, absentees, malpractice reports | Chief Superintendent, Invigilator, Flying squad |
+| Revaluation committee | Revaluation and re-totalling requests and outcomes | Revaluation Officer |
+
+Faculty keep their internal (CIA) marks. From the moment ESE marks are entered, results belong to the exam department. A Dean or HoD sees results previews for their scope but cannot publish.
+
+**Exam department dashboard** (its own home, not the principal's or the office's):
+1. **This exam session at a glance:**
+   - a calendar of sessions (regular, supplementary, improvement);
+   - for the open session, a stage bar: registration → fees → hall tickets → exams → evaluation → moderation → results → revaluation.
+2. **Readiness before exams:**
+   - exam registrations received and missing (regular and backlog);
+   - exam fees paid and due;
+   - hall tickets issued and withheld, with reasons (attendance shortage, fees);
+   - timetable clashes (a student with two papers at once);
+   - seating plan and room capacity;
+   - invigilation duties assigned and free;
+   - question papers set, moderated, printed, by course (confidential section only).
+3. **Exam days:**
+   - today's papers, rooms and invigilators;
+   - attendance per room as it is marked, absentees;
+   - malpractice reports raised, with the student's paper held.
+4. **Evaluation:**
+   - answer scripts by course;
+   - marks entered against marks pending, per evaluator (by dummy number);
+   - courses ready for moderation.
+5. **Results:**
+   - per programme and section: incomplete, ready, published, held back;
+   - pass percentage and grade spread by course, unusual courses flagged (all fail or all pass) before publishing;
+   - publish and revise (with reason), as already built.
+6. **After results:**
+   - revaluation and re-totalling requests, with fee and status;
+   - supplementary registrations;
+   - transcript, provisional certificate and duplicate grade-card requests;
+   - verification requests from employers (QR checks so far).
+7. **Alerts:** marks overdue from evaluators, papers not moderated, results held back, requests close to their deadline.
+
+Everyone in the exam department sees only the parts their type allows. An invigilator's home is just today's duty. An evaluator sees only the scripts allotted to them.
+
+**Confidential by design:**
+- Question papers and examiner names are visible to the CoE and the confidential section only.
+- Evaluators work on dummy numbers, and the key to student identities is decoded only after evaluation.
+- Every view of the key is logged.
+
+**What is already built and moves under the exam department:**
+- exam timetable and hall tickets (step 7);
+- evaluation schemes;
+- results preview, publish, revise and hold back (steps 6 and 8);
+- grade-card QR check.
+
+Publishing moves from "office" to the examinations head, or to the registrar where an institution has no CoE.
+
+**Build order:**
+- **Exam types and exam department unit:** part of roles slice 2.
+- **Exam dashboard:** sections 1, 2 and 5 first, from data already built. Sections 3, 4, 6 and 7 are added with:
+  - seating and invigilation;
+  - dummy numbers and evaluator allotment;
+  - moderation (with grace marks, step 8);
+  - revaluation and supplementary (step 9);
+  - transcripts (step 12).
+- **University central exam cell:** with roles slice 4, at the "university" scope, working across all campuses.
+
+Seed:
+- Meridian gets a CoE, an exam section assistant, two evaluators and an invigilator.
+- Westbridge gets a central CoE for all three campuses.
+
 ### To confirm with the owner
 - Is the access-type list above complete? It is fixed by CampusTwin; institutions choose among the types and cannot invent new ones.
 - Should the Chancellor and trustees have logins at all (view only), or appear only as titles?
