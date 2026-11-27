@@ -8,20 +8,38 @@ begin
   -- a student with a parent, no fees due, no malpractice
   select st.id, st.admission_no into k, v_adm from public.student st
    where st.school_id = 14 and st.status = 'active' and exists (select 1 from public.guardian_student gs where gs.student_id = st.id)
+     and exists (select 1 from public.student_enrollment e join public.section s2 on s2.id = e.section_id join public.class c2 on c2.id = s2.class_id where e.student_id = st.id and e.status = 'active' and c2.programme_id is not null)
+     and not exists (select 1 from public.library_issue l where l.student_id = st.id and l.returned_on is null)
+     and not exists (select 1 from public.hostel_allocation h where h.student_id = st.id and (h.to_date is null or h.to_date >= current_date))
      and not exists (select 1 from public.fee_invoice i where i.student_id = st.id and i.status in ('due', 'part')) limit 1;
   if k is null then raise exception 'SETUP no student'; end if;
   insert into public.profile (id, role, full_name, school_id, student_id) values (ot, 'student', 'QA Student', 14, k);
   select count(*) into v_cr from public.course_result where student_id = k;
-  select id into v_sec from public.section where school_id = 15 limit 1;
+  select sec.id into v_sec from public.section sec join public.class c on c.id = sec.class_id join public.programme g on g.id = c.programme_id
+   where sec.school_id = 15 and g.code = (select g2.code from public.student_enrollment e join public.section s2 on s2.id = e.section_id join public.class c2 on c2.id = s2.class_id
+     join public.programme g2 on g2.id = c2.programme_id where e.student_id = k and e.status = 'active' limit 1) limit 1;
+  if v_sec is null then select id into v_sec from public.section where school_id = 15 limit 1; end if;
   perform set_config('request.jwt.claims', json_build_object('sub', cu, 'role', 'authenticated')::text, true); set local role authenticated;
   select count(*) into n from public.university_exam_overview();
   if n <> 3 then raise exception 'FAIL overview campuses %', n; end if;
   j := public.copy_catalogue(14, 15);
   if j ->> 'courses' is null then raise exception 'FAIL catalogue %', j; end if;
+  -- the target section teaches the student's programme (copied above)
+  reset role;
+  update public.class set programme_id = (select g.id from public.programme g where g.school_id = 15 and g.code = (select g2.code from public.student_enrollment e join public.section s2 on s2.id = e.section_id
+      join public.class c2 on c2.id = s2.class_id join public.programme g2 on g2.id = c2.programme_id where e.student_id = k and e.status = 'active' limit 1))
+   where id = (select class_id from public.section where id = v_sec);
+  perform set_config('request.jwt.claims', json_build_object('sub', cu, 'role', 'authenticated')::text, true); set local role authenticated;
   -- outside the university: refused
   ok := false; begin perform public.copy_catalogue(14, 11); exception when others then ok := true; end;
   if not ok then raise exception 'FAIL copied to a campus of another institution'; end if;
-  j := public.transfer_student(14, v_adm, 15, v_sec, 'QA move');
+  -- a section of another programme is refused; unmatched results refuse unless asked
+  -- the move goes through when every result carries; otherwise it is refused naming them, unless asked to go ahead
+  begin j := public.transfer_student(14, v_adm, 15, v_sec, 'QA move');
+  exception when others then
+    if sqlerrm not like '%CGPA would change%' then raise exception 'FAIL unexpected refusal: %', sqlerrm; end if;
+    j := public.transfer_student(14, v_adm, 15, v_sec, 'QA move', true);
+  end;
   v_new := (j ->> 'student_id')::bigint;
   reset role;
   if (select status from public.student where id = k) <> 'transferred' then raise exception 'FAIL old record not closed'; end if;

@@ -44,13 +44,19 @@ export async function copyCatalogue(from: number, to: number): Promise<R> {
 }
 
 // A student moves campus: grades and CGPA carry over, the parents and the login come along.
-export async function transferStudent(from: number, admissionNo: string, to: number, sectionId: number, note: string): Promise<R> {
+export async function lookupStudent(campusId: number, admissionNo: string) {
+  const supabase = await createClient();
+  const { data } = await supabase.rpc("campus_student" as never, { p_school: campusId, p_admission_no: admissionNo.trim() } as never);
+  return ((data ?? []) as unknown as { full_name: string; class_label: string | null; status: string }[])[0] ?? null;
+}
+
+export async function transferStudent(from: number, admissionNo: string, to: number, sectionId: number, note: string, allowPartial = false): Promise<R> {
   if (!admissionNo.trim()) return { ok: false, error: "Enter the admission number." };
   if (!sectionId) return { ok: false, error: "Choose the section at the new campus." };
   const supabase = await createClient();
-  const { data, error } = await supabase.rpc("transfer_student" as never, { p_from: from, p_admission_no: admissionNo.trim(), p_to: to, p_section: sectionId, p_note: note || null } as never);
+  const { data, error } = await supabase.rpc("transfer_student" as never, { p_from: from, p_admission_no: admissionNo.trim(), p_to: to, p_section: sectionId, p_note: note || null, p_allow_partial: allowPartial } as never);
   if (error) return { ok: false, error: clean(error, "Could not transfer.") };
-  const d = data as unknown as { admission_no: string; carried: number; not_carried: string | null };
+  const d = data as unknown as { admission_no: string; carried: number; not_carried: string | null; cgpa_before: number | null; cgpa_after: number | null };
   revalidatePath("/dashboard/university");
-  return { ok: true, message: `Transferred as ${d.admission_no}. ${d.carried} course results carried over.${d.not_carried ? ` Not carried (no matching course or semester at the new campus): ${d.not_carried}.` : ""}` };
+  return { ok: true, message: `Transferred as ${d.admission_no}. ${d.carried} course results carried over.${d.not_carried ? ` Not carried (no matching course or semester at the new campus): ${d.not_carried}.` : ""}${d.cgpa_before !== d.cgpa_after ? ` CGPA ${d.cgpa_before ?? "-"} became ${d.cgpa_after ?? "-"}.` : ""}` };
 }

@@ -36,16 +36,36 @@ try {
   for (const c of cands ?? []) {
     if (!c.guardian_student?.length) continue;
     const { count } = await admin.from("fee_invoice").select("id", { count: "exact", head: true }).eq("student_id", c.id).in("status", ["due", "part"]);
-    if (!count) { kid = c; break; }
+    if (count) continue;
+    const { count: books } = await admin.from("library_issue").select("id", { count: "exact", head: true }).eq("student_id", c.id).is("returned_on", null);
+    const { count: beds } = await admin.from("hostel_allocation").select("id", { count: "exact", head: true }).eq("student_id", c.id).or(`to_date.is.null,to_date.gte.${new Date().toISOString().slice(0, 10)}`);
+    const { data: pe } = await admin.from("student_enrollment").select("section:section_id(class:class_id(programme_id))").eq("student_id", c.id).eq("status", "active").limit(1).maybeSingle();
+    if (!books && !beds && pe?.section?.class?.programme_id) { kid = c; break; }
   }
   made.old = kid.id;
   const { data: oldEnr } = await admin.from("student_enrollment").select("id").eq("student_id", kid.id).eq("status", "active"); made.oldEnr = (oldEnr ?? []).map((x) => x.id);
   const { data: logins } = await admin.from("profile").select("id").eq("student_id", kid.id); made.logins = (logins ?? []).map((x) => x.id);
+  // City has no section of this programme in the sample data: one City class teaches it for the test (restored after)
+  const { data: en } = await admin.from("student_enrollment").select("section:section_id(class:class_id(programme:programme_id(*)))").eq("student_id", kid.id).eq("status", "active").limit(1).single();
+  const prog = en.section.class.programme;
+  let { data: tp } = await admin.from("programme").select("id").eq("school_id", 15).eq("code", prog.code).maybeSingle();
+  if (!tp) {
+    const copy = { ...prog }; delete copy.id; delete copy.school_id; delete copy.department_id; delete copy.eval_scheme_id;
+    ({ data: tp } = await admin.from("programme").insert({ ...copy, school_id: 15 }).select("id").single()); made.prog = tp.id;
+  }
+  const { data: cityClass } = await admin.from("class").select("id, programme_id, name").eq("school_id", 15).order("id").limit(1).single();
+  made.cityClass = cityClass; await admin.from("class").update({ programme_id: tp.id }).eq("id", cityClass.id);
   await p.getByLabel("Admission number").fill(kid.admission_no);
+  await p.getByRole("button", { name: "Find", exact: true }).click();
+  await p.getByText(/^Student:/).waitFor({ timeout: 60000 });
+  await p.getByLabel("Transfer from campus").selectOption({ label: "Westbridge North Campus" });
   await p.getByLabel("Transfer to campus").selectOption({ label: "Westbridge City Campus" });
   await p.getByRole("button", { name: "Choose section" }).click();
   await p.getByLabel("Section at the new campus").waitFor({ timeout: 60000 });
+  const opts = await p.getByLabel("Section at the new campus").locator("option").allTextContents();
+  await p.getByLabel("Section at the new campus").selectOption({ label: opts.find((x) => x.startsWith(cityClass.name + "-")) });
   await p.getByLabel("Reason").fill("QA test transfer");
+  await p.getByLabel(/Transfer even if/).check();
   await p.getByRole("button", { name: "Transfer", exact: true }).click();
   await p.getByText(/^Transferred as /).waitFor({ timeout: 90000 });
   const { data: tr } = await admin.from("student_transfer").select("to_student, carried").eq("from_student", kid.id).single(); made.neu = tr.to_student;
@@ -62,6 +82,8 @@ finally {
     await admin.from("student").delete().eq("id", made.neu);
     for (const g of made.guardians) { const { count } = await admin.from("guardian_student").select("student_id", { count: "exact", head: true }).eq("guardian_id", g); if (!count) await admin.from("guardian").delete().eq("id", g); }
   }
+  if (made.cityClass) await admin.from("class").update({ programme_id: made.cityClass.programme_id }).eq("id", made.cityClass.id);
+  if (made.prog) await admin.from("programme").delete().eq("id", made.prog);
   if (made.old) {
     await admin.from("student").update({ status: "active", left_on: null, exit_remark: null }).eq("id", made.old);
     if (made.oldEnr?.length) await admin.from("student_enrollment").update({ status: "active" }).in("id", made.oldEnr);

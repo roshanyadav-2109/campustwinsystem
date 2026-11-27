@@ -19,7 +19,7 @@ export default async function UniversityPage() {
   const supabase = await createClient();
   const [{ data: exams }, { data: transfers }] = await Promise.all([
     supabase.rpc("university_exam_overview" as never),
-    supabase.from("student_transfer" as never).select("id, done_at, carried, not_carried, from_school, to_school, to_student:to_student(full_name, admission_no)").order("done_at", { ascending: false }).limit(20)]);
+    supabase.from("student_transfer" as never).select("id, done_at, carried, not_carried, from_school, to_school, student_name, admission_no, cgpa_before, cgpa_after").order("done_at", { ascending: false }).limit(20)]);
 
   return (
     <div className="mx-auto w-full max-w-4xl">

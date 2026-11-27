@@ -4,11 +4,11 @@ import { useRouter } from "next/navigation";
 import { Card, CardBody, CardHeader } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input, Select } from "@/components/ui/field";
-import { campusSections, copyCatalogue, transferStudent } from "@/app/dashboard/university/actions";
+import { campusSections, copyCatalogue, transferStudent, lookupStudent } from "@/app/dashboard/university/actions";
 
 type Campus = { id: number; name: string };
 export type ExamRow = { campus_id: number; campus: string; exams_this_year: number; results_published: number; malpractice_open: number; scripts_pending: number; revaluations_open: number; supplementary_waiting: number };
-export type TransferRow = { id: number; done_at: string; carried: number; not_carried: string | null; from_school: number; to_school: number; to_student: { full_name: string; admission_no: string } | null };
+export type TransferRow = { id: number; done_at: string; carried: number; not_carried: string | null; from_school: number; to_school: number; student_name: string | null; admission_no: string | null; cgpa_before: number | null; cgpa_after: number | null };
 
 export function CentralTools({ campuses, exams, transfers }: { campuses: Campus[]; exams: ExamRow[]; transfers: TransferRow[] }) {
   const [msg, setMsg] = useState<{ ok: boolean; text: string } | null>(null);
@@ -22,6 +22,8 @@ export function CentralTools({ campuses, exams, transfers }: { campuses: Campus[
   const [note, setNote] = useState("");
   const [secs, setSecs] = useState<{ id: number; label: string }[]>([]);
   const [sec, setSec] = useState(0);
+  const [who, setWho] = useState<string | null>(null);
+  const [partial, setPartial] = useState(false);
   const name = (id: number) => campuses.find((c) => c.id === id)?.name ?? "";
   const show = (r: { ok: boolean; message?: string; error?: string }) => setMsg(r.ok ? { ok: true, text: r.message ?? "Done." } : { ok: false, text: r.error ?? "Failed." });
   const loadSecs = (to: number) => start(async () => { const s = await campusSections(to); setSecs(s); setSec(s[0]?.id ?? 0); });
@@ -45,15 +47,18 @@ export function CentralTools({ campuses, exams, transfers }: { campuses: Campus[
           <p className="text-ink-700">Grades and CGPA carry over where the new campus has the same course code and semester. Parents and the student keep their logins. Fees due must be cleared first.</p>
           <div className="flex flex-wrap items-end gap-2">
             <label>From<Select aria-label="Transfer from campus" className="mt-1" value={tFrom} onChange={(e) => setTFrom(Number(e.target.value))}>{opts}</Select></label>
-            <label>Admission number<Input aria-label="Admission number" className="mt-1 w-40" value={adm} onChange={(e) => setAdm(e.target.value)} /></label>
+            <label>Admission number<Input aria-label="Admission number" className="mt-1 w-40" value={adm} onChange={(e) => { setAdm(e.target.value); setWho(null); }} /></label>
+            <Button size="sm" variant="subtle" disabled={pending || !adm.trim()} onClick={() => start(async () => { const s = await lookupStudent(tFrom, adm); setWho(s ? `${s.full_name}${s.class_label ? `, ${s.class_label}` : ""}${s.status !== "active" ? ` (${s.status})` : ""}` : "No such student at this campus"); })}>Find</Button>
             <label>To<Select aria-label="Transfer to campus" className="mt-1" value={tTo} onChange={(e) => { const v = Number(e.target.value); setTTo(v); setSecs([]); setSec(0); }}>{opts}</Select></label>
             {secs.length ? <label>Section<Select aria-label="Section at the new campus" className="mt-1" value={sec} onChange={(e) => setSec(Number(e.target.value))}>{secs.map((s) => <option key={s.id} value={s.id}>{s.label}</option>)}</Select></label>
               : <Button size="sm" variant="subtle" disabled={pending || tFrom === tTo} onClick={() => loadSecs(tTo)}>Choose section</Button>}
             <label>Reason<Input aria-label="Reason" className="mt-1 w-56" value={note} maxLength={300} onChange={(e) => setNote(e.target.value)} /></label>
-            <Button size="sm" disabled={pending || !sec || tFrom === tTo} onClick={() => start(async () => { const r = await transferStudent(tFrom, adm, tTo, sec, note); show(r); if (r.ok) { setAdm(""); setNote(""); router.refresh(); } })}>Transfer</Button>
+            <Button size="sm" disabled={pending || !sec || tFrom === tTo || !who || who.startsWith("No such")} onClick={() => start(async () => { const r = await transferStudent(tFrom, adm, tTo, sec, note, partial); show(r); if (r.ok) { setAdm(""); setNote(""); setWho(null); setPartial(false); router.refresh(); } })}>Transfer</Button>
           </div>
+          {who && <p className="text-ink-900">Student: <b>{who}</b></p>}
+          <label className="flex items-center gap-2 text-ink-700"><input type="checkbox" checked={partial} onChange={(e) => setPartial(e.target.checked)} />Transfer even if some results cannot be carried (the CGPA will change)</label>
           {transfers.length > 0 && <ul className="mt-2 space-y-1 text-ink-700">{transfers.map((t) => (
-            <li key={t.id}>{t.done_at.slice(0, 10).split("-").reverse().join("/")}: {t.to_student?.full_name ?? ""} ({t.to_student?.admission_no ?? ""}), {name(t.from_school)} to {name(t.to_school)}, {t.carried} results carried{t.not_carried ? `; not carried: ${t.not_carried}` : ""}</li>))}</ul>}
+            <li key={t.id}>{t.done_at.slice(0, 10).split("-").reverse().join("/")}: {t.student_name ?? ""} ({t.admission_no ?? ""}), {name(t.from_school)} to {name(t.to_school)}, {t.carried} results carried{t.not_carried ? `; not carried: ${t.not_carried}` : ""}{t.cgpa_before !== t.cgpa_after ? `; CGPA ${t.cgpa_before ?? "-"} to ${t.cgpa_after ?? "-"}` : ""}</li>))}</ul>}
         </CardBody>
       </Card>}
       {campuses.length > 1 && <Card>
