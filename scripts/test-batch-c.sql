@@ -46,6 +46,14 @@ begin
   -- 6. reject a course choice with a reason
   select r.id into v_reg from public.course_registration r where r.semester_id = (select id from public.semester where school_id = 11 and is_current) limit 1;
   update public.course_registration set status = 'registered' where id = v_reg;
+  -- a core course cannot be rejected
+  perform set_config('request.jwt.claims', json_build_object('sub', of, 'role', 'authenticated')::text, true); set local role authenticated;
+  if public.reject_registrations((select semester_id from public.course_registration where id = v_reg), array[v_reg], 'QA core') <> 0
+     and not exists (select 1 from public.course_registration r join public.programme_course pc on pc.id = r.programme_course_id where r.id = v_reg and pc.elective_group is not null) then
+    raise exception 'FAIL a core course was rejected';
+  end if;
+  reset role;
+  update public.programme_course set elective_group = 'QA-E' where id = (select programme_course_id from public.course_registration where id = v_reg);
   perform set_config('request.jwt.claims', json_build_object('sub', of, 'role', 'authenticated')::text, true); set local role authenticated;
   if public.reject_registrations((select semester_id from public.course_registration where id = v_reg), array[v_reg], 'QA no seats in the lab') <> 1 then raise exception 'FAIL reject'; end if;
   reset role;
@@ -60,6 +68,6 @@ begin
   perform set_config('request.jwt.claims', json_build_object('sub', pr, 'role', 'authenticated')::text, true); set local role authenticated;
   if public.decide_relaxation(v_req, true) <> 'approved' then raise exception 'FAIL approve'; end if;
   reset role;
-  if not exists (select 1 from public.fee_invoice where student_id = k and title like 'Attendance condonation fee:%#' || v_req and amount = 250) then raise exception 'FAIL condonation fee'; end if;
+  if not exists (select 1 from public.fee_invoice where student_id = k and title like 'Condonation fee:%#' || v_req and amount = 250) then raise exception 'FAIL condonation fee'; end if;
 end $$;
 rollback;

@@ -77,18 +77,14 @@ export async function saveAttendanceRules(input: { mode: string; days: string; m
   return { ok: true, message: "Saved." };
 }
 
-// approve every request waiting for this person, one by one through the same checks
-export async function approveAllMine(): Promise<R> {
+// approve the requests shown on screen (one kind at a time), in one call
+export async function approveMany(ids: number[]): Promise<R> {
   const supabase = await createClient();
-  const { data: q } = await supabase.rpc("my_relaxation_queue" as never);
-  const ids = ((q ?? []) as unknown as (number | Record<string, number>)[]).map((x) => Number(typeof x === "object" ? Object.values(x)[0] : x)).slice(0, 200);
-  let ok = 0, failed = 0;
-  for (const id of ids) {
-    const { error } = await supabase.rpc("decide_relaxation" as never, { p_id: id, p_approve: true, p_note: "Approved with others" } as never);
-    if (error) failed++; else ok++;
-  }
+  const { data, error } = await supabase.rpc("decide_relaxations" as never, { p_ids: ids.slice(0, 300), p_note: "Approved with others" } as never);
+  if (error) return { ok: false, error: clean(error, "Could not approve.") };
   refresh();
-  return failed ? { ok: false, error: `Approved ${ok}; ${failed} could not be approved.` } : { ok: true, message: `Approved ${ok}.` };
+  const n = Number(data ?? 0);
+  return n === ids.length ? { ok: true, message: `Approved ${n}.` } : { ok: false, error: `Approved ${n}; ${ids.length - n} were no longer waiting for you.` };
 }
 
 export async function saveCondonationFee(fee: string): Promise<R> {

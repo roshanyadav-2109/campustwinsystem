@@ -33,6 +33,9 @@ const en = {
     noAccess: "You don't have access to this page.",
   },
   nav: {
+    examCell: "Exam cell",
+    seating: "Seating and invigilation",
+    scripts: "Coded scripts",
     workload: "Workload",
     revaluation: "Revaluation",
     supplementary: "Supplementary exams",

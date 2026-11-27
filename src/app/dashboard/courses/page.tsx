@@ -20,10 +20,12 @@ export default async function CoursesPage() {
     const { data: mine } = await supabase.rpc("student_semester" as never, { p_student: session.studentId, p_semester: s.id } as never);
     const st = ((mine ?? []) as unknown as { programme_id: number; semester_no: number }[])[0];
     if (!st) return (<div><PageHeader title="My courses" /><EmptyState art="nothing-yet" title="Your programme is not set up yet" /></div>);
-    const [pcs, regs] = await Promise.all([
+    const [pcs, regs, rej] = await Promise.all([
       supabase.from("programme_course" as never).select("id, elective_group, seat_limit, course:course_id(code, name, kind, credits)").eq("programme_id", st.programme_id).eq("semester_no", st.semester_no),
       supabase.from("course_registration" as never).select("programme_course_id, status").eq("semester_id", s.id).eq("student_id", session.studentId).neq("status", "dropped"),
+      supabase.from("course_registration" as never).select("drop_reason, pc:programme_course_id(course:course_id(code, name))").eq("semester_id", s.id).eq("student_id", session.studentId).eq("status", "dropped").not("drop_reason", "is", null),
     ]);
+    const rejected = ((rej.data ?? []) as unknown as { drop_reason: string | null; pc: { course: { code: string; name: string } } }[]).map((r) => ({ course: `${r.pc.course.code} ${r.pc.course.name}`, reason: r.drop_reason }));
     const reg = new Map(((regs.data ?? []) as unknown as { programme_course_id: number; status: string }[]).map((r) => [r.programme_course_id, r.status]));
     const { data: used } = await supabase.rpc("course_seat_usage" as never, { p_semester: s.id } as never);
     const count = new Map(((used ?? []) as unknown as { programme_course_id: number; used: number }[]).map((u) => [u.programme_course_id, u.used]));
@@ -32,6 +34,7 @@ export default async function CoursesPage() {
     return (
       <div className="space-y-4">
         <PageHeader title="My courses" description={`Semester ${st.semester_no} (${s.kind} semester). Choose one course in each choice group.`} />
+        {rejected.length > 0 && <div className="rounded-sm border border-down bg-white px-3 py-2 text-[13px] text-down">{rejected.map((r, i) => <p key={i}>{r.course}: not approved{r.reason ? ` (${r.reason})` : ""}. You can choose again.</p>)}</div>}
         <MyCourses semesterId={s.id} studentId={session.studentId} courses={courses} />
       </div>
     );

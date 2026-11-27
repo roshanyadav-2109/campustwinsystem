@@ -7,6 +7,7 @@ import { DashHeader, AnnouncementsPanel, EventsPanel, QuickLinks, NAV_COLOR, Act
 import type { NavRole } from "@/lib/nav";
 import { isScopedLead } from "@/lib/roles";
 import { DepartmentPanel } from "@/components/dashboards/department-panel";
+import { DutiesPanel } from "@/components/dashboards/duties-panel";
 
 // One unified teacher portal: own class (full access) + subject-only sections.
 export async function TeacherDashboard({ session }: { session: Session }) {
@@ -37,6 +38,7 @@ export async function TeacherDashboard({ session }: { session: Session }) {
       ]} />
 
       {isScopedLead(session) && <DepartmentPanel session={session} />}
+      {session.school.higherEd && <DutiesPanel />}
 
       {myClass && (
         <section className="mb-4 rounded-md border border-hair bg-surface p-4">
