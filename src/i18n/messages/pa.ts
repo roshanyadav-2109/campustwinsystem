@@ -34,6 +34,7 @@ const pa: PartialMessages = {
     noAccess: "ਤੁਹਾਨੂੰ ਇਹ ਪੰਨਾ ਵੇਖਣ ਦੀ ਇਜਾਜ਼ਤ ਨਹੀਂ ਹੈ।",
   },
   nav: {
+    supplementary: "Supplementary exams",
     relaxations: "ਛੋਟ",
     results: "ਨਤੀਜੇ",
     lectures: "ਲੈਕਚਰ",

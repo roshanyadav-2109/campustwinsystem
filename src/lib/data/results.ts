@@ -16,7 +16,7 @@ export async function loadCards(supabase: Awaited<ReturnType<typeof createClient
   const rows = (srs ?? []) as unknown as { semester_id: number; student_id: number; semester_no: number | null; credits_registered: number; credits_earned: number; sgpa: number | null; cgpa: number | null; backlogs: number; verify_token: string; published_at: string; student: { full_name: string; admission_no: string } }[];
   if (!rows.length) return [];
   const { data: crs } = await supabase.from("course_result" as never).select("semester_id, student_id, credits, cia, cia_max, ese, ese_max, grade, point, passed, course:course_id(code, name)")
-    .in("student_id", [...new Set(rows.map((r) => r.student_id))]).in("semester_id", [...new Set(rows.map((r) => r.semester_id))]).limit(10000);
+    .in("student_id", [...new Set(rows.map((r) => r.student_id))]).in("semester_id", [...new Set(rows.map((r) => r.semester_id))]).eq("attempt", 1).limit(10000);
   const courses = (crs ?? []) as unknown as { semester_id: number; student_id: number; credits: number; cia: number | null; cia_max: number | null; ese: number | null; ese_max: number | null; grade: string; point: number; passed: boolean; course: { code: string; name: string } }[];
   const { data: prog } = await supabase.from("student_enrollment").select("student_id, section:section_id(class:class_id(programme:programme_id(name)))" as "student_id").in("student_id", rows.map((r) => r.student_id)).limit(1000);
   const progName = new Map(((prog ?? []) as unknown as { student_id: number; section: { class: { programme: { name: string } | null } } }[]).map((p) => [p.student_id, p.section?.class?.programme?.name ?? null]));

@@ -34,6 +34,7 @@ const gu: PartialMessages = {
     noAccess: "તમને આ પેજ જોવાની પરવાનગી નથી.",
   },
   nav: {
+    supplementary: "Supplementary exams",
     relaxations: "છૂટ",
     results: "પરિણામ",
     lectures: "વ્યાખ્યાન",

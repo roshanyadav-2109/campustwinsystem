@@ -34,6 +34,7 @@ const hi: PartialMessages = {
     noAccess: "आपको इस पृष्ठ तक पहुँच नहीं है।",
   },
   nav: {
+    supplementary: "Supplementary exams",
     relaxations: "छूट",
     results: "परिणाम",
     lectures: "व्याख्यान",

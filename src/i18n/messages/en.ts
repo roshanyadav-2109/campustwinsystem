@@ -33,6 +33,7 @@ const en = {
     noAccess: "You don't have access to this page.",
   },
   nav: {
+    supplementary: "Supplementary exams",
     relaxations: "Relaxations",
     results: "Results",
     lectures: "Lectures",
