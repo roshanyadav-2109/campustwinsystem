@@ -75,6 +75,16 @@ try {
   const sp = await sctx.newPage(); sp.on("pageerror", (e) => errors.push(e.message));
   await sp.goto(`${HOST}/dashboard/results`, { waitUntil: "load", timeout: 90000 }); await settle(sp);
   check(await sp.getByText(/attempt 2, passed with/).count() >= 1, "the student sees the re-take passed");
+  // a second student, still waiting for their re-take, sees what they applied for
+  const { data: sr2 } = await admin.from("supp_registration").select("student_id").eq("session_id", sess.id).eq("status", "registered").neq("student_id", sr.student_id).limit(1).maybeSingle();
+  if (sr2) {
+    const { data: stu2 } = await admin.from("student").select("full_name").eq("id", sr2.student_id).single();
+    const s2 = await login(`qa-supp-s2-${stamp}@example.com`, { role: "student", full_name: stu2.full_name, school_id: S, student_id: sr2.student_id });
+    const c2 = await b.newContext({ viewport: { width: 420, height: 900 } }); await c2.addCookies(s2.cookies);
+    const p2 = await c2.newPage(); p2.on("pageerror", (e) => errors.push(e.message));
+    await p2.goto(`${HOST}/dashboard/results`, { waitUntil: "load", timeout: 90000 }); await settle(p2);
+    check(await p2.getByText(new RegExp(`Applied for QA Supplementary ${stamp}`)).count() >= 1, "a waiting student sees what they applied for and the fee");
+  }
   check(errors.length === 0, `no page errors${errors.length ? ": " + errors.join(" | ") : ""}`);
 } catch (e) { failures++; console.log("FAIL", e.message ?? e); }
 finally {
@@ -83,6 +93,7 @@ finally {
     await admin.from("supp_registration").delete().eq("session_id", made.session);
     const ids = [...new Set((inv ?? []).map((x) => x.invoice_id).filter(Boolean))];
     if (ids.length) await admin.from("fee_invoice").delete().in("id", ids);
+    await admin.from("fee_invoice").delete().eq("school_id", S).like("title", `Supplementary exam fee: QA Supplementary ${stamp}%`);
     await admin.from("exam_admit_card").delete().eq("session_id", made.session);
     await admin.from("exam_session").delete().eq("id", made.session);
   }

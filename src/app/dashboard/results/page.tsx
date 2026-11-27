@@ -31,7 +31,12 @@ export default async function ResultsPage({ searchParams }: { searchParams: SP }
   if (session.role === "student" || session.role === "guardian") {
     const ids = session.role === "student" ? (session.studentId ? [session.studentId] : []) : (await getMyChildren()).map((k) => k.id);
     const cards = await loadCards(supabase, null, ids, session.school.name);
-    const backlogs = (await Promise.all(ids.map(async (id) => ((await supabase.rpc("student_backlogs" as never, { p_student: id } as never)).data ?? []) as unknown as { course_code: string; course_name: string; semester_no: number | null; attempts: number; last_grade: string }[]))).flat();
+    const sid = ids[0] ?? 0; // one student at a time (a parent sees the first child; the child switcher covers the rest)
+    const [{ data: blData }, { data: openData }, { data: appliedData }, { data: standData }] = sid ? await Promise.all([
+      supabase.rpc("student_backlogs" as never, { p_student: sid } as never), supabase.rpc("open_supplementary" as never, { p_student: sid } as never),
+      supabase.rpc("my_supp_registrations" as never, { p_student: sid } as never), supabase.rpc("student_standing" as never, { p_student: sid } as never),
+    ]) : [{ data: [] }, { data: [] }, { data: [] }, { data: [] }];
+    const backlogs = (blData ?? []) as unknown as { course_id: number; semester_id: number; course_code: string; course_name: string; semester_no: number | null; attempts: number; last_grade: string }[];
     const { data: att } = ids.length ? await supabase.from("course_result" as never).select("attempt, grade, passed, course:course_id(code, name)").in("student_id", ids).gt("attempt", 1).order("attempt") : { data: [] };
     const attempts = ((att ?? []) as unknown as { attempt: number; grade: string; passed: boolean; course: { code: string; name: string } }[]).map((a) => ({ code: a.course.code, name: a.course.name, attempt: a.attempt, grade: a.grade, passed: a.passed }));
     const held = (await Promise.all(ids.map(async (id) => ((await supabase.rpc("my_result_holds" as never, { p_student: id } as never)).data ?? []) as unknown as { semester_no: number | null; reason: string }[]))).flat();
@@ -39,7 +44,9 @@ export default async function ResultsPage({ searchParams }: { searchParams: SP }
       <div className="space-y-4">
         <PageHeader title="Results" description="Published semester results, with SGPA and CGPA. Download the grade card." />
         {held.map((h, i) => <p key={i} role="status" className="rounded-sm border border-down bg-white px-3 py-2 text-[13px] text-down">Semester {h.semester_no ?? ""} result is held back: {h.reason}. Speak to the office.</p>)}
-        <MyBacklogs backlogs={backlogs} attempts={attempts} />
+        <MyBacklogs studentId={sid} backlogs={backlogs} attempts={attempts} open={(openData ?? []) as unknown as { session_id: number; session_name: string; for_semester_id: number; fee_per_course: number | null; registration_closes: string | null }[]}
+          applied={(appliedData ?? []) as unknown as { id: number; session_id: number; session_name: string; course_id: number; course_code: string; status: string; fee_due: number | null }[]}
+          standing={((standData ?? []) as unknown as { cgpa: number | null; credits_earned: number; backlogs: number }[])[0] ?? null} />
         {cards.length === 0 ? (held.length ? null : <EmptyState art="no-marks" title="No results published yet" />) : <MyResults cards={cards} verifyBase={verifyBase} signers={signers} />}
       </div>
     );

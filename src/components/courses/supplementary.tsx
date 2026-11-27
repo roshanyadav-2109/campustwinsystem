@@ -4,7 +4,7 @@ import { useRouter } from "next/navigation";
 import { Card, CardBody, CardHeader } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input, Select } from "@/components/ui/field";
-import { createSupplementary, registerBacklogs, saveSuppMarks, publishSupplementary } from "@/app/dashboard/supplementary/actions";
+import { createSupplementary, registerBacklogs, saveSuppMarks, publishSupplementary, applySupplementary, withdrawSupp, closeSupplementary } from "@/app/dashboard/supplementary/actions";
 
 export type SuppRow = { id: number; attempt: number; cia: number | null; cia_max: number | null; ese_marks: number | null; ese_max: number; is_absent: boolean; status: string;
   student: { full_name: string; admission_no: string }; course: { code: string; name: string }; result: { grade: string; passed: boolean } | null };
@@ -30,6 +30,7 @@ export function NewSupplementary({ semesters }: { semesters: { id: number; label
   const [name, setName] = useState("");
   const [fee, setFee] = useState("");
   const [closes, setCloses] = useState("");
+  const [paperMax, setPaperMax] = useState("100");
   const { msg, pending, run } = useAct();
   const router = useRouter();
   if (!open) return <div className="flex items-center gap-3"><Button size="sm" variant="subtle" onClick={() => setOpen(true)}>New supplementary exam</Button><Msg m={msg} /></div>;
@@ -40,8 +41,9 @@ export function NewSupplementary({ semesters }: { semesters: { id: number; label
         <Select className="h-9 text-[13px]" aria-label="For semester" value={sem} onChange={(e) => setSem(Number(e.target.value))}>{semesters.map((s) => <option key={s.id} value={s.id}>{s.label}</option>)}</Select>
         <Input className="h-9 w-64 text-[13px]" aria-label="Exam name" placeholder="Name, for example Supplementary May 2027" value={name} onChange={(e) => setName(e.target.value)} />
         <label className="text-[12px] text-ink-700">Fee per course, Rs (optional)<Input className="mt-0.5 h-9 w-28 text-[13px]" value={fee} onChange={(e) => setFee(e.target.value)} /></label>
-        <label className="text-[12px] text-ink-700">Fee due by<Input type="date" className="mt-0.5 h-9 text-[13px]" value={closes} onChange={(e) => setCloses(e.target.value)} /></label>
-        <Button disabled={pending} onClick={() => run(() => createSupplementary({ semesterId: sem, name, fee, closes }), (id) => { setOpen(false); if (id) router.push(`?session=${id}`); })}>Create</Button>
+        <label className="text-[12px] text-ink-700">Applications and fee close<Input type="date" className="mt-0.5 h-9 text-[13px]" value={closes} onChange={(e) => setCloses(e.target.value)} /></label>
+        <label className="text-[12px] text-ink-700">Paper out of<Input className="mt-0.5 h-9 w-20 text-[13px]" value={paperMax} onChange={(e) => setPaperMax(e.target.value)} /></label>
+        <Button disabled={pending} onClick={() => run(() => createSupplementary({ semesterId: sem, name, fee, closes, paperMax }), (id) => { setOpen(false); if (id) router.push(`?session=${id}`); })}>Create</Button>
         <Button variant="ghost" onClick={() => setOpen(false)}>Cancel</Button>
       </CardBody>
     </Card>
@@ -61,9 +63,10 @@ export function SupplementaryDesk({ sessionId, name, semester, fee, rows, openBa
       <CardHeader title={`${name}: ${semester}`} action={
         <div className="flex flex-wrap items-center gap-2">
           <Msg m={msg} />
-          <Button size="sm" variant="subtle" disabled={pending} onClick={() => run(() => registerBacklogs(sessionId))}>Register all backlogs</Button>
+          <Button size="sm" variant="subtle" disabled={pending} title="Registers every open backlog of the semester and raises the fee" onClick={() => run(() => registerBacklogs(sessionId))}>Register all backlogs</Button>
           {dirty.length > 0 && <Button size="sm" disabled={pending} onClick={() => run(() => saveSuppMarks(dirty.map((r) => ({ id: r.id, ...marks[r.id] }))))}>Save marks ({dirty.length})</Button>}
           {canPublish && waiting.length > 0 && <Button size="sm" disabled={pending || dirty.length > 0} onClick={() => run(() => publishSupplementary(sessionId))}>Publish results</Button>}
+          {canPublish && waiting.length > 0 && <Button size="sm" variant="ghost" disabled={pending || dirty.length > 0} title="Anyone without marks is marked absent, then everything is published" onClick={() => run(() => closeSupplementary(sessionId))}>Close and publish</Button>}
         </div>} />
       <CardBody className="p-0">
         <p className="px-4 py-2 text-[12px] text-ink-500">
@@ -88,7 +91,7 @@ export function SupplementaryDesk({ sessionId, name, semester, fee, rows, openBa
                         onChange={(e) => setMarks({ ...marks, [r.id]: { ...m, marks: e.target.value } })} /><span className="text-ink-500">/ {n(r.ese_max)}</span>
                       <label className="flex items-center gap-1 text-[12px]"><input type="checkbox" checked={m.absent} onChange={(e) => setMarks({ ...marks, [r.id]: { ...m, absent: e.target.checked } })} aria-label={`Absent: ${r.student.full_name}, ${r.course.code}`} />Absent</label>
                     </span>)}</td>
-                  <td className={`px-4 py-1.5 ${r.result ? (r.result.passed ? "text-up" : "text-down") : "text-ink-500"}`}>{r.result ? (r.result.passed ? `Passed, ${r.result.grade}` : r.result.grade === "Ab" ? "Absent" : "Not passed") : "Waiting"}</td>
+                  <td className={`px-4 py-1.5 ${r.result ? (r.result.passed ? "text-up" : "text-down") : "text-ink-500"}`}>{r.result ? (r.result.passed ? `Passed, ${r.result.grade}` : r.result.grade === "Ab" ? "Absent" : "Not passed") : (<span className="inline-flex items-center gap-2">Waiting <Button size="sm" variant="ghost" disabled={pending} aria-label={`Withdraw ${r.student.full_name}, ${r.course.code}`} onClick={() => run(() => withdrawSupp(r.id))}>Withdraw</Button></span>)}</td>
                 </tr>
               );
             })}</tbody>
@@ -99,15 +102,34 @@ export function SupplementaryDesk({ sessionId, name, semester, fee, rows, openBa
   );
 }
 
-// A student's (or parent's) view: open backlogs and supplementary outcomes.
-export function MyBacklogs({ backlogs, attempts }: { backlogs: { course_code: string; course_name: string; semester_no: number | null; attempts: number; last_grade: string }[];
-  attempts: { code: string; name: string; attempt: number; grade: string; passed: boolean }[] }) {
-  if (!backlogs.length && !attempts.length) return null;
+// A student's (or parent's) view: open backlogs with Apply, what they applied for, outcomes, current standing.
+export function MyBacklogs({ studentId, backlogs, attempts, open, applied, standing }: {
+  studentId: number;
+  backlogs: { course_id: number; semester_id: number; course_code: string; course_name: string; semester_no: number | null; attempts: number; last_grade: string }[];
+  attempts: { code: string; name: string; attempt: number; grade: string; passed: boolean }[];
+  open: { session_id: number; session_name: string; for_semester_id: number; fee_per_course: number | null; registration_closes: string | null }[];
+  applied: { id: number; session_id: number; session_name: string; course_id: number; course_code: string; status: string; fee_due: number | null }[];
+  standing: { cgpa: number | null; credits_earned: number; backlogs: number } | null;
+}) {
+  const { msg, pending, run } = useAct();
+  if (!backlogs.length && !attempts.length && !applied.length) return null;
   return (
     <Card>
-      <CardHeader title={backlogs.length ? `Backlogs (${backlogs.length})` : "Supplementary results"} />
+      <CardHeader title={backlogs.length ? `Backlogs (${backlogs.length})` : "Supplementary results"} action={<Msg m={msg} />} />
       <CardBody className="space-y-2 text-[13px]">
-        {backlogs.map((b) => <p key={b.course_code} className="text-down"><b>{b.course_code}</b> {b.course_name}{b.semester_no ? `, semester ${b.semester_no}` : ""}: {b.last_grade === "Ab" ? "absent" : "not passed"} after {b.attempts} attempt{b.attempts > 1 ? "s" : ""}</p>)}
+        {standing && <p className="text-ink-700">Now: CGPA <b>{n(standing.cgpa)}</b>, {n(standing.credits_earned)} credits earned, {standing.backlogs} backlog{standing.backlogs === 1 ? "" : "s"}. Published grade cards stay as they were issued.</p>}
+        {backlogs.map((b) => {
+          const mine = applied.find((a) => a.course_id === b.course_id && a.status === "registered");
+          const sess = open.find((o) => o.for_semester_id === b.semester_id);
+          return (
+            <div key={b.course_code} className="flex flex-wrap items-center gap-2">
+              <span className="text-down"><b>{b.course_code}</b> {b.course_name}{b.semester_no ? `, semester ${b.semester_no}` : ""}: {b.last_grade === "Ab" ? "absent" : "not passed"} after {b.attempts} attempt{b.attempts > 1 ? "s" : ""}</span>
+              {mine ? <span className="text-ink-700">Applied for {mine.session_name}{mine.fee_due ? `, fee Rs ${n(mine.fee_due)} due` : ""}</span>
+                : sess ? <Button size="sm" variant="subtle" disabled={pending} onClick={() => run(() => applySupplementary(sess.session_id, studentId, b.course_id))}>
+                    Apply for {sess.session_name}{sess.fee_per_course ? ` (Rs ${n(sess.fee_per_course)})` : ""}</Button> : null}
+            </div>
+          );
+        })}
         {attempts.map((a) => <p key={`${a.code}-${a.attempt}`} className={a.passed ? "text-up" : "text-ink-700"}><b>{a.code}</b> {a.name}: attempt {a.attempt}, {a.passed ? `passed with ${a.grade}` : a.grade === "Ab" ? "absent" : "not passed"}</p>)}
       </CardBody>
     </Card>

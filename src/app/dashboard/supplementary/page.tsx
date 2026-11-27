@@ -36,10 +36,16 @@ export default async function SupplementaryPage({ searchParams }: { searchParams
   const cur = sessions.find((s) => s.id === sessionId) ?? null;
   let rows: SuppRow[] = [];
   let backlogCount = 0;
+  let courses: { id: number; code: string }[] = [];
+  let courseId = 0;
   if (cur) {
+    const course = Number(one(sp.course)) || 0;
+    const { data: cl } = await supabase.from("supp_registration" as never).select("course:course_id(id, code)").eq("session_id", cur.id).limit(5000);
+    courses = [...new Map(((cl ?? []) as unknown as { course: { id: number; code: string } }[]).map((x) => [x.course.id, x.course])).values()].sort((a, b) => a.code.localeCompare(b.code));
+    courseId = course && courses.some((c) => c.id === course) ? course : courses[0]?.id ?? 0;
     const [{ data: regs }, { data: bl }] = await Promise.all([
       supabase.from("supp_registration" as never).select("id, attempt, cia, cia_max, ese_marks, ese_max, is_absent, status, student:student_id(full_name, admission_no), course:course_id(code, name), result:result_id(grade, passed)")
-        .eq("session_id", cur.id).order("course_id").limit(5000),
+        .eq("session_id", cur.id).eq("course_id", courseId).order("id").limit(1000),
       supabase.rpc("semester_backlogs" as never, { p_semester: cur.for_semester_id } as never),
     ]);
     rows = (regs ?? []) as unknown as SuppRow[];
@@ -52,6 +58,11 @@ export default async function SupplementaryPage({ searchParams }: { searchParams
         <Link key={s.id} href={`?session=${s.id}`} className={`rounded-sm border px-2.5 py-1 text-[13px] ${s.id === sessionId ? "border-ink-900 bg-ink-900 text-white" : "border-hair bg-white text-ink-700"}`}>{s.name}</Link>))}
       </div>
       {sems.length ? <NewSupplementary semesters={sems} /> : <p className="text-[13px] text-ink-500">Supplementary exams can be set up once results for a semester are published.</p>}
+      {cur && courses.length > 1 && (
+        <div className="flex flex-wrap gap-1.5">{courses.map((c) => (
+          <Link key={c.id} href={`?session=${cur.id}&course=${c.id}`} className={`rounded-sm border px-2.5 py-1 text-[12px] ${c.id === courseId ? "border-[#0F6CBD] bg-[#EBF3FC] text-[#0F6CBD]" : "border-hair bg-white text-ink-700"}`}>{c.code}</Link>))}
+        </div>
+      )}
       {cur ? (
         <SupplementaryDesk key={cur.id} sessionId={cur.id} name={cur.name} fee={cur.fee_per_course} rows={rows} openBacklogs={backlogCount} canPublish={pub === true}
           semester={allSems.find((s) => s.id === cur.for_semester_id)?.label ?? ""} />
