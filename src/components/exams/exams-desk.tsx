@@ -8,8 +8,8 @@ import { downloadPdf, downloadPdfBook } from "@/lib/pdf";
 import { admitCardPdf } from "@/components/exams/admit-pdf";
 import { saveSession, publishSession, deleteSession, savePaper, deletePaper, admitCards } from "@/app/dashboard/exam-timetable/actions";
 
-export type SessionView = { id: number; name: string; term: number; assessment_type_id: number; instructions: string | null; withhold_fee_dues: boolean; published_at: string | null };
-export type PaperView = { id: number; session_id: number; class_id: number; subject_id: number; exam_date: string; starts_at: string; ends_at: string; max_marks: number; note: string | null; component?: string; optional_group?: string | null; subject: { name: string } | null };
+export type SessionView = { id: number; name: string; term: number; assessment_type_id: number; instructions: string | null; withhold_fee_dues: boolean; published_at: string | null; kind?: string };
+export type PaperView = { id: number; session_id: number; class_id: number | null; subject_id: number; exam_date: string; starts_at: string; ends_at: string; max_marks: number; note: string | null; component?: string; optional_group?: string | null; subject: { name: string } | null };
 type Opt = { id: number; name: string };
 
 function Msg({ m }: { m: { ok: boolean; text: string } | null }) {
@@ -64,8 +64,10 @@ export function ExamsDesk({ canEdit, sessions, sessionId, papers, types, classes
   const [msg, setMsg] = useState<{ ok: boolean; text: string } | null>(null);
   const [pending, start] = useTransition();
   const run = (fn: () => Promise<{ ok: boolean; message?: string; error?: string }>) => start(async () => { const r = await fn(); setMsg(r.ok ? { ok: true, text: r.message ?? "Done." } : { ok: false, text: r.error ?? "Failed." }); router.refresh(); });
-  const classPapers = papers.filter((p) => p.class_id === classId);
-  const subjOpts = subjects.filter((x) => (classes.find((c) => c.id === classId)?.subjects ?? []).includes(x.id));
+  // supplementary and improvement exams: papers are set per course ("By course", class 0)
+  const byCourse = !!s && s.kind !== undefined && s.kind !== "regular";
+  const classPapers = papers.filter((p) => (classId === 0 ? p.class_id == null : p.class_id === classId));
+  const subjOpts = classId === 0 ? subjects : subjects.filter((x) => (classes.find((c) => c.id === classId)?.subjects ?? []).includes(x.id));
 
   const printAdmit = () => start(async () => {
     if (!s) return;
@@ -73,7 +75,7 @@ export function ExamsDesk({ canEdit, sessions, sessionId, papers, types, classes
     if (!sec) return;
     const r = await admitCards(s.id, sec.id);
     if (!r.ok) { setMsg({ ok: false, text: r.error }); return; }
-    const classPapers = papers.filter((p) => p.class_id === sec.classId);
+    const classPapers = papers.filter((p) => p.class_id === sec.classId || p.class_id == null);
     if (!classPapers.length) { setMsg({ ok: false, text: `No papers are set for ${sec.label} in this exam.` }); return; }
     // colleges: a hall ticket lists only the student's registered courses
     const papersFor = (ids: number[] | null) => classPapers.filter((p) => !ids || ids.includes(p.subject_id))
@@ -109,6 +111,11 @@ export function ExamsDesk({ canEdit, sessions, sessionId, papers, types, classes
             </div>} />
           <CardBody className="space-y-3">
             <div className="flex flex-wrap gap-1.5" role="tablist" aria-label="Class">
+              {byCourse && (
+                <button role="tab" aria-selected={classId === 0} onClick={() => { setClassId(0); setPaper(blankPaper); }}
+                  className={`rounded-sm border px-2.5 py-1 text-[13px] ${classId === 0 ? "border-[#0F6CBD] bg-[#EBF3FC] text-[#0F6CBD]" : "border-hair bg-white text-ink-700"}`}>
+                  By course<span className="ml-1 text-[11px] text-ink-500">{papers.filter((p) => p.class_id == null).length || ""}</span></button>
+              )}
               {classes.map((c) => (
                 <button key={c.id} role="tab" aria-selected={c.id === classId} onClick={() => { setClassId(c.id); setPaper(blankPaper); }}
                   className={`rounded-sm border px-2.5 py-1 text-[13px] ${c.id === classId ? "border-[#0F6CBD] bg-[#EBF3FC] text-[#0F6CBD]" : "border-hair bg-white text-ink-700"}`}>
@@ -147,7 +154,7 @@ export function ExamsDesk({ canEdit, sessions, sessionId, papers, types, classes
                 <Field label="Optional group" htmlFor={`${uid}-g`}><Input id={`${uid}-g`} value={paper.group} placeholder="e.g. Language" onChange={(e) => setPaper({ ...paper, group: e.target.value })} /></Field>
                 <Field label="Note (optional)" htmlFor={`${uid}-o`}><Input id={`${uid}-o`} value={paper.note} onChange={(e) => setPaper({ ...paper, note: e.target.value })} /></Field>
                 <Button disabled={pending || !paper.subjectId} onClick={() => run(async () => {
-                  const r = await savePaper({ id: paper.id, sessionId: s.id, classId, subjectId: paper.subjectId, date: paper.date, start: paper.start, end: paper.end, max: paper.max, note: paper.note, component: paper.component, group: paper.group });
+                  const r = await savePaper({ id: paper.id, sessionId: s.id, classId: classId || null, subjectId: paper.subjectId, date: paper.date, start: paper.start, end: paper.end, max: paper.max, note: paper.note, component: paper.component, group: paper.group });
                   if (r.ok) setPaper({ ...blankPaper, date: paper.date, start: paper.start, end: paper.end, max: paper.max });
                   return r;
                 })}>{paper.id ? "Save paper" : "Add paper"}</Button>
@@ -188,7 +195,7 @@ export function FamilyExams({ sessions, papers, children, school, verifyBase }: 
   return (
     <div className="space-y-4">
       {children.map((k) => sessions.map((s) => {
-        const mine = papers.filter((p) => p.session_id === s.id && p.class_id === k.classId);
+        const mine = papers.filter((p) => p.session_id === s.id && (p.class_id === k.classId || p.class_id == null));
         if (!mine.length) return null;
         return (
           <Card key={`${k.id}-${s.id}`}>

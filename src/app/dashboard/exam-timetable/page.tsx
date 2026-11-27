@@ -22,7 +22,7 @@ export default async function ExamTimetablePage({ searchParams }: { searchParams
   const verifyBase = `https://verify.${process.env.NEXT_PUBLIC_BASE_DOMAIN || "campustwin.org"}/verify/`;
 
   const { data: sData } = await supabase.from("exam_session" as never)
-    .select("id, name, term, assessment_type_id, instructions, withhold_fee_dues, published_at").eq("academic_year_id", year.id).order("created_at");
+    .select("id, name, term, assessment_type_id, instructions, withhold_fee_dues, published_at, kind").eq("academic_year_id", year.id).order("created_at");
   const sessions = (sData ?? []) as unknown as SessionView[];
 
   // ---------- families ----------

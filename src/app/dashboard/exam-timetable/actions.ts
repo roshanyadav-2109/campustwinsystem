@@ -48,7 +48,7 @@ export async function deleteSession(id: number): Promise<Result> {
   return { ok: true, message: "Removed." };
 }
 
-export async function savePaper(input: { id?: number | null; sessionId: number; classId: number; subjectId: number; date: string; start: string; end: string; max: string; note: string; component: string; group: string }): Promise<Result> {
+export async function savePaper(input: { id?: number | null; sessionId: number; classId: number | null; subjectId: number; date: string; start: string; end: string; max: string; note: string; component: string; group: string }): Promise<Result> {
   if (!(await office())) return { ok: false, error: "Only the office can set exams." };
   if (!/^\d{4}-\d{2}-\d{2}$/.test(input.date) || !TIME.test(input.start) || !TIME.test(input.end)) return { ok: false, error: "Give the date and the start and end times." };
   if (input.end <= input.start) return { ok: false, error: "The paper must end after it starts." };

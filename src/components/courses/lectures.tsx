@@ -4,7 +4,7 @@ import { useRouter } from "next/navigation";
 import { Card, CardBody, CardHeader } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Field, Input, Select } from "@/components/ui/field";
-import { markLecture } from "@/app/dashboard/lectures/actions";
+import { markLecture, markCourseLecture } from "@/app/dashboard/lectures/actions";
 import { askRelaxation } from "@/app/dashboard/relaxations/actions";
 import { AskButton } from "@/components/courses/relaxations";
 
@@ -16,7 +16,7 @@ function Msg({ m }: { m: { ok: boolean; text: string } | null }) {
   return <span role={m.ok ? "status" : "alert"} className={`text-[13px] font-medium ${m.ok ? "text-up" : "text-down"}`}>{m.text}</span>;
 }
 
-export function LectureMarker({ sectionId, subjects, roster, lockNote }: { sectionId: number; subjects: { id: number; name: string }[]; roster: { id: number; name: string; roll: number | null }[]; lockNote: string | null }) {
+export function LectureMarker({ sectionId, subjects, roster, lockNote, electiveSubject }: { sectionId: number; subjects: { id: number; name: string }[]; roster: { id: number; name: string; roll: number | null; section?: string }[]; lockNote: string | null; electiveSubject?: number }) {
   const uid = useId();
   const [subjectId, setSubjectId] = useState(subjects[0]?.id ?? 0);
   const [date, setDate] = useState(todayIST());
@@ -42,11 +42,12 @@ export function LectureMarker({ sectionId, subjects, roster, lockNote }: { secti
           {roster.map((r) => (
             <button key={r.id} aria-pressed={absent.has(r.id)} aria-label={`${r.name}: absent`} onClick={() => toggle(r.id)}
               className={`rounded-sm border px-2 py-1.5 text-left text-[12px] ${absent.has(r.id) ? "border-down bg-down text-white" : "border-hair bg-white text-ink-900"}`}>
-              <span className="tabular">{r.roll ?? "-"}</span> {r.name}</button>
+              <span className="tabular">{r.roll ?? "-"}</span> {r.name}{r.section ? <span className="ml-1 text-[10px] opacity-70">{r.section}</span> : null}</button>
           ))}
         </div>
         <Button disabled={pending || !subjectId} onClick={() => start(async () => {
-          const res = await markLecture({ sectionId, subjectId, date, period: Number(period), absent: [...absent] });
+          const res = electiveSubject ? await markCourseLecture({ subjectId: electiveSubject, date, period: Number(period), absent: [...absent] })
+            : await markLecture({ sectionId, subjectId, date, period: Number(period), absent: [...absent] });
           setMsg(res.ok ? { ok: true, text: res.message ?? "Saved." } : { ok: false, text: res.error });
           setLocked(!res.ok && /lock|frozen/i.test(res.error));
           if (res.ok) { setAbsent(new Set()); router.refresh(); }
