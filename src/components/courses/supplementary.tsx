@@ -4,7 +4,7 @@ import { useRouter } from "next/navigation";
 import { Card, CardBody, CardHeader } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input, Select } from "@/components/ui/field";
-import { createSupplementary, registerBacklogs, saveSuppMarks, publishSupplementary, applySupplementary, withdrawSupp, closeSupplementary } from "@/app/dashboard/supplementary/actions";
+import { createSupplementary, registerBacklogs, saveSuppMarks, publishSupplementary, applySupplementary, withdrawSupp, closeSupplementary, correctSupp } from "@/app/dashboard/supplementary/actions";
 
 export type SuppRow = { id: number; attempt: number; cia: number | null; cia_max: number | null; ese_marks: number | null; ese_max: number; is_absent: boolean; status: string;
   student: { full_name: string; admission_no: string }; course: { code: string; name: string }; result: { grade: string; passed: boolean } | null };
@@ -87,7 +87,7 @@ export function SupplementaryDesk({ sessionId, name, kind = "supplementary", sem
                   <td className="px-4 py-1.5">{r.student.full_name} <span className="text-ink-500">{r.student.admission_no}</span></td>
                   <td className="px-4 py-1.5 tabular">{r.attempt}</td>
                   <td className="px-4 py-1.5 text-right tabular">{n(r.cia)}/{n(r.cia_max)}</td>
-                  <td className="px-4 py-1.5">{r.status === "published" ? <span className="tabular">{r.is_absent ? "Absent" : `${n(r.ese_marks)}/${n(r.ese_max)}`}</span> : (
+                  <td className="px-4 py-1.5">{r.status === "published" ? <span className="inline-flex flex-wrap items-center gap-2"><span className="tabular">{r.is_absent ? "Absent" : `${n(r.ese_marks)}/${n(r.ese_max)}`}</span>{canPublish && <Correct r={r} />}</span> : (
                     <span className="inline-flex items-center gap-2">
                       <Input className="h-8 w-20 text-right text-[13px]" aria-label={`Marks for ${r.student.full_name}, ${r.course.code}`} disabled={m.absent} value={m.marks}
                         onChange={(e) => setMarks({ ...marks, [r.id]: { ...m, marks: e.target.value } })} /><span className="text-ink-500">/ {n(r.ese_max)}</span>
@@ -135,5 +135,24 @@ export function MyBacklogs({ studentId, backlogs, attempts, open, applied, stand
         {attempts.map((a) => <p key={`${a.code}-${a.attempt}`} className={a.passed ? "text-up" : "text-ink-700"}><b>{a.code}</b> {a.name}: attempt {a.attempt}, {a.passed ? `passed with ${a.grade}` : a.grade === "Ab" ? "absent" : "not passed"}</p>)}
       </CardBody>
     </Card>
+  );
+}
+
+function Correct({ r }: { r: SuppRow }) {
+  const [open, setOpen] = useState(false);
+  const [marks, setMarks] = useState(r.ese_marks == null ? "" : String(Number(r.ese_marks)));
+  const [absent, setAbsent] = useState(r.is_absent);
+  const [reason, setReason] = useState("");
+  const { msg, pending, run } = useAct();
+  if (!open) return <><Button size="sm" variant="ghost" aria-label={`Correct ${r.student.full_name}, ${r.course.code}`} onClick={() => setOpen(true)}>Correct</Button><Msg m={msg} /></>;
+  return (
+    <span className="inline-flex flex-wrap items-center gap-1.5">
+      <Input className="h-8 w-16 text-right text-[12px]" aria-label="Corrected marks" disabled={absent} value={marks} onChange={(e) => setMarks(e.target.value)} />
+      <label className="flex items-center gap-1 text-[12px]"><input type="checkbox" checked={absent} onChange={(e) => setAbsent(e.target.checked)} />Absent</label>
+      <Input className="h-8 w-44 text-[12px]" aria-label="Reason for the correction" placeholder="Reason" value={reason} onChange={(e) => setReason(e.target.value)} />
+      <Button size="sm" disabled={pending || reason.trim().length < 3} onClick={() => run(() => correctSupp(r.id, marks, absent, reason), () => setOpen(false))}>Save</Button>
+      <Button size="sm" variant="ghost" onClick={() => setOpen(false)}>Cancel</Button>
+      <Msg m={msg} />
+    </span>
   );
 }

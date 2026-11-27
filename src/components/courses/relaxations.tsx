@@ -4,7 +4,7 @@ import { useRouter } from "next/navigation";
 import { Card, CardBody, CardHeader } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/field";
-import { askFeeExtension, decideRelaxation, cancelRelaxation, revokeRelaxation } from "@/app/dashboard/relaxations/actions";
+import { askFeeExtension, decideRelaxation, cancelRelaxation, revokeRelaxation, approveAllMine } from "@/app/dashboard/relaxations/actions";
 
 export type RelaxRow = {
   id: number; kind: "attendance" | "fees" | "unlock"; status: string; step: number; chain: string[]; requested_by: string | null; reason: string; until: string | null; on_date: string | null; created_at: string;
@@ -79,7 +79,7 @@ function Row({ r, canAct, me, canRevoke, labels }: { r: RelaxRow; canAct: boolea
 export function RelaxationList({ title, rows, canAct = false, empty, me, canRevoke, labels = {} }: { title: string; rows: RelaxRow[]; canAct?: boolean; chain: Record<string, string[]>; empty: string; me: string; canRevoke: boolean; labels?: Record<string, string | null> }) {
   return (
     <Card>
-      <CardHeader title={`${title} (${rows.length})`} />
+      <CardHeader title={`${title} (${rows.length})`} action={canAct && rows.length > 1 ? <ApproveAll n={rows.length} /> : undefined} />
       <CardBody className="p-0">
         {rows.length === 0 ? <p className="px-4 py-3 text-[13px] text-ink-500">{empty}</p> : <ul>{rows.map((r) => <Row key={r.id} r={r} canAct={canAct} me={me} canRevoke={canRevoke} labels={labels} />)}</ul>}
       </CardBody>
@@ -144,5 +144,16 @@ export function HoldsList({ rows }: { rows: HoldRow[] }) {
         )}
       </CardBody>
     </Card>
+  );
+}
+
+function ApproveAll({ n }: { n: number }) {
+  const [sure, setSure] = useState(false);
+  const { msg, pending, run } = useAct();
+  return (
+    <span className="inline-flex items-center gap-2"><Msg m={msg} />
+      {sure ? <><Button size="sm" disabled={pending} onClick={() => run(() => approveAllMine(), () => setSure(false))}>Approve all {n}</Button><Button size="sm" variant="ghost" onClick={() => setSure(false)}>Cancel</Button></>
+        : <Button size="sm" variant="subtle" onClick={() => setSure(true)}>Approve all</Button>}
+    </span>
   );
 }

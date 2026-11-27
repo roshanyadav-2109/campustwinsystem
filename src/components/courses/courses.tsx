@@ -3,7 +3,8 @@ import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { Card, CardBody, CardHeader } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { registerCore, chooseCourse, dropCourse, approveAll } from "@/app/dashboard/courses/actions";
+import { Input } from "@/components/ui/field";
+import { rejectChoice, registerCore, chooseCourse, dropCourse, approveAll } from "@/app/dashboard/courses/actions";
 
 export type ElectiveRow = { id: number; programme: string; semester: number; group: string; seats: number | null; code: string; name: string; used: number };
 export type PendingRow = { id: number; student: string; adm: string; course: string };
@@ -52,7 +53,7 @@ export function CourseOffice({ semesterId, electives, pending: waiting, canEdit,
         <CardHeader title={`Waiting for approval (${waiting.length})`} action={canApprove && waiting.length > 0 ? <Button size="sm" disabled={pending} onClick={() => run(() => approveAll(semesterId, waiting.map((w) => w.id)))}>Approve all</Button> : undefined} />
         <CardBody className="p-0">
           {waiting.length === 0 ? <p className="px-4 py-3 text-[13px] text-ink-500">Nothing waiting.</p> : (
-            <ul>{waiting.slice(0, 200).map((w) => <li key={w.id} className="border-b border-hair px-4 py-1.5 text-[13px] last:border-b-0">{w.student} <span className="text-ink-500">{w.adm}</span>: {w.course}</li>)}</ul>
+            <ul>{waiting.slice(0, 200).map((w) => <ChoiceRow key={w.id} w={w} semesterId={semesterId} canApprove={canApprove} />)}</ul>
           )}
         </CardBody>
       </Card>
@@ -98,5 +99,24 @@ export function MyCourses({ semesterId, studentId, courses }: { semesterId: numb
         </Card>
       ))}
     </div>
+  );
+}
+
+function ChoiceRow({ w, semesterId, canApprove }: { w: PendingRow; semesterId: number; canApprove: boolean }) {
+  const [reason, setReason] = useState("");
+  const [rejecting, setRejecting] = useState(false);
+  const { msg, pending, run } = useAct();
+  return (
+    <li className="flex flex-wrap items-center gap-2 border-b border-hair px-4 py-1.5 text-[13px] last:border-b-0">
+      <span>{w.student} <span className="text-ink-500">{w.adm}</span>: {w.course}</span>
+      {canApprove && !rejecting && <span className="ml-auto inline-flex gap-1">
+        <Button size="sm" variant="ghost" disabled={pending} aria-label={`Approve ${w.student}, ${w.course}`} onClick={() => run(() => approveAll(semesterId, [w.id]))}>Approve</Button>
+        <Button size="sm" variant="ghost" disabled={pending} aria-label={`Reject ${w.student}, ${w.course}`} onClick={() => setRejecting(true)}>Reject</Button></span>}
+      {rejecting && <span className="ml-auto inline-flex items-center gap-1">
+        <Input className="h-8 w-56 text-[12px]" aria-label={`Reason to reject ${w.student}`} placeholder="Reason" value={reason} onChange={(e) => setReason(e.target.value)} />
+        <Button size="sm" disabled={pending} onClick={() => run(() => rejectChoice(semesterId, w.id, reason))}>Reject</Button>
+        <Button size="sm" variant="ghost" onClick={() => setRejecting(false)}>Cancel</Button></span>}
+      <Msg m={msg} />
+    </li>
   );
 }

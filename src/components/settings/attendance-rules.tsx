@@ -4,7 +4,7 @@ import { useRouter } from "next/navigation";
 import { Card, CardBody, CardHeader } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input, Select } from "@/components/ui/field";
-import { saveAttendanceRules } from "@/app/dashboard/relaxations/actions";
+import { saveAttendanceRules, saveCondonationFee } from "@/app/dashboard/relaxations/actions";
 
 type Rules = { mode: string; days: string; minimum: string; floor: string; holdFees: boolean; cutoff: string; chain: Record<string, string[]> };
 const MODES: [string, string][] = [
@@ -32,7 +32,9 @@ function Chain({ value, onChange, disabled, label, labels }: { value: string[]; 
   );
 }
 
-export function AttendanceRules({ initial, canEdit, hasSemester, labels = {} }: { initial: Rules; canEdit: boolean; hasSemester: boolean; labels?: Record<string, string | null> }) {
+export function AttendanceRules({ initial, canEdit, hasSemester, labels = {}, condonationFee = null }: { initial: Rules; canEdit: boolean; hasSemester: boolean; labels?: Record<string, string | null>; condonationFee?: number | null }) {
+  const [fee, setFee] = useState(condonationFee == null ? "" : String(Number(condonationFee)));
+  const [feeMsg, setFeeMsg] = useState<{ ok: boolean; text: string } | null>(null);
   const [r, setR] = useState<Rules>({ ...initial, chain: { attendance: ["advisor", "head"], fees: ["office"], unlock: ["head"], ...initial.chain } });
   const [msg, setMsg] = useState<{ ok: boolean; text: string } | null>(null);
   const [pending, start] = useTransition();
@@ -66,6 +68,11 @@ export function AttendanceRules({ initial, canEdit, hasSemester, labels = {} }: 
             <label className="text-[12px] text-ink-700">Cannot be relaxed below, % (empty: any)<Input className="mt-0.5 h-8 w-20" disabled={off} value={r.floor} onChange={(e) => setR({ ...r, floor: e.target.value })} /></label>
           </div>
           <p className="text-[12px] text-ink-500">Below the minimum in a course, the hall ticket and results are held back automatically until the shortage is relaxed.</p>
+          <div className="flex flex-wrap items-end gap-2">
+            <label className="text-[12px] text-ink-700">Condonation fee when attendance is relaxed, Rs (empty: none)<Input className="mt-0.5 h-8 w-28" disabled={off} value={fee} onChange={(e) => setFee(e.target.value)} /></label>
+            {!off && <Button size="sm" variant="subtle" disabled={pending} onClick={() => start(async () => { const x = await saveCondonationFee(fee); setFeeMsg(x.ok ? { ok: true, text: x.message ?? "" } : { ok: false, text: x.error }); })}>Save fee</Button>}
+            {feeMsg && <span role={feeMsg.ok ? "status" : "alert"} className={`text-[12px] font-medium ${feeMsg.ok ? "text-up" : "text-down"}`}>{feeMsg.text}</span>}
+          </div>
           <label className="flex items-center gap-2"><input type="checkbox" disabled={off} checked={r.holdFees} onChange={(e) => setR({ ...r, holdFees: e.target.checked })} />Hold back results while fees are overdue</label>
           <p className="text-[12px] text-ink-500">Hall tickets are held for overdue fees when the exam is set to do so (Exam timetable). Paying, or an approved fee extension, releases at once.</p>
         </CardBody>

@@ -76,7 +76,8 @@ export async function saveSuppMarks(rows: { id: number; marks: string; absent: b
   } as never);
   if (error) return { ok: false, error: clean(error, "Could not save the marks.") };
   revalidatePath(PATH);
-  return { ok: true, message: `Saved ${Number(data ?? 0)}.` };
+  const saved = Number(data ?? 0), skipped = rows.length - saved;
+  return skipped > 0 ? { ok: false, error: `Saved ${saved}; ${skipped} not saved (marks above the paper maximum, or already published).` } : { ok: true, message: `Saved ${saved}.` };
 }
 
 export async function publishSupplementary(sessionId: number): Promise<R> {
@@ -86,4 +87,13 @@ export async function publishSupplementary(sessionId: number): Promise<R> {
   revalidatePath(PATH); revalidatePath("/dashboard/results");
   const n = Number(data ?? 0);
   return { ok: true, message: n ? `Published ${n} results.` : "Nothing to publish: enter marks (or mark absent) first." };
+}
+
+export async function correctSupp(id: number, marks: string, absent: boolean, reason: string): Promise<R> {
+  if (!absent && !/^\d{1,3}(\.\d{1,2})?$/.test(marks.trim())) return { ok: false, error: "Marks are a number." };
+  const supabase = await createClient();
+  const { error } = await supabase.rpc("correct_supp_result" as never, { p_reg: id, p_marks: absent ? null : Number(marks), p_absent: absent, p_reason: reason.trim() } as never);
+  if (error) return { ok: false, error: clean(error, "Could not correct.") };
+  revalidatePath(PATH); revalidatePath("/dashboard/results");
+  return { ok: true, message: "Corrected. The earlier result is kept on record." };
 }

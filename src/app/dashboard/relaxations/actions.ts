@@ -76,3 +76,26 @@ export async function saveAttendanceRules(input: { mode: string; days: string; m
   revalidatePath("/dashboard/settings/attendance-rules");
   return { ok: true, message: "Saved." };
 }
+
+// approve every request waiting for this person, one by one through the same checks
+export async function approveAllMine(): Promise<R> {
+  const supabase = await createClient();
+  const { data: q } = await supabase.rpc("my_relaxation_queue" as never);
+  const ids = ((q ?? []) as unknown as (number | Record<string, number>)[]).map((x) => Number(typeof x === "object" ? Object.values(x)[0] : x)).slice(0, 200);
+  let ok = 0, failed = 0;
+  for (const id of ids) {
+    const { error } = await supabase.rpc("decide_relaxation" as never, { p_id: id, p_approve: true, p_note: "Approved with others" } as never);
+    if (error) failed++; else ok++;
+  }
+  refresh();
+  return failed ? { ok: false, error: `Approved ${ok}; ${failed} could not be approved.` } : { ok: true, message: `Approved ${ok}.` };
+}
+
+export async function saveCondonationFee(fee: string): Promise<R> {
+  if (fee.trim() && !/^\d{1,6}(\.\d{1,2})?$/.test(fee.trim())) return { ok: false, error: "The fee is an amount in rupees." };
+  const supabase = await createClient();
+  const { error } = await supabase.rpc("set_condonation_fee" as never, { p_fee: fee.trim() ? Number(fee) : null } as never);
+  if (error) return { ok: false, error: clean(error, "Could not save.") };
+  revalidatePath("/dashboard/settings/attendance-rules");
+  return { ok: true, message: "Saved." };
+}
