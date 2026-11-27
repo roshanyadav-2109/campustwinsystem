@@ -69,11 +69,12 @@ try {
 finally {
   if (made.student) {
     await admin.from("transcript_issue").delete().eq("student_id", made.student);
+    await admin.from("course_result_revision").delete().eq("old->>student_id", String(made.student));
     await admin.from("course_result").delete().eq("student_id", made.student).eq("semester_id", made.sem);
     await admin.from("semester_result").delete().eq("student_id", made.student).eq("semester_id", made.sem);
   }
   for (const u of made.users) { await admin.from("profile").delete().eq("id", u); await admin.auth.admin.deleteUser(u); }
-  for (const s of made.staff) { await admin.from("staff_position").delete().eq("staff_id", s); await admin.from("staff").delete().eq("id", s); }
+  for (const s of made.staff) { await admin.from("staff_position").delete().eq("staff_id", s); const { error } = await admin.from("staff").delete().eq("id", s); if (error) console.log("cleanup: staff", s, error.message); }
   await b.close();
   console.log(failures ? `${failures} FAILED` : "ALL PASSED");
 }
