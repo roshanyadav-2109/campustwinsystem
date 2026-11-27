@@ -40,6 +40,9 @@ try {
   await ctx.addCookies(jar.map((c) => ({ name: c.name, value: c.value, domain: ".campustwin.org", path: "/", secure: true, sameSite: "Lax" })));
   const p = await ctx.newPage(); p.on("pageerror", (e) => errors.push(e.message));
 
+  await p.goto(`${HOST}/dashboard`, { waitUntil: "load", timeout: 90000 }); await settle(p);
+  await p.getByText("Your department").first().waitFor({ timeout: 60000 }).catch(() => {});
+  check(await p.getByText("Your department").count() >= 1 && await p.getByText("Course choices waiting for approval").count() >= 1, "the HoD's home shows their department");
   await p.goto(`${HOST}/dashboard/courses`, { waitUntil: "load", timeout: 90000 }); await settle(p);
   const waiting = p.getByText(/^Waiting for approval \((\d+)\)$/);
   await waiting.waitFor({ timeout: 60000 });

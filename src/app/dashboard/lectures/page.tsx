@@ -59,6 +59,7 @@ export default async function LecturesPage({ searchParams }: { searchParams: SP 
       <div className="flex flex-wrap gap-1.5">{sections.map((s) => (
         <Link key={s.id} href={`?section=${s.id}`} className={`rounded-sm border px-2.5 py-1 text-[13px] ${s.id === section.id ? "border-ink-900 bg-ink-900 text-white" : "border-hair bg-white text-ink-700 hover:bg-panel"}`}>{s.label}</Link>))}
       </div>
+      {section.subjects.length === 0 && <p className="text-[13px] text-ink-700">Attendance shortage for {section.label}. Lectures are marked by the course teachers.</p>}
       {section.subjects.length > 0 && <LectureMarker key={section.id} sectionId={section.id} subjects={section.subjects.map((x) => ({ id: x.id, name: x.name }))} roster={roster.map((r) => ({ id: r.id, name: r.name, roll: r.roll }))} lockNote={lockNote} />}
       <AttendanceShortage rows={(att.data ?? []) as unknown as AttRow[]} minimum={minimum} waiting={waiting} />
     </div>

@@ -2,7 +2,7 @@
 -- Rolled back.
 begin;
 do $$ declare te uuid := gen_random_uuid(); of uuid := gen_random_uuid(); v_t bigint; v_off bigint; v_da bigint; v_db bigint; v_seca bigint; v_secb bigint; ka bigint; kb bigint;
-  v_sem bigint; v_reg bigint; v_ra bigint; v_rb bigint; ok boolean; n int;
+  v_sem bigint; v_reg bigint; v_ra bigint; v_rb bigint; ok boolean; n int; pr uuid := gen_random_uuid(); v_pr bigint; v_prog bigint; v_rq bigint;
 begin
   -- two departments, each with a section that has students
   select g.department_id, sec.id into v_da, v_seca from public.section sec join public.class c on c.id = sec.class_id join public.programme g on g.id = c.programme_id
@@ -50,6 +50,36 @@ begin
   if not public.relax_can_act(v_reg) or public.relax_can_act(v_rb) then raise exception 'FAIL hod step scope'; end if;
   reset role;
 
+  -- the whole-campus attendance summary is refused to an HoD
+  perform set_config('request.jwt.claims', json_build_object('sub', te, 'role', 'authenticated')::text, true); set local role authenticated;
+  ok := false; begin perform count(*) from public.course_attendance(null, null); exception when others then ok := true; end;
+  if not ok then raise exception 'FAIL HoD read the whole campus attendance'; end if;
+  -- the HoD cannot act on a request they raised
+  reset role;
+  insert into public.relaxation_request (school_id, kind, semester_id, student_id, subject_id, reason, chain, requested_by)
+  select 11, 'attendance', v_sem, ka, (select id from public.subject where school_id = 11 and id <> (select subject_id from public.relaxation_request where id = v_reg) order by id limit 1), 'QA own request', array['hod'], te returning id into v_rq;
+  perform set_config('request.jwt.claims', json_build_object('sub', te, 'role', 'authenticated')::text, true); set local role authenticated;
+  if public.relax_can_act(v_rq) then raise exception 'FAIL HoD acted on own request'; end if;
+  reset role;
+  -- with no other HoD the step goes to the head (a principal)
+  insert into auth.users (id, email, aud, role) values (pr, 'qa-hod-head@example.com', 'authenticated', 'authenticated');
+  insert into public.staff (school_id, full_name, email, role) values (11, 'QA Head', 'qa-hod-head@example.com', 'principal') returning id into v_pr;
+  insert into public.profile (id, role, full_name, school_id, staff_id) values (pr, 'staff', 'QA Head', 11, v_pr);
+  delete from public.staff_position p using public.position_title t where t.id = p.title_id and p.school_id = 11 and t.access_type = 'dept_head' and p.department_id = v_da and p.staff_id <> v_t;
+  perform set_config('request.jwt.claims', json_build_object('sub', pr, 'role', 'authenticated')::text, true); set local role authenticated;
+  if not public.relax_can_act(v_rq) then raise exception 'FAIL vacant HoD step not with the head'; end if;
+  if public.relax_can_act(v_reg) then raise exception 'FAIL head took a filled HoD step'; end if;
+  reset role;
+  if not exists (select 1 from public.relax_step_staff(v_rq) x where x = v_pr) then raise exception 'FAIL head not told of vacant step'; end if;
+  -- a Programme Coordinator sees only their programme
+  delete from public.staff_position where staff_id = v_t;
+  select c.programme_id into v_prog from public.section sec join public.class c on c.id = sec.class_id where sec.id = v_seca;
+  insert into public.staff_position (school_id, staff_id, title_id, programme_id) select 11, v_t, id, v_prog from public.position_title where school_id = 11 and access_type = 'programme_coord' limit 1;
+  perform set_config('request.jwt.claims', json_build_object('sub', te, 'role', 'authenticated')::text, true); set local role authenticated;
+  if not (v_seca in (select app.my_scope_sections())) or exists (select 1 from public.section sec join public.class c on c.id = sec.class_id where sec.id in (select app.my_scope_sections()) and c.programme_id <> v_prog) then
+    raise exception 'FAIL coordinator scope';
+  end if;
+  reset role;
   -- a Dean of the faculty covers every department in it
   delete from public.staff_position where staff_id = v_t;
   insert into public.staff_position (school_id, staff_id, title_id, unit_id)

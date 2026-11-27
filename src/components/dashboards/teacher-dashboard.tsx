@@ -5,6 +5,8 @@ import { getStaffScope } from "@/lib/data/scope";
 import { StudentsIcon, ProgressIcon, AttendanceIcon, MarksIcon, AnnounceIcon } from "@/components/icons";
 import { DashHeader, AnnouncementsPanel, EventsPanel, QuickLinks, NAV_COLOR, ActionButtons } from "@/components/dashboards/parts";
 import type { NavRole } from "@/lib/nav";
+import { isScopedLead } from "@/lib/roles";
+import { DepartmentPanel } from "@/components/dashboards/department-panel";
 
 // One unified teacher portal: own class (full access) + subject-only sections.
 export async function TeacherDashboard({ session }: { session: Session }) {
@@ -33,6 +35,8 @@ export async function TeacherDashboard({ session }: { session: Session }) {
         { href: "/dashboard/progress", label: t("nav.progress"), icon: ProgressIcon },
         { href: "/dashboard/announcements", label: t("dashboard.ctaPostNotice"), icon: AnnounceIcon },
       ]} />
+
+      {isScopedLead(session) && <DepartmentPanel session={session} />}
 
       {myClass && (
         <section className="mb-4 rounded-md border border-hair bg-surface p-4">

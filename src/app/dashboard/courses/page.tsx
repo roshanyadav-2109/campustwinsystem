@@ -38,7 +38,14 @@ export default async function CoursesPage() {
   }
 
   const [pcs, regs] = await Promise.all([
-    supabase.from("programme_course" as never).select("id, semester_no, elective_group, seat_limit, programme:programme_id(code), course:course_id(code, name, credits)").not("elective_group", "is", null).limit(2000),
+    (async () => {
+      let q = supabase.from("programme_course" as never).select("id, semester_no, elective_group, seat_limit, programme:programme_id(code), course:course_id(code, name, credits)").not("elective_group", "is", null);
+      if (session?.staffRole !== "office" && session?.staffRole !== "principal" && isScopedLead(session)) {
+        const { data: mine } = await supabase.rpc("my_scope_programmes" as never);
+        q = q.in("programme_id", ((mine ?? []) as unknown as { id: number }[]).map((x) => Number(x.id)));
+      }
+      return q.limit(2000);
+    })(),
     supabase.from("course_registration" as never).select("id, status, programme_course_id, student:student_id(full_name, admission_no)").eq("semester_id", s.id).neq("status", "dropped").limit(10000),
   ]);
   const regRows = (regs.data ?? []) as unknown as { id: number; status: string; programme_course_id: number; student: { full_name: string; admission_no: string } | null }[];
