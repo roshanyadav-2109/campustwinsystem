@@ -7,7 +7,7 @@ import { EmptyState } from "@/components/ui/empty";
 import { createClient } from "@/lib/supabase/server";
 import { getStaffScope } from "@/lib/data/scope";
 import { getMyChildren } from "@/lib/data/analytics";
-import { ResultsDesk, MyResults, RankList, type PreviewRow, type OpenExam } from "@/components/courses/results";
+import { ResultsDesk, MyResults, RankList, type PreviewRow, type OpenExam, type RequestView } from "@/components/courses/results";
 import { MyBacklogs } from "@/components/courses/supplementary";
 import { loadCards } from "@/lib/data/results";
 
@@ -38,7 +38,7 @@ export default async function ResultsPage({ searchParams }: { searchParams: SP }
     ]) : [{ data: [] }, { data: [] }, { data: [] }, { data: [] }];
     const [{ data: rulesData }, { data: reqData }] = await Promise.all([
       supabase.from("school").select("reval_window_days, reval_fee, retotal_fee" as "id").eq("id", session.schoolId).maybeSingle(),
-      sid ? supabase.from("reval_request" as never).select("result_id, kind, status").eq("student_id", sid) : Promise.resolve({ data: [] }),
+      sid ? supabase.from("reval_request" as never).select("id, result_id, kind, status, old_grade, new_grade, old_ese, new_ese, note, decided_at, invoice:invoice_id(status)").eq("student_id", sid) : Promise.resolve({ data: [] }),
     ]);
     const rules = rulesData as unknown as { reval_window_days: number; reval_fee: number | null; retotal_fee: number | null } | null;
     const backlogs = (blData ?? []) as unknown as { course_id: number; semester_id: number; course_code: string; course_name: string; semester_no: number | null; attempts: number; last_grade: string }[];
@@ -54,7 +54,7 @@ export default async function ResultsPage({ searchParams }: { searchParams: SP }
           standing={((standData ?? []) as unknown as { cgpa: number | null; credits_earned: number; backlogs: number }[])[0] ?? null} />
         {cards.length === 0 ? (held.length ? null : <EmptyState art="no-marks" title="No results published yet" />) : <MyResults cards={cards} verifyBase={verifyBase} signers={signers}
           studentId={sid} open={(openData ?? []) as unknown as OpenExam[]} windowDays={rules?.reval_window_days ?? 15} revalFee={rules?.reval_fee ?? null} retotalFee={rules?.retotal_fee ?? null}
-          requested={(reqData ?? []) as unknown as { result_id: number; kind: string; status: string }[]} />}
+          requested={((reqData ?? []) as unknown as (RequestView & { invoice: { status: string } | null })[]).map((r) => ({ ...r, fee_pending: !!r.invoice && (r.invoice.status === "due" || r.invoice.status === "part") }))} />}
       </div>
     );
   }

@@ -52,6 +52,7 @@ try {
   const sp = await sctx.newPage(); sp.on("pageerror", (e) => errors.push(e.message));
   await sp.goto(`${HOST}/dashboard/results`, { waitUntil: "load", timeout: 90000 }); await settle(sp);
   await sp.getByRole("button", { name: `Revaluation of ${cr.course.code}` }).first().click();
+  await sp.getByRole("button", { name: `Confirm revaluation of ${cr.course.code}` }).click();
   await sp.getByText(/^Requested\./).waitFor({ timeout: 60000 });
   const { data: rq } = await admin.from("reval_request").select("id, invoice_id").eq("result_id", cr.id).single(); made.req = rq;
   check(!!rq.invoice_id, "the student asked for revaluation and a fee invoice was raised");

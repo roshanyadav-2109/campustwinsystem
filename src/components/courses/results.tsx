@@ -6,7 +6,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/field";
 import { downloadPdf, downloadPdfBook } from "@/lib/pdf";
 import { gradeCardPdf, consolidatedPdf, suppMemoPdf } from "@/components/courses/grade-card-pdf";
-import { publishResults, sectionGradeCards, holdResult, requestRevaluation, consolidatedData, suppMemoData, rankList } from "@/app/dashboard/results/actions";
+import { publishResults, sectionGradeCards, holdResult, requestRevaluation, withdrawRevaluation, consolidatedData, suppMemoData, rankList } from "@/app/dashboard/results/actions";
 import { applySupplementary } from "@/app/dashboard/supplementary/actions";
 import type { GradeCard } from "@/lib/data/results";
 
@@ -103,14 +103,16 @@ export function ResultsDesk({ semesterId, sectionId, rows, published, canPublish
   );
 }
 
+export type RequestView = { id: number; result_id: number; kind: string; status: string; old_grade: string | null; new_grade: string | null; old_ese: number | null; new_ese: number | null; note: string | null; decided_at: string | null; fee_pending: boolean };
 export type OpenExam = { session_id: number; session_name: string; for_semester_id: number; fee_per_course: number | null; kind: string };
 
 // A student's (or parent's) grade cards: download, ask for revaluation or retotalling while the window is open,
 // apply for an improvement exam, and download the consolidated marksheet and supplementary memos.
 export function MyResults({ cards, verifyBase, signers, studentId, open = [], windowDays = 15, revalFee = null, retotalFee = null, requested = [] }: {
   cards: GradeCard[]; verifyBase: string; signers: string[]; studentId?: number; open?: OpenExam[]; windowDays?: number; revalFee?: number | null; retotalFee?: number | null;
-  requested?: { result_id: number; kind: string; status: string }[];
+  requested?: RequestView[];
 }) {
+  const [confirming, setConfirming] = useState<string | null>(null);
   const [pending, start] = useTransition();
   const [msg, setMsg] = useState<{ ok: boolean; text: string } | null>(null);
   const router = useRouter();
@@ -145,11 +147,21 @@ export function MyResults({ cards, verifyBase, signers, studentId, open = [], wi
                   <tr key={x.code} className="border-t border-hair first:border-t-0"><td className="py-1 pr-3 font-medium">{x.code}</td><td className="pr-3">{x.name}</td><td className="pr-3 tabular">{n(x.credits)} cr</td>
                     <td className={`pr-3 ${x.passed ? "" : "text-down"}`}>{x.grade === "Ab" ? "Absent" : x.grade}{x.grace ? <span className="text-[11px] text-ink-500"> (grace {n(x.grace)})</span> : null}</td><td className="pr-3 tabular">{n(x.point)}</td>
                     <td className="py-1 text-right">
-                      {asked.length ? <span className="text-[12px] text-ink-700">{asked.map((a) => `${a.kind}: ${a.status.replace("_", " ")}`).join(", ")}</span> : studentId && windowOpen && x.grade !== "Ab" ? (
-                        <span className="inline-flex gap-1">
-                          <Button size="sm" variant="ghost" disabled={pending} aria-label={`Revaluation of ${x.code}`} onClick={() => act(() => requestRevaluation(x.result_id, "revaluation"))}>Revaluation</Button>
-                          <Button size="sm" variant="ghost" disabled={pending} aria-label={`Retotalling of ${x.code}`} onClick={() => act(() => requestRevaluation(x.result_id, "retotalling"))}>Retotalling</Button>
-                        </span>) : null}
+                      {asked.filter((a) => a.status !== "withdrawn").map((a) => (
+                        <span key={a.id} className="block text-[12px] text-ink-700">
+                          <span className="capitalize">{a.kind}</span>: {a.status === "requested" ? (a.fee_pending ? "fee pending" : "waiting for the exam cell") : a.status === "revised" ? `revised ${n(a.old_ese)} to ${n(a.new_ese)}, ${a.old_grade} to ${a.new_grade}` : a.status === "no_change" ? "no change" : a.status}
+                          {a.note ? ` (${a.note})` : ""}
+                          {a.status === "requested" && studentId ? <Button size="sm" variant="ghost" disabled={pending} aria-label={`Withdraw ${a.kind} of ${x.code}`} onClick={() => act(() => withdrawRevaluation(a.id))}>Withdraw</Button> : null}
+                        </span>))}
+                      {studentId && windowOpen && x.grade !== "Ab" && !asked.some((a) => a.status === "requested") ? (
+                        confirming === `${x.result_id}` ? (
+                          <span className="inline-flex flex-wrap gap-1">
+                            {!asked.some((a) => a.kind === "revaluation" && a.status !== "withdrawn") && <Button size="sm" disabled={pending} aria-label={`Confirm revaluation of ${x.code}`} onClick={() => { setConfirming(null); act(() => requestRevaluation(x.result_id, "revaluation")); }}>Confirm revaluation{revalFee ? ` (Rs ${n(revalFee)})` : ""}</Button>}
+                            {!asked.some((a) => a.kind === "retotalling" && a.status !== "withdrawn") && <Button size="sm" variant="subtle" disabled={pending} aria-label={`Confirm retotalling of ${x.code}`} onClick={() => { setConfirming(null); act(() => requestRevaluation(x.result_id, "retotalling")); }}>Confirm retotalling{retotalFee ? ` (Rs ${n(retotalFee)})` : ""}</Button>}
+                            <Button size="sm" variant="ghost" onClick={() => setConfirming(null)}>Cancel</Button>
+                          </span>
+                        ) : (asked.filter((a) => a.status !== "withdrawn").length < 2 ? <Button size="sm" variant="ghost" disabled={pending} aria-label={`Revaluation of ${x.code}`} onClick={() => setConfirming(`${x.result_id}`)}>Revaluation / retotalling</Button> : null)
+                      ) : null}
                       {studentId && improve && x.passed && <Button size="sm" variant="ghost" disabled={pending} aria-label={`Improve ${x.code}`} onClick={() => act(() => applySupplementary(improve.session_id, studentId, x.course_id))}>Improve{improve.fee_per_course ? ` (Rs ${n(improve.fee_per_course)})` : ""}</Button>}
                     </td></tr>);
               })}</tbody></table>
@@ -161,17 +173,22 @@ export function MyResults({ cards, verifyBase, signers, studentId, open = [], wi
   );
 }
 
-// The semester's rank list (first-attempt passes, no grace), by programme.
+// The semester's rank list (first-attempt passes, no grace), by programme and semester: top 10 each.
 export function RankList({ semesterId }: { semesterId: number }) {
-  const [rows, setRows] = useState<{ rank: number; student_name: string; admission_no: string; programme: string; sgpa: number }[] | null>(null);
+  const [rows, setRows] = useState<{ rank: number; student_name: string; admission_no: string; programme: string; sgpa: number; semester_no: number | null }[] | null>(null);
   const [pending, start] = useTransition();
+  const groups = rows ? [...new Set(rows.map((r) => `${r.programme}|${r.semester_no ?? ""}`))] : [];
   return (
     <Card>
       <CardHeader title="Rank list" action={<Button size="sm" variant="subtle" disabled={pending} onClick={() => start(async () => setRows(await rankList(semesterId)))}>{rows ? "Refresh" : "Show"}</Button>} />
-      {rows && <CardBody className="p-0">{rows.length === 0 ? <p className="px-4 py-3 text-[13px] text-ink-500">No results to rank yet.</p> : (
-        <table className="w-full text-[13px]"><thead className="bg-[#fafafa] text-left text-ink-500"><tr><th className="px-4 py-2 font-medium">Rank</th><th className="px-4 py-2 font-medium">Student</th><th className="px-4 py-2 font-medium">Programme</th><th className="px-4 py-2 text-right font-medium">SGPA</th></tr></thead>
-          <tbody>{rows.slice(0, 50).map((r, i) => <tr key={i} className="border-t border-hair"><td className="px-4 py-1.5 tabular">{r.rank}</td><td className="px-4 py-1.5">{r.student_name} <span className="text-ink-500">{r.admission_no}</span></td><td className="px-4 py-1.5">{r.programme}</td><td className="px-4 py-1.5 text-right tabular">{n(r.sgpa)}</td></tr>)}</tbody></table>)}
-        <p className="px-4 py-2 text-[12px] text-ink-500">Students who passed every course at the first attempt without grace marks.</p></CardBody>}
+      {rows && <CardBody className="space-y-3">{rows.length === 0 ? <p className="text-[13px] text-ink-500">No results to rank yet.</p> : groups.map((g) => {
+        const [prog, sem] = g.split("|"); const list = rows.filter((r) => `${r.programme}|${r.semester_no ?? ""}` === g).slice(0, 10);
+        return (
+          <div key={g}><div className="mb-1 text-[13px] font-semibold">{prog}{sem ? `, semester ${sem}` : ""}</div>
+            <table className="w-full text-[13px]"><thead className="text-left text-ink-500"><tr><th className="py-1 font-medium">Rank</th><th className="py-1 font-medium">Student</th><th className="py-1 text-right font-medium">SGPA</th></tr></thead>
+              <tbody>{list.map((r, i) => <tr key={i} className="border-t border-hair"><td className="py-1 tabular">{r.rank}</td><td className="py-1">{r.student_name} <span className="text-ink-500">{r.admission_no}</span></td><td className="py-1 text-right tabular">{n(r.sgpa)}</td></tr>)}</tbody></table></div>);
+      })}
+        <p className="text-[12px] text-ink-500">Students who passed every course at the first attempt without grace marks; ties share a rank.</p></CardBody>}
     </Card>
   );
 }

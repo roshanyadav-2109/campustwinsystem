@@ -8,11 +8,13 @@ import { decideRevaluation } from "@/app/dashboard/results/actions";
 
 export type RevalRow = { id: number; kind: string; status: string; old_ese: number | null; new_ese: number | null; old_grade: string | null; new_grade: string | null; note: string | null; created_at: string;
   invoice: { status: string; amount: number; paid_amount: number } | null; student: { full_name: string; admission_no: string };
-  result: { ese_max: number | null; attempt: number; course: { code: string; name: string } } };
+  result: { ese: number | null; ese_max: number | null; attempt: number; course: { code: string; name: string } } };
 const n = (v: number | null | undefined) => (v == null ? "-" : Number.isInteger(Number(v)) ? String(Number(v)) : Number(v).toFixed(2));
 
 function Row({ r, canDecide }: { r: RevalRow; canDecide: boolean }) {
-  const [ese, setEse] = useState(r.old_ese == null ? "" : String(Number(r.old_ese)));
+  // start from the marks as they stand now (an earlier revision may have changed them)
+  const cur = r.result?.ese ?? r.old_ese;
+  const [ese, setEse] = useState(cur == null ? "" : String(Number(cur)));
   const [note, setNote] = useState("");
   const [msg, setMsg] = useState<{ ok: boolean; text: string } | null>(null);
   const [pending, start] = useTransition();

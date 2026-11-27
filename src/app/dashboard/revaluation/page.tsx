@@ -15,7 +15,7 @@ export default async function RevaluationPage() {
   const supabase = await createClient();
   const [{ data }, { data: pub }] = await Promise.all([
     supabase.from("reval_request" as never)
-      .select("id, kind, status, old_ese, new_ese, old_grade, new_grade, note, created_at, invoice:invoice_id(status, amount, paid_amount), student:student_id(full_name, admission_no), result:result_id(ese_max, attempt, course:course_id(code, name))")
+      .select("id, kind, status, old_ese, new_ese, old_grade, new_grade, note, created_at, invoice:invoice_id(status, amount, paid_amount), student:student_id(full_name, admission_no), result:result_id(ese, ese_max, attempt, course:course_id(code, name))")
       .order("created_at", { ascending: false }).limit(300),
     supabase.rpc("can_publish_results" as never),
   ]);

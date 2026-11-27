@@ -86,5 +86,13 @@ export async function suppMemoData(studentId: number) {
 export async function rankList(semesterId: number) {
   const supabase = await createClient();
   const { data } = await supabase.rpc("rank_list" as never, { p_semester: semesterId, p_programme: null } as never);
-  return (data ?? []) as unknown as { rank: number; student_name: string; admission_no: string; programme: string; sgpa: number }[];
+  return (data ?? []) as unknown as { rank: number; student_name: string; admission_no: string; programme: string; sgpa: number; semester_no: number | null }[];
+}
+
+export async function withdrawRevaluation(id: number): Promise<R> {
+  const supabase = await createClient();
+  const { error } = await supabase.rpc("withdraw_revaluation" as never, { p_id: id } as never);
+  if (error) return { ok: false, error: error.message.length < 140 ? error.message : "Could not withdraw." };
+  revalidatePath("/dashboard/results"); revalidatePath("/dashboard/revaluation");
+  return { ok: true, message: "Withdrawn. An unpaid fee is cancelled." };
 }

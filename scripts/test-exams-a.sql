@@ -2,7 +2,7 @@
 -- revaluation, improvement exams, consolidated data. Rolled back.
 begin;
 do $$ declare u uuid := gen_random_uuid(); su uuid := gen_random_uuid(); s2 uuid := gen_random_uuid(); v_coe bigint; v_sem bigint; v_sec bigint; v_type bigint; v_scheme bigint;
-  n int; v_res record; v_req bigint; ok boolean; v_old numeric; v_sess bigint; k bigint; c bigint; r1 bigint; k2 bigint; c2 bigint; r2 bigint; v_stand numeric; v_stand2 numeric;
+  n int; v_res record; v_req bigint; v_req2 bigint; v_newid bigint; v_impr bigint; ok boolean; v_old numeric; v_sess bigint; k bigint; c bigint; r1 bigint; k2 bigint; c2 bigint; r2 bigint; v_stand numeric; v_stand2 numeric;
 begin
   insert into auth.users (id, email, aud, role) values (u, 'qa-ea-coe@example.com', 'authenticated', 'authenticated');
   insert into public.staff (school_id, full_name, email, role) values (11, 'QA CoE', 'qa-ea-coe@example.com', 'subject_teacher') returning id into v_coe;
@@ -50,6 +50,28 @@ begin
   reset role;
   if (select ese from public.course_result where id = v_res.id) <> v_res.ese + 6 or (select percent from public.course_result where id = v_res.id) <= v_res.percent then raise exception 'FAIL regrade'; end if;
   if not exists (select 1 from public.course_result_revision where reason like 'Revaluation #%' and (old ->> 'id')::bigint = v_res.id) then raise exception 'FAIL old result not kept'; end if;
+  -- CGPA follows the revaluation
+  if (select cgpa from public.semester_result where semester_id = v_sem and student_id = v_res.student_id)
+     is distinct from (select round(sum(credits * point) / nullif(sum(credits), 0), 2) from public.course_result where semester_id = v_sem and student_id = v_res.student_id and attempt = 1) then
+    raise exception 'FAIL CGPA not refreshed after revaluation';
+  end if;
+  -- the same request cannot be asked again after the decision; a retotalling can be withdrawn (fee cancelled)
+  perform set_config('request.jwt.claims', json_build_object('sub', su, 'role', 'authenticated')::text, true); set local role authenticated;
+  ok := false; begin perform public.request_revaluation(v_res.id, 'revaluation'); exception when others then ok := true; end;
+  if not ok then raise exception 'FAIL asked again after the decision'; end if;
+  v_req2 := public.request_revaluation(v_res.id, 'retotalling');
+  perform public.withdraw_revaluation(v_req2);
+  reset role;
+  if (select status from public.reval_request where id = v_req2) <> 'withdrawn' or (select i.status from public.reval_request r join public.fee_invoice i on i.id = r.invoice_id where r.id = v_req2) <> 'cancelled' then
+    raise exception 'FAIL withdraw';
+  end if;
+  -- a revision of the section keeps the decided revaluation, moved to the new row
+  perform set_config('request.jwt.claims', json_build_object('sub', u, 'role', 'authenticated')::text, true); set local role authenticated;
+  perform public.publish_semester_results(v_sem, v_sec, 'QA revise after revaluation');
+  reset role;
+  select id into v_newid from public.course_result where semester_id = v_sem and student_id = v_res.student_id and course_id = v_res.course_id and attempt = 1;
+  if (select ese from public.course_result where id = v_newid) <> v_res.ese + 6 then raise exception 'FAIL revision undid the revaluation'; end if;
+  if (select result_id from public.reval_request where id = v_req) is distinct from v_newid then raise exception 'FAIL request not moved to the new row'; end if;
 
   -- improvement: a better attempt counts, a worse one does not
   insert into public.exam_session (academic_year_id, name, term, assessment_type_id, kind, for_semester_id)
@@ -75,6 +97,10 @@ begin
   if exists (select 1 from public.student_backlogs(k2) where course_id = c2) then raise exception 'FAIL a worse improvement made a backlog'; end if;
   if not exists (select 1 from public.student_supp_results(k) where kind = 'improvement') then raise exception 'FAIL improvement memo data'; end if;
   if not exists (select 1 from public.student_consolidated(k) where course_code is not null) then raise exception 'FAIL consolidated'; end if;
+  -- a re-take attempt cannot be revalued
+  select id into v_impr from public.course_result where student_id = k and course_id = c and kind = 'improvement';
+  ok := false; begin perform public.request_revaluation(v_impr, 'revaluation'); exception when others then ok := sqlerrm like '%first attempt%'; end;
+  if not ok then raise exception 'FAIL revaluation of a re-take attempt'; end if;
   reset role;
 end $$;
 rollback;
