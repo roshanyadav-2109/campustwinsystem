@@ -69,8 +69,8 @@ export default async function ResultsPage({ searchParams }: { searchParams: SP }
       {error ? <EmptyState art="error" title="Could not prepare results" hint={error.message} /> : (
         <>
         {mayPublish !== true && (session.staffRole === "office" || isExams(session)) && (
-          <p className="text-[13px] text-ink-700">{(() => { const c = ((coe ?? []) as unknown as { title: string; name: string }[])[0];
-            return c ? `Results are published by ${c.name}, ${c.title}.` : "Results are published by the office or the head."; })()}</p>
+          <p className="text-[13px] text-ink-700">{(() => { const c = ((coe ?? []) as unknown as { title: string }[])[0];
+            return c ? `Results are published by the ${c.title}.` : "Results are published by the office or the head."; })()}</p>
         )}
         <ResultsDesk key={`${semId}-${section.id}`} semesterId={semId} sectionId={section.id} rows={(prev ?? []) as unknown as PreviewRow[]}
           published={Object.fromEntries(published)} canPublish={mayPublish === true} verifyBase={verifyBase} signers={signers} />
