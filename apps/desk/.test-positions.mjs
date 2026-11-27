@@ -57,9 +57,10 @@ try {
   check(await p.getByText(/^Acting Programme Coordinator, /).count() >= 1, "the staff list shows the title under the name");
 
   await p.goto(`${HOST}/dashboard/settings/positions`, { waitUntil: "load", timeout: 90000 });
-  await p.getByRole("button", { name: new RegExp(`^End QA Lecturer ${stamp}`) }).click();
+  await p.waitForLoadState("networkidle", { timeout: 45000 }).catch(() => {});
+  await p.getByRole("button", { name: new RegExp(`^End QA Successor ${stamp}`) }).click();
   await p.getByText("Ended today.").waitFor({ timeout: 60000 });
-  const { data: ended } = await admin.from("staff_position").select("ends_on").eq("staff_id", tt.id).single();
+  const { data: ended } = await admin.from("staff_position").select("ends_on").eq("staff_id", made.staff[made.staff.length - 1]).single();
   check(!!ended?.ends_on, "the position was ended");
 
   await p.getByLabel("New title", { exact: true }).fill(`QA Dean of Research ${stamp}`);
