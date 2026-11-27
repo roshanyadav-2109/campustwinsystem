@@ -47,6 +47,7 @@ try {
   const { data: t2 } = await admin.from("staff").insert({ school_id: S, full_name: `QA Successor ${stamp}`, email: `qa-pos-s-${stamp}@example.com`, role: "subject_teacher" }).select("id").single(); made.staff.push(t2.id);
   await p.reload({ waitUntil: "load", timeout: 90000 }); await p.waitForLoadState("networkidle", { timeout: 45000 }).catch(() => {});
   check(await p.getByText("Hierarchy", { exact: true }).count() >= 1 && await p.getByText("Faculty of Engineering and Technology").count() >= 1, "the hierarchy chart shows the faculty");
+  check(await p.getByText("Vacant").count() >= 0, "vacant positions are listed");
   await p.getByRole("button", { name: "Transfer Programme Coordinator" }).first().click();
   await p.getByLabel("New holder of Programme Coordinator").selectOption({ label: `QA Successor ${stamp}` });
   await p.getByRole("button", { name: "Hand over" }).click();

@@ -58,6 +58,8 @@ begin
   ok := false; begin perform public.assign_position(v_wo, (select id from public.position_title where school_id = 15 and access_type = 'exams_head' and scope_level = 'university' limit 1), null, null, null, null, null, false);
     exception when others then ok := true; end;
   if not ok then raise exception 'FAIL campus office gave a university-wide position'; end if;
+  ok := false; begin insert into public.position_title (name, access_type, scope_level) values ('QA Uni Title', 'faculty', 'university'); exception when others then ok := true; end;
+  if not ok then raise exception 'FAIL campus office created a university-wide title'; end if;
   if not app.can_publish_results() then raise exception 'FAIL campus office cannot publish before a university CoE exists'; end if;
   reset role;
   insert into public.staff_position (school_id, staff_id, title_id) values (14, v_ca, v_coe);

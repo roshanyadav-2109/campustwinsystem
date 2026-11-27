@@ -152,9 +152,12 @@ export const getSession = cache(async (): Promise<Session | null> => {
   const todayIST = new Date(Date.now() + 5.5 * 3600 * 1000).toISOString().slice(0, 10);
   const positions = (data.staff as { staff_position?: { school_id: number; starts_on: string; ends_on: string | null; title: { access_type: string; scope_level: string } | null; school: { university_id: number | null } | null }[] } | null)?.staff_position ?? [];
   const hereUni = (data.school as { university_id?: number | null } | null)?.university_id ?? null;
-  const accessTypes = [...new Set(positions
+  // campus-wide and university-wide types: the database decides (app.my_access_types), so menus and checks agree
+  const { data: dbTypes } = baseStaffRole && positions.length ? await supabase.rpc("my_access_types" as never) : { data: null };
+  const scopedHere = [...new Set(positions
     .filter((p) => p.title && (p.school_id === ((data as { active_campus_id: number | null }).active_campus_id ?? data.school_id) || (p.title.scope_level === "university" && !!hereUni && p.school?.university_id === hereUni)) && (["campus", "university"].includes(p.title.scope_level) || ["dean", "dept_head", "programme_coord"].includes(p.title.access_type)) && p.starts_on <= todayIST && (!p.ends_on || p.ends_on >= todayIST))
     .map((p) => p.title!.access_type))];
+  const accessTypes = [...new Set([...(((dbTypes ?? []) as unknown as string[]) || []), ...scopedHere.filter((t) => ["dean", "dept_head", "programme_coord"].includes(t))])];
   const staffRole: StaffRole | null = baseStaffRole === "principal" ? baseStaffRole
     : accessTypes.some((t) => t === "head" || t === "deputy_head") ? "principal"
     : baseStaffRole === "office" ? baseStaffRole
