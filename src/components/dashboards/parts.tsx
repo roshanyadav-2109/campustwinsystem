@@ -1,6 +1,6 @@
 import { getSession } from "@/lib/session";
 import { CalendarIcon, type IconComponent } from "@/components/icons";
-import Link from "next/link";
+import Link from "@/components/ui/hover-link";
 import { createClient } from "@/lib/supabase/server";
 import { getT } from "@/i18n/server";
 import { fmtDate } from "@/i18n/format";

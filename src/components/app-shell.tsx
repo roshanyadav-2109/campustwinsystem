@@ -1,7 +1,7 @@
 "use client";
 import { useEffect, useState } from "react";
 import { setPdfSchool } from "@/lib/pdf";
-import Link from "next/link";
+import Link from "@/components/ui/hover-link";
 import { usePathname } from "next/navigation";
 import { SearchBox } from "@/components/search-box";
 import { NavProgress } from "@/components/nav-progress";
