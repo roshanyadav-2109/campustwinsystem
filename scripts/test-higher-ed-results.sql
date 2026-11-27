@@ -2,7 +2,7 @@
 -- calculation, publishing, SGPA = credits x points / credits. Rolled back.
 begin;
 do $$ declare of uuid := gen_random_uuid(); pa uuid := gen_random_uuid(); v_staff bigint; v_sem bigint; v_sec bigint; r record; k bigint; c bigint; v_subj bigint;
-  it numeric; v_tok text; mid numeric; ese numeric; v_cia numeric; v_ese numeric; n int; v_sgpa numeric; ok boolean; v_g bigint;
+  it numeric; k2 bigint; v_mark bigint; v_tok text; mid numeric; ese numeric; v_cia numeric; v_ese numeric; n int; v_sgpa numeric; ok boolean; v_g bigint;
 begin
   insert into auth.users (id, email, aud, role) values (of, 'qa-res-office@example.com', 'authenticated', 'authenticated');
   insert into public.staff (school_id, full_name, email, role) values (11, 'QA RES', 'qa-res-office@example.com', 'office') returning id into v_staff;
@@ -27,6 +27,17 @@ begin
   if r.passed <> (r.percent >= 40 and v_ese / 60 * 100 >= 40) then raise exception 'FAIL pass rule: %', r; end if;
   if not r.passed and (r.grade <> 'F' or r.point <> 0) then raise exception 'FAIL a failed course has a grade'; end if;
 
+  -- a missing internal mark makes the course incomplete (not 0)
+  select x.student_id into k2 from public.compute_course_results(v_sem, v_sec) x where x.student_id <> k and x.course_id = c and x.status in ('pass', 'fail') limit 1;
+  delete from public.mark m using public.assessment a, public.assessment_type t
+   where m.assessment_id = a.id and t.id = a.assessment_type_id and m.student_id = k2 and a.subject_id = v_subj and a.term = 1 and t.code = 'periodic_test'
+     and m.id = (select m2.id from public.mark m2 join public.assessment a2 on a2.id = m2.assessment_id join public.assessment_type t2 on t2.id = a2.assessment_type_id
+                 where m2.student_id = k2 and a2.subject_id = v_subj and a2.term = 1 and t2.code = 'periodic_test' limit 1);
+  perform set_config('request.jwt.claims', json_build_object('sub', of, 'role', 'authenticated')::text, true);
+  set local role authenticated;
+  if (select x.status from public.compute_course_results(v_sem, v_sec) x where x.student_id = k2 and x.course_id = c) <> 'incomplete' then raise exception 'FAIL missing CIA mark not incomplete'; end if;
+  reset role;
+
   -- publish
   perform set_config('request.jwt.claims', json_build_object('sub', of, 'role', 'authenticated')::text, true);
   set local role authenticated;
@@ -47,6 +58,26 @@ begin
   select verify_token into v_tok from public.semester_result where semester_id = v_sem and student_id = k;
   set local role anon;
   if (select sgpa from public.verify_grade_card(v_tok)) <> v_sgpa then raise exception 'FAIL verify'; end if;
+  reset role;
+  if exists (select 1 from public.semester_result where semester_id = v_sem and student_id = k2) then raise exception 'FAIL incomplete student published'; end if;
+  -- marks behind a published result are locked
+  ok := false; begin update public.mark m set marks_obtained = marks_obtained from public.assessment a
+    where a.id = m.assessment_id and m.student_id = k and a.subject_id = v_subj and a.term = 1; exception when raise_exception then ok := true; end;
+  if not ok then raise exception 'FAIL published marks editable'; end if;
+  perform set_config('request.jwt.claims', json_build_object('sub', of, 'role', 'authenticated')::text, true);
+  set local role authenticated;
+  -- republishing leaves published students alone unless revised with a reason
+  if public.publish_semester_results(v_sem, v_sec) <> 0 then raise exception 'FAIL republish changed results'; end if;
+  if public.publish_semester_results(v_sem, v_sec, 'QA correction') <> n then raise exception 'FAIL revise'; end if;
+  reset role;
+  if (select count(*) from public.course_result_revision where reason = 'QA correction') = 0 then raise exception 'FAIL old results not kept'; end if;
+  -- held back: hidden from the public check
+  perform set_config('request.jwt.claims', json_build_object('sub', of, 'role', 'authenticated')::text, true);
+  set local role authenticated;
+  perform public.withhold_result(v_sem, k, 'Fees overdue');
+  reset role;
+  set local role anon;
+  if exists (select 1 from public.verify_grade_card(v_tok)) then raise exception 'FAIL withheld result verifies'; end if;
   reset role;
 end $$;
 rollback;

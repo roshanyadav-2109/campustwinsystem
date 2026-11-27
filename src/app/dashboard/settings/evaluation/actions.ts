@@ -33,14 +33,20 @@ export async function saveScheme(id: number, input: { passPercent: string; eseMi
   const pct = (v: string) => v.trim() === "" || (/^\d{1,3}(\.\d{1,2})?$/.test(v) && Number(v) <= 100);
   if (!pct(input.passPercent) || !input.passPercent.trim() || !pct(input.eseMin)) return { ok: false, error: "Pass marks are percentages." };
   const supabase = await createClient();
+  const { data: low } = await supabase.from("eval_grade" as never).select("point").eq("scheme_id", id).lte("min_percent", Number(input.passPercent)).order("min_percent", { ascending: false }).limit(1);
+  const lowRows = (low ?? []) as unknown as { point: number }[];
+  if (lowRows.length && Number(lowRows[0].point) <= 0)
+    return { ok: false, error: "At this pass mark a passing student would get 0 grade points. Raise the pass mark to a grade that carries points." };
   const { error } = await supabase.from("eval_scheme" as never).update({ pass_percent: Number(input.passPercent), ese_min_percent: input.eseMin.trim() ? Number(input.eseMin) : null } as never).eq("id", id);
   if (error) return { ok: false, error: "Could not save." };
   for (const [cid, w] of Object.entries(input.weights)) {
     if (!/^\d{1,3}(\.\d{1,2})?$/.test(w) || Number(w) <= 0) return { ok: false, error: "Weights must be numbers above 0." };
     await supabase.from("eval_component" as never).update({ weight: Number(w) } as never).eq("id", Number(cid)).eq("scheme_id", id);
   }
+  const { error: chk } = await supabase.rpc("eval_scale_check" as never, { p_scheme: id } as never);
+  if (chk) return { ok: false, error: "The grade at the pass mark must carry grade points. Change the pass mark or the grade scale." };
   revalidatePath(PATH);
-  return { ok: true, message: "Saved. Published results stay as they were." };
+  return { ok: true, message: "Saved. Results already published stay as they were." };
 }
 
 export async function assignScheme(programmeId: number, schemeId: number | null): Promise<R> {

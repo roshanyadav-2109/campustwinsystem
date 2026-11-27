@@ -16,7 +16,7 @@ export function gradeCardPdf(c: GradeCard, verifyUrl: string): PdfDoc {
         rows: c.courses.map((x) => [x.code, x.name, n(x.credits), x.cia == null ? "-" : `${n(x.cia)}/${n(x.cia_max)}`, x.ese == null ? "-" : `${n(x.ese)}/${n(x.ese_max)}`,
           x.passed ? x.grade : { text: x.grade, low: true }, n(x.point)]) },
       { kind: "facts", heading: "Result", items: [["Credits registered", n(c.credits_registered)], ["Credits earned", n(c.credits_earned)], ["SGPA", n(c.sgpa)], ["CGPA", n(c.cgpa)],
-        ["Backlogs", String(c.backlogs)]] },
+        ["Backlogs", String(c.backlogs)], ["Result", c.backlogs ? `To reappear in ${c.backlogs} course${c.backlogs > 1 ? "s" : ""}` : "Pass"]] },
       { kind: "signatures", labels: ["Controller of examinations", "Principal"] },
       { kind: "qr", data: verifyUrl, lines: ["Scan to check this grade card.", verifyUrl.replace(/^https:\/\//, "")] },
     ],

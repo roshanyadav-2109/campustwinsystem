@@ -41,11 +41,12 @@ export default async function ResultsPage({ searchParams }: { searchParams: SP }
   if (!sections.length) return (<div><PageHeader title="Results" /><EmptyState art="no-sections" title="No sections to show" /></div>);
   const sectionId = Number(one(sp.section)) || sections[0].id;
   const section = sections.find((s) => s.id === sectionId) ?? sections[0];
-  const [{ data: prev, error }, { data: pub }] = await Promise.all([
-    supabase.rpc("compute_course_results" as never, { p_semester: semId, p_section: section.id } as never),
-    supabase.from("semester_result" as never).select("student_id, sgpa, cgpa").eq("semester_id", semId).limit(5000),
-  ]);
-  const published = new Map(((pub ?? []) as unknown as { student_id: number; sgpa: number | null; cgpa: number | null }[]).map((p) => [p.student_id, p]));
+  const { data: prev, error } = await supabase.rpc("compute_course_results" as never, { p_semester: semId, p_section: section.id } as never);
+  const ids = [...new Set(((prev ?? []) as unknown as PreviewRow[]).map((r) => r.student_id))];
+  const { data: pub } = ids.length
+    ? await supabase.from("semester_result" as never).select("student_id, sgpa, cgpa, withheld_reason").eq("semester_id", semId).in("student_id", ids)
+    : { data: [] };
+  const published = new Map(((pub ?? []) as unknown as { student_id: number; sgpa: number | null; cgpa: number | null; withheld_reason: string | null }[]).map((p) => [p.student_id, p]));
   const link = (q: Record<string, number>) => `?${new URLSearchParams({ semester: String(semId), section: String(section.id), ...Object.fromEntries(Object.entries(q).map(([k, v]) => [k, String(v)])) })}`;
   return (
     <div className="space-y-4">
