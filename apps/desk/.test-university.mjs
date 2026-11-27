@@ -42,9 +42,9 @@ try {
   const { data: oldEnr } = await admin.from("student_enrollment").select("id").eq("student_id", kid.id).eq("status", "active"); made.oldEnr = (oldEnr ?? []).map((x) => x.id);
   const { data: logins } = await admin.from("profile").select("id").eq("student_id", kid.id); made.logins = (logins ?? []).map((x) => x.id);
   await p.getByLabel("Admission number").fill(kid.admission_no);
-  await p.getByLabel("To", { exact: true }).first().selectOption({ label: "Westbridge City Campus" });
+  await p.getByLabel("Transfer to campus").selectOption({ label: "Westbridge City Campus" });
   await p.getByRole("button", { name: "Choose section" }).click();
-  await p.getByLabel("Section").waitFor({ timeout: 60000 });
+  await p.getByLabel("Section at the new campus").waitFor({ timeout: 60000 });
   await p.getByLabel("Reason").fill("QA test transfer");
   await p.getByRole("button", { name: "Transfer", exact: true }).click();
   await p.getByText(/^Transferred as /).waitFor({ timeout: 90000 });
