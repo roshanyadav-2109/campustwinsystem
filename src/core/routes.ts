@@ -26,6 +26,8 @@ export type RouteDef = {
   group: NavGroup;
   /** false = may be opened, but not listed in the side menu. */
   menu?: boolean;
+  /** Access types (from positions) that also open the page, whatever the role. */
+  types?: string[];
 };
 
 export const ALL_ROLES: NavRole[] = ["student", "guardian", "subject_teacher", "class_teacher", "principal", "office"];
@@ -40,14 +42,14 @@ export function editionOn(route: RouteDef, edition: Edition | undefined): boolea
 }
 
 /** Pages this role may open here (menu or not). */
-export function openableRoutes(routes: RouteDef[], role: NavRole, enabled?: Record<string, boolean>, edition?: Edition): RouteDef[] {
-  return routes.filter((r) => r.roles.includes(role) && moduleOn(r.module, enabled) && editionOn(r, edition));
+export function openableRoutes(routes: RouteDef[], role: NavRole, enabled?: Record<string, boolean>, edition?: Edition, types: string[] = []): RouteDef[] {
+  return routes.filter((r) => (r.roles.includes(role) || !!r.types?.some((t) => types.includes(t))) && moduleOn(r.module, enabled) && editionOn(r, edition));
 }
 
 /** The side menu: openable pages that are listed, one entry per address. */
-export function menuRoutes(routes: RouteDef[], role: NavRole, enabled?: Record<string, boolean>, edition?: Edition): RouteDef[] {
+export function menuRoutes(routes: RouteDef[], role: NavRole, enabled?: Record<string, boolean>, edition?: Edition, types: string[] = []): RouteDef[] {
   const seen = new Set<string>();
-  return openableRoutes(routes, role, enabled, edition)
+  return openableRoutes(routes, role, enabled, edition, types)
     .filter((r) => r.menu !== false)
     .filter((r) => (seen.has(r.href) ? false : (seen.add(r.href), true)));
 }

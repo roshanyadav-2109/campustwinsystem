@@ -5,6 +5,7 @@ import { PageHeader } from "@/components/ui/page-header";
 import { EmptyState } from "@/components/ui/empty";
 import { createClient } from "@/lib/supabase/server";
 import { getStaffScope } from "@/lib/data/scope";
+import { isExams } from "@/lib/roles";
 import { getMyChildren } from "@/lib/data/analytics";
 import { ExamsDesk, FamilyExams, type SessionView, type PaperView } from "@/components/exams/exams-desk";
 
@@ -72,7 +73,7 @@ export default async function ExamTimetablePage({ searchParams }: { searchParams
             {s.name}{s.published_at ? "" : " (draft)"}</Link>
         ))}
       </div>
-      <ExamsDesk key={sessionId ?? "none"} canEdit={session.staffRole === "office"} sessions={sessions} sessionId={sessionId} papers={papers}
+      <ExamsDesk key={sessionId ?? "none"} canEdit={isExams(session)} sessions={sessions} sessionId={sessionId} papers={papers}
         types={(types ?? []).filter((t) => t.is_numeric).map((t) => ({ id: t.id, name: t.name }))}
         classes={scope.classes.map((c) => ({ id: c.id, name: c.name, subjects: (cs ?? []).filter((x) => x.class_id === c.id).map((x) => x.subject_id) }))}
         subjects={(subjects ?? []).map((s) => ({ id: s.id, name: s.name }))}

@@ -46,7 +46,31 @@ begin
   if (select title from public.signatory('exams_head')) is distinct from 'Controller of Examinations' then raise exception 'FAIL signatory'; end if;
   reset role;
   if (select count(*) from public.position_log where school_id = 11 and staff_id = v_t) <> 3 then raise exception 'FAIL log'; end if;
-  -- a school (not higher ed) cannot add the college titles
-  perform set_config('request.jwt.claims', json_build_object('sub', of, 'role', 'authenticated')::text, true);
+  -- access: the office cannot give a top position, nor one to itself
+  perform set_config('request.jwt.claims', json_build_object('sub', of, 'role', 'authenticated')::text, true); set local role authenticated;
+  ok := false; begin perform public.assign_position(v_t, v_dir, null, null, null, null, null, false); exception when others then ok := sqlerrm like 'Only the head%'; end;
+  if not ok then raise exception 'FAIL office assigned a top position'; end if;
+  ok := false; begin perform public.assign_position(v_off, v_hod, null, v_dept, null, null, null, false); exception when others then ok := sqlerrm like 'Someone else%'; end;
+  if not ok then raise exception 'FAIL self-assignment'; end if;
+  ok := false; begin update public.position_title set access_type = 'head' where id = v_hod; exception when others then ok := true; end;
+  if not ok then raise exception 'FAIL office turned a title into a head'; end if;
+  -- Meridian has a CoE: the office does not publish
+  if app.can_publish_results() then raise exception 'FAIL office can publish beside a CoE'; end if;
+  reset role;
+  -- a teacher made Registrar works as the office; made CoE, publishes and runs exams
+  insert into public.staff_position (school_id, staff_id, title_id) select 11, v_t, id from public.position_title where school_id = 11 and access_type = 'registrar' and scope_level = 'campus' limit 1;
+  perform set_config('request.jwt.claims', json_build_object('sub', te, 'role', 'authenticated')::text, true); set local role authenticated;
+  if not app.is_office() or app.is_principal() then raise exception 'FAIL registrar access'; end if;
+  reset role;
+  delete from public.staff_position where staff_id = v_t and title_id in (select id from public.position_title where access_type = 'registrar');
+  insert into public.staff_position (school_id, staff_id, title_id) values (11, v_t, v_dir);
+  perform set_config('request.jwt.claims', json_build_object('sub', te, 'role', 'authenticated')::text, true); set local role authenticated;
+  if app.is_office() or not app.is_exams() or not app.can_publish_results() then raise exception 'FAIL exams head access'; end if;
+  reset role;
+  -- an ended position gives nothing
+  update public.staff_position set starts_on = current_date - 10, ends_on = current_date - 1 where staff_id = v_t and title_id = v_dir;
+  perform set_config('request.jwt.claims', json_build_object('sub', te, 'role', 'authenticated')::text, true); set local role authenticated;
+  if app.is_exams() then raise exception 'FAIL ended position still gives access'; end if;
+  reset role;
 end $$;
 rollback;

@@ -21,7 +21,8 @@ export default async function ResultsPage({ searchParams }: { searchParams: SP }
   const supabase = await createClient();
   const verifyBase = `https://verify.${process.env.NEXT_PUBLIC_BASE_DOMAIN || "campustwin.org"}/verify/`;
   // signature lines carry the institution's own titles
-  const [{ data: coe }, { data: head }] = await Promise.all([
+  const [{ data: mayPublish }, { data: coe }, { data: head }] = await Promise.all([
+    supabase.rpc("can_publish_results" as never),
     supabase.rpc("signatory" as never, { p_type: "exams_head" } as never), supabase.rpc("signatory" as never, { p_type: "head" } as never)]);
   const signers = [((coe ?? []) as unknown as { title: string }[])[0]?.title ?? "Controller of Examinations", ((head ?? []) as unknown as { title: string }[])[0]?.title ?? "Principal"];
 
@@ -66,7 +67,7 @@ export default async function ResultsPage({ searchParams }: { searchParams: SP }
       </div>
       {error ? <EmptyState art="error" title="Could not prepare results" hint={error.message} /> : (
         <ResultsDesk key={`${semId}-${section.id}`} semesterId={semId} sectionId={section.id} rows={(prev ?? []) as unknown as PreviewRow[]}
-          published={Object.fromEntries(published)} canPublish={session.staffRole === "office"} verifyBase={verifyBase} signers={signers} />
+          published={Object.fromEntries(published)} canPublish={mayPublish === true} verifyBase={verifyBase} signers={signers} />
       )}
     </div>
   );

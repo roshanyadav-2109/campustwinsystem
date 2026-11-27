@@ -2,10 +2,11 @@
 import { revalidatePath } from "next/cache";
 import { createClient } from "@/lib/supabase/server";
 import { getSession } from "@/lib/session";
+import { isExamsLead } from "@/lib/roles";
 
 type R = { ok: true; message?: string } | { ok: false; error: string };
 const PATH = "/dashboard/settings/evaluation";
-const office = async () => (await getSession())?.staffRole === "office";
+const office = async () => isExamsLead(await getSession());
 
 // The usual pattern: internal tests + mid-semester = 40, end-semester = 60, UGC 10-point grades.
 export async function createStandardScheme(): Promise<R> {

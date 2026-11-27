@@ -141,7 +141,7 @@ export async function EventsPanel() {
 export async function QuickLinks({ role }: { role: NavRole }) {
   const { t } = await getT();
   const session = await getSession();
-  const links = navFor(role, session?.school.modules, session?.school.edition ?? "school").filter((l) => l.href !== "/dashboard");
+  const links = navFor(role, session?.school.modules, session?.school.edition ?? "school", session?.accessTypes ?? []).filter((l) => l.href !== "/dashboard");
   return (
     <div>
       <div className="mb-3 text-[16px] font-semibold text-ink-900">{t("dashboard.quickLinks")}</div>

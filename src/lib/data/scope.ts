@@ -1,4 +1,5 @@
 import { cache } from "react";
+import { isExams } from "@/lib/roles";
 import { createClient } from "@/lib/supabase/server";
 import { getSession } from "@/lib/session";
 import { getReference } from "@/lib/data/reference";
@@ -49,7 +50,7 @@ export const getStaffScope = cache(async (): Promise<StaffScope> => {
     // Years, subjects, sections and class subjects: the shared reference copy.
     getReference(),
     sessionP.then(async (sess) => {
-      if (!sess || sess.isAdminScope) return [];
+      if (!sess || sess.isAdminScope || isExams(sess)) return [];
       const { data } = await supabase
         .from("teacher_allotment")
         // Every year's rows (a teacher has a handful); the current year is
@@ -64,7 +65,7 @@ export const getStaffScope = cache(async (): Promise<StaffScope> => {
   const yearList = (years ?? []) as YearOpt[];
   const currentYearId = yearList.find((y) => y.is_current)?.id ?? yearList[0]?.id ?? null;
 
-  const isAdmin = !!session?.isAdminScope;
+  const isAdmin = !!session?.isAdminScope || isExams(session);
 
   const allSubjects = (allSubs ?? []) as SubjectOpt[];
   const subById = new Map<number, SubjectOpt>(allSubjects.map((s) => [s.id, s]));

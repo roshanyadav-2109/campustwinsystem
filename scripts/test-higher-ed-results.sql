@@ -7,6 +7,8 @@ begin
   insert into auth.users (id, email, aud, role) values (of, 'qa-res-office@example.com', 'authenticated', 'authenticated');
   insert into public.staff (school_id, full_name, email, role) values (11, 'QA RES', 'qa-res-office@example.com', 'office') returning id into v_staff;
   insert into public.profile (id, role, full_name, school_id, staff_id) values (of, 'staff', 'QA RES', 11, v_staff);
+  -- the publisher is the Controller of Examinations
+  insert into public.staff_position (school_id, staff_id, title_id) select 11, v_staff, id from public.position_title where school_id = 11 and access_type = 'exams_head' and scope_level in ('campus', 'university') limit 1;
   select id into v_sem from public.semester where school_id = 11 and kind = 'odd' order by starts_on desc limit 1;
   select e.section_id into v_sec from public.course_registration r2 join public.student_enrollment e on e.student_id = r2.student_id where r2.semester_id = v_sem and e.school_id = 11 limit 1;
   perform set_config('request.jwt.claims', json_build_object('sub', of, 'role', 'authenticated')::text, true);

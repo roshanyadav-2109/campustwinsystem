@@ -9,15 +9,15 @@ import { EmptyState } from "@/components/ui/empty";
 // (What a page then shows is still limited by the database's row rules.)
 // Both the menu and this guard read the route registry, which also lists pages
 // that are opened from elsewhere and not shown in the menu.
-export function roleCanOpen(role: NavRole, href: string, modules: Record<string, boolean> | undefined, edition: Edition): boolean {
-  return canOpen(role, href, modules, edition);
+export function roleCanOpen(role: NavRole, href: string, modules: Record<string, boolean> | undefined, edition: Edition, types: string[] = []): boolean {
+  return canOpen(role, href, modules, edition, types);
 }
 
 // Called at the top of every dashboard page: returns the "no access" screen to
 // show instead, or null when the person may see the page.
 export async function guardTab(href: string): Promise<React.ReactNode | null> {
   const session = await getSession();
-  if (session && roleCanOpen(session.navRole, href, session.school.modules, session.school.edition)) return null;
+  if (session && roleCanOpen(session.navRole, href, session.school.modules, session.school.edition, session.accessTypes)) return null;
   return (
     <EmptyState
       art="no-results"

@@ -36,6 +36,7 @@ function BellIcon() {
 export function AppShell({
   name,
   role,
+  types = [],
   roleLabel,
   modules,
   edition,
@@ -47,6 +48,7 @@ export function AppShell({
 }: {
   name: string;
   role: NavRole;
+  types?: string[];
   roleLabel: string;
   modules?: Record<string, boolean>;
   edition: Edition;
@@ -68,7 +70,7 @@ export function AppShell({
   const pathname = usePathname();
   const [open, setOpen] = useState(false);
   const [menuOpen, setMenuOpen] = useState(false);
-  const items = navFor(role, modules, edition);
+  const items = navFor(role, modules, edition, types);
 
   // Desktop side menu can be hidden from the top bar for more room.
   const [collapsed, setCollapsed] = useState(false);

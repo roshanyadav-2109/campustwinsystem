@@ -20,6 +20,10 @@ export type Session = {
   guardianId: number | null;
   studentId: number | null;
   staffRole: StaffRole | null;
+  // the staff record's own role, before positions (Principal, Registrar...) are added
+  baseStaffRole: StaffRole | null;
+  // campus-wide access types from current positions (colleges and universities)
+  accessTypes: string[];
   // effective role for labels (from staff.role)
   effectiveRole: StaffRole | "student" | "guardian";
   isAdminScope: boolean; // principal or office
@@ -81,7 +85,7 @@ export type SchoolBrand = {
 // which verifies the JWT locally against the cached signing key — no auth-server
 // round trip (the proxy has already refreshed the cookie if it had expired).
 // The school, staff, parent and student details read with a login or membership.
-const PROFILE_JOINS = "school:school_id(slug, name, short_name, place, monogram, logo_url, login_image_url, login_video_id, primary_color, modules, status, institution_type, university_id), staff:staff_id(role, email, teacher_allotment(academic_year_id, is_class_teacher)), guardian:guardian_id(email), student:student_id(email)";
+const PROFILE_JOINS = "school:school_id(slug, name, short_name, place, monogram, logo_url, login_image_url, login_video_id, primary_color, modules, status, institution_type, university_id), staff:staff_id(role, email, teacher_allotment(academic_year_id, is_class_teacher), staff_position(school_id, starts_on, ends_on, title:title_id(access_type, scope_level))), guardian:guardian_id(email), student:student_id(email)";
 
 export const getSession = cache(async (): Promise<Session | null> => {
   const supabase = await createClient();
@@ -139,7 +143,19 @@ export const getSession = cache(async (): Promise<Session | null> => {
     if (!recordEmail || recordEmail.trim().toLowerCase() !== signedInAs.trim().toLowerCase()) return null;
   }
 
-  const staffRole = (data.staff as { role: StaffRole } | null)?.role ?? null;
+  const baseStaffRole = (data.staff as { role: StaffRole } | null)?.role ?? null;
+  // Positions held now at this campus add to the base role, as in app.my_staff_role():
+  // head or deputy head -> principal, registrar -> office (the database applies the same rule).
+  const todayIST = new Date(Date.now() + 5.5 * 3600 * 1000).toISOString().slice(0, 10);
+  const positions = (data.staff as { staff_position?: { school_id: number; starts_on: string; ends_on: string | null; title: { access_type: string; scope_level: string } | null }[] } | null)?.staff_position ?? [];
+  const accessTypes = [...new Set(positions
+    .filter((p) => p.school_id === data.school_id && p.title && ["campus", "university"].includes(p.title.scope_level) && p.starts_on <= todayIST && (!p.ends_on || p.ends_on >= todayIST))
+    .map((p) => p.title!.access_type))];
+  const staffRole: StaffRole | null = baseStaffRole === "principal" ? baseStaffRole
+    : accessTypes.some((t) => t === "head" || t === "deputy_head") ? "principal"
+    : baseStaffRole === "office" ? baseStaffRole
+    : accessTypes.includes("registrar") ? "office" : baseStaffRole;
+  const upgraded = staffRole !== baseStaffRole;
   const effectiveRole: Session["effectiveRole"] =
     data.role === "staff" ? (staffRole ?? "office") : data.role;
 
@@ -148,7 +164,8 @@ export const getSession = cache(async (): Promise<Session | null> => {
   const allots = (data.staff as { teacher_allotment?: { academic_year_id: number; is_class_teacher: boolean }[] } | null)?.teacher_allotment ?? [];
   const isClassTeacher = !!year && allots.some((a) => a.is_class_teacher && a.academic_year_id === year.id);
 
-  const navRole: NavRole = isClassTeacher ? "class_teacher" : (effectiveRole as NavRole);
+  // A position that makes someone principal or office opens those menus even if they also class-teach.
+  const navRole: NavRole = upgraded ? (staffRole as NavRole) : isClassTeacher ? "class_teacher" : (effectiveRole as NavRole);
 
   const sc = data.school as unknown as {
     slug: string; name: string; short_name: string | null; place: string | null; monogram: string | null;
@@ -230,6 +247,8 @@ export const getSession = cache(async (): Promise<Session | null> => {
     guardianId: data.guardian_id,
     studentId: data.student_id,
     staffRole,
+    baseStaffRole,
+    accessTypes,
     effectiveRole,
     isAdminScope: staffRole === "principal" || staffRole === "office",
     isClassTeacher,

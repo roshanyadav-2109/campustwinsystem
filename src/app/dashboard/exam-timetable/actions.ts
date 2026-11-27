@@ -2,12 +2,13 @@
 import { revalidatePath } from "next/cache";
 import { createClient } from "@/lib/supabase/server";
 import { getCurrentYear, getSession } from "@/lib/session";
+import { isExams } from "@/lib/roles";
 
 // Exam timetable and admit cards. The office writes; the database checks
 // clashes, institution and who may print which admit card.
 export type Result = { ok: true; message?: string; id?: number } | { ok: false; error: string };
 const PATH = "/dashboard/exam-timetable";
-async function office() { const s = await getSession(); return s?.staffRole === "office" ? s : null; }
+async function office() { const s = await getSession(); return isExams(s) ? s : null; }
 const err = (e: { message: string } | null, f: string) => (e && e.message.length < 160 && !e.message.includes("violates") ? e.message : f);
 const TIME = /^([01]\d|2[0-3]):[0-5]\d$/;
 

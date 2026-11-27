@@ -1,5 +1,6 @@
 import { guardTab } from "@/lib/access";
 import { getSession } from "@/lib/session";
+import { isExamsLead } from "@/lib/roles";
 import { PageHeader } from "@/components/ui/page-header";
 import { createClient } from "@/lib/supabase/server";
 import { EvaluationAdmin, type SchemeRow } from "@/components/settings/evaluation";
@@ -23,7 +24,7 @@ export default async function EvaluationPage() {
   return (
     <div className="space-y-4">
       <PageHeader title="Evaluation and grading" description="How internal assessment (CIA) and the end-semester exam (ESE) make a course result, the pass marks, and the grade points used for SGPA and CGPA." />
-      <EvaluationAdmin schemes={schemes} programmes={(p.data ?? []) as unknown as { id: number; code: string; name: string; eval_scheme_id: number | null }[]} canEdit={session?.staffRole === "office"} />
+      <EvaluationAdmin schemes={schemes} programmes={(p.data ?? []) as unknown as { id: number; code: string; name: string; eval_scheme_id: number | null }[]} canEdit={isExamsLead(session)} />
     </div>
   );
 }

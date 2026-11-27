@@ -2,12 +2,13 @@
 import { revalidatePath } from "next/cache";
 import { createClient } from "@/lib/supabase/server";
 import { getSession } from "@/lib/session";
+import { isExams } from "@/lib/roles";
 
 type R = { ok: true; message?: string } | { ok: false; error: string };
 
 export async function publishResults(semesterId: number, sectionId: number, reviseReason?: string): Promise<R> {
   const s = await getSession();
-  if (s?.staffRole !== "office") return { ok: false, error: "Only the office can publish results." };
+  if (!s?.staffRole) return { ok: false, error: "Not allowed." }; // the database decides who publishes
   const supabase = await createClient();
   const { data, error } = await supabase.rpc("publish_semester_results" as never, { p_semester: semesterId, p_section: sectionId, p_revise_reason: reviseReason?.trim().slice(0, 200) || null } as never);
   if (error) return { ok: false, error: error.message.length < 140 ? error.message : "Could not publish." };
@@ -19,7 +20,7 @@ export async function publishResults(semesterId: number, sectionId: number, revi
 // Hold back a published result (fees, malpractice...), or release it with an empty reason.
 export async function holdResult(semesterId: number, studentId: number, reason: string): Promise<R> {
   const s = await getSession();
-  if (s?.staffRole !== "office") return { ok: false, error: "Only the office can hold back results." };
+  if (!isExams(s)) return { ok: false, error: "Only the office or the exam cell can hold back results." };
   const supabase = await createClient();
   const { error } = await supabase.rpc("withhold_result" as never, { p_semester: semesterId, p_student: studentId, p_reason: reason.trim().slice(0, 200) } as never);
   if (error) return { ok: false, error: "Could not change it." };

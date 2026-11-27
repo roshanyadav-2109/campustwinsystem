@@ -2,6 +2,7 @@
 import { revalidatePath } from "next/cache";
 import { createClient } from "@/lib/supabase/server";
 import { getSession } from "@/lib/session";
+import { setsAttendanceRules } from "@/lib/roles";
 
 type R = { ok: true; message?: string } | { ok: false; error: string };
 const clean = (e: { message: string }, f: string) => (e.message.length < 160 && !e.message.includes("violates") ? e.message : f);
@@ -61,7 +62,7 @@ export async function cancelRelaxation(id: number): Promise<R> {
 
 export async function saveAttendanceRules(input: { mode: string; days: string; minimum: string; floor: string; holdFees: boolean; cutoff: string; chain: Record<string, string[]> }): Promise<R> {
   const s = await getSession();
-  if (s?.staffRole !== "office" && s?.staffRole !== "principal") return { ok: false, error: "Only the office or the principal can change these rules." };
+  if (!setsAttendanceRules(s)) return { ok: false, error: "Only the office, the principal or the examinations head can change these rules." };
   if (!["none", "daily", "cutoff", "both"].includes(input.mode)) return { ok: false, error: "Choose how attendance locks." };
   const days = Number(input.days), min = Number(input.minimum), floor = input.floor.trim() ? Number(input.floor) : null;
   if (!Number.isInteger(days) || days < 0 || days > 60) return { ok: false, error: "Days to correct: 0 to 60." };

@@ -44,7 +44,7 @@ export default async function AppLayout({ children }: { children: React.ReactNod
     ? { name: session.university.name, activeCampusName: session.school.name }
     : null;
   return (
-    <AppShell name={session.fullName} role={session.navRole as NavRole} roleLabel={roleLabel} modules={session.school.modules} edition={session.school.edition} institutions={institutions} brand={{ name: session.school.name, place: session.school.place, logo: session.school.logoUrl, monogram: session.school.monogram }} university={university} unread={typeof unread === "number" ? unread : 0}>
+    <AppShell name={session.fullName} role={session.navRole as NavRole} types={session.accessTypes} roleLabel={roleLabel} modules={session.school.modules} edition={session.school.edition} institutions={institutions} brand={{ name: session.school.name, place: session.school.place, logo: session.school.logoUrl, monogram: session.school.monogram }} university={university} unread={typeof unread === "number" ? unread : 0}>
       {children}
     </AppShell>
   );

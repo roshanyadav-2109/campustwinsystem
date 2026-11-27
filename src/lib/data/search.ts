@@ -27,7 +27,7 @@ export async function searchEverything(rawQuery: string, perGroup = 6): Promise<
   const lower = q.toLowerCase();
 
   // Pages: the person's own menu, matched on its label.
-  const pages: SearchHit[] = navFor(role, session.school.modules, session.school.edition)
+  const pages: SearchHit[] = navFor(role, session.school.modules, session.school.edition, session.accessTypes)
     .filter((n) => t(n.labelKey).toLowerCase().includes(lower))
     .map((n) => ({ href: n.href, title: t(n.labelKey), detail: t("x.searchPage") }));
 

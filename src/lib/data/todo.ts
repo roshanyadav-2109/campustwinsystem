@@ -40,5 +40,5 @@ export async function getTodo(session: Session): Promise<TodoItem[]> {
     { key: "letters", count: letters.count ?? 0, href: "/dashboard/fees?view=letters" },
   ];
   // Only work this person can open.
-  return items.filter((i) => i.count > 0 && canOpen(session.navRole, i.href.split("?")[0], mods, session.school.edition));
+  return items.filter((i) => i.count > 0 && canOpen(session.navRole, i.href.split("?")[0], mods, session.school.edition, session.accessTypes));
 }

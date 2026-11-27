@@ -1,5 +1,6 @@
 import { guardTab } from "@/lib/access";
 import { getSession } from "@/lib/session";
+import { setsAttendanceRules } from "@/lib/roles";
 import { PageHeader } from "@/components/ui/page-header";
 import { createClient } from "@/lib/supabase/server";
 import { AttendanceRules } from "@/components/settings/attendance-rules";
@@ -21,7 +22,7 @@ export default async function AttendanceRulesPage() {
       <PageHeader title="Attendance lock and holds" description="How lecture attendance locks, when hall tickets and results are held back, and who approves relaxations." />
       <AttendanceRules initial={{ mode: s.attendance_lock_mode, days: String(s.attendance_edit_days), minimum: String(Number(s.attendance_minimum)), floor: s.condone_floor == null ? "" : String(Number(s.condone_floor)),
         holdFees: s.hold_results_fees, cutoff: cur?.attendance_cutoff ?? "", chain: s.relax_chain }} hasSemester={!!cur}
-        canEdit={session?.staffRole === "office" || session?.staffRole === "principal"} />
+        canEdit={setsAttendanceRules(session)} />
     </div>
   );
 }
