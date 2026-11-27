@@ -30,7 +30,7 @@ try {
   const p = await ctx.newPage(); p.on("pageerror", (e) => errors.push(e.message));
 
   await p.goto(`${HOST}/dashboard/exam-cell`, { waitUntil: "load", timeout: 90000 }); await settle(p);
-  check(await p.getByText("Exams this year").count() === 1 && await p.getByText("Results by semester").count() === 1, "the exam cell dashboard shows exams and results by semester");
+  check(await p.getByText("Exams this year", { exact: true }).count() === 1 && await p.getByText("Results by semester", { exact: true }).count() === 1, "the exam cell dashboard shows exams and results by semester");
 
   const { data: yr } = await admin.from("academic_year").select("id").eq("school_id", S).eq("is_current", true).single();
   const { data: t } = await admin.from("assessment_type").select("id").eq("school_id", S).eq("code", "annual").single();
