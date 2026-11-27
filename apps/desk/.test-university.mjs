@@ -84,12 +84,13 @@ finally {
   }
   if (made.cityClass) await admin.from("class").update({ programme_id: made.cityClass.programme_id }).eq("id", made.cityClass.id);
   if (made.prog) await admin.from("programme").delete().eq("id", made.prog);
+  if (made.old) await admin.from("student_transfer").delete().eq("from_student", made.old);
   if (made.old) {
     await admin.from("student").update({ status: "active", left_on: null, exit_remark: null }).eq("id", made.old);
     if (made.oldEnr?.length) await admin.from("student_enrollment").update({ status: "active" }).in("id", made.oldEnr);
   }
   for (const u of made.users) { await admin.from("profile").delete().eq("id", u); await admin.auth.admin.deleteUser(u); }
-  for (const s of made.staff) await admin.from("staff").delete().eq("id", s);
+  for (const s of made.staff) { await admin.from("person_membership").delete().eq("staff_id", s); const { error } = await admin.from("staff").delete().eq("id", s); if (error) console.log("cleanup: staff", s, error.message); }
   await b.close();
   console.log(failures ? `${failures} FAILED` : "ALL PASSED");
 }
