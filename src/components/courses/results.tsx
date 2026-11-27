@@ -5,8 +5,9 @@ import { Card, CardBody, CardHeader } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/field";
 import { downloadPdf, downloadPdfBook } from "@/lib/pdf";
-import { gradeCardPdf } from "@/components/courses/grade-card-pdf";
-import { publishResults, sectionGradeCards, holdResult } from "@/app/dashboard/results/actions";
+import { gradeCardPdf, consolidatedPdf, suppMemoPdf } from "@/components/courses/grade-card-pdf";
+import { publishResults, sectionGradeCards, holdResult, requestRevaluation, consolidatedData, suppMemoData, rankList } from "@/app/dashboard/results/actions";
+import { applySupplementary } from "@/app/dashboard/supplementary/actions";
 import type { GradeCard } from "@/lib/data/results";
 
 export type PreviewRow = { student_id: number; student_name: string; roll_no: number | null; course_id: number; course_code: string; course_name: string; credits: number;
@@ -102,21 +103,75 @@ export function ResultsDesk({ semesterId, sectionId, rows, published, canPublish
   );
 }
 
-export function MyResults({ cards, verifyBase, signers }: { cards: GradeCard[]; verifyBase: string; signers: string[] }) {
+export type OpenExam = { session_id: number; session_name: string; for_semester_id: number; fee_per_course: number | null; kind: string };
+
+// A student's (or parent's) grade cards: download, ask for revaluation or retotalling while the window is open,
+// apply for an improvement exam, and download the consolidated marksheet and supplementary memos.
+export function MyResults({ cards, verifyBase, signers, studentId, open = [], windowDays = 15, revalFee = null, retotalFee = null, requested = [] }: {
+  cards: GradeCard[]; verifyBase: string; signers: string[]; studentId?: number; open?: OpenExam[]; windowDays?: number; revalFee?: number | null; retotalFee?: number | null;
+  requested?: { result_id: number; kind: string; status: string }[];
+}) {
   const [pending, start] = useTransition();
+  const [msg, setMsg] = useState<{ ok: boolean; text: string } | null>(null);
+  const router = useRouter();
+  const act = (fn: () => Promise<{ ok: boolean; message?: string; error?: string }>) => start(async () => { const r = await fn(); setMsg(r.ok ? { ok: true, text: r.message ?? "Done." } : { ok: false, text: r.error ?? "Failed." }); if (r.ok) router.refresh(); });
+  const today = Date.now();
   return (
     <div className="space-y-4">
-      {cards.map((c) => (
-        <Card key={c.token}>
-          <CardHeader title={`${c.student}: semester ${c.semester_no ?? ""}`} action={<Button size="sm" variant="subtle" disabled={pending} onClick={() => start(async () => { await downloadPdf(gradeCardPdf(c, verifyBase + c.token, signers)); })}>Download grade card</Button>} />
-          <CardBody className="space-y-2">
-            <p className="text-[14px]"><b>SGPA {n(c.sgpa)}</b> · CGPA {n(c.cgpa)} · {n(c.credits_earned)} of {n(c.credits_registered)} credits earned{c.backlogs ? <span className="text-down"> · {c.backlogs} backlog{c.backlogs > 1 ? "s" : ""}</span> : null}</p>
-            <table className="w-full text-[13px]"><tbody>{c.courses.map((x) => (
-              <tr key={x.code} className="border-t border-hair first:border-t-0"><td className="py-1 pr-3 font-medium">{x.code}</td><td className="pr-3">{x.name}</td><td className="pr-3 tabular">{n(x.credits)} cr</td>
-                <td className={`pr-3 ${x.passed ? "" : "text-down"}`}>{x.grade === "Ab" ? "Absent" : x.grade}</td><td className="tabular">{n(x.point)}</td></tr>))}</tbody></table>
-          </CardBody>
-        </Card>
-      ))}
+      {studentId ? (
+        <div className="flex flex-wrap items-center gap-2">
+          <Button size="sm" variant="subtle" disabled={pending} onClick={() => start(async () => { const d = await consolidatedData(studentId); await downloadPdf(consolidatedPdf(d.student, d.rows, d.standing, d.percent)); })}>Consolidated marksheet</Button>
+          <Button size="sm" variant="subtle" disabled={pending} onClick={() => start(async () => {
+            const rows = await suppMemoData(studentId); if (!rows.length) { setMsg({ ok: false, text: "No supplementary or improvement results yet." }); return; }
+            const d = await consolidatedData(studentId);
+            const bySession = [...new Set(rows.map((r) => r.session_id))].map((sid) => suppMemoPdf(d.student, rows.filter((r) => r.session_id === sid), signers));
+            await downloadPdfBook(bySession, "Supplementary and improvement memos");
+          })}>Supplementary memos</Button>
+          {msg && <span role={msg.ok ? "status" : "alert"} className={`text-[13px] font-medium ${msg.ok ? "text-up" : "text-down"}`}>{msg.text}</span>}
+        </div>
+      ) : null}
+      {cards.map((c) => {
+        const windowOpen = today - new Date(c.published_at).getTime() < (windowDays + 1) * 86400000;
+        const improve = open.find((o) => o.kind === "improvement" && o.for_semester_id === c.semester_id);
+        return (
+          <Card key={c.token}>
+            <CardHeader title={`${c.student}: semester ${c.semester_no ?? ""}`} action={<Button size="sm" variant="subtle" disabled={pending} onClick={() => start(async () => { await downloadPdf(gradeCardPdf(c, verifyBase + c.token, signers)); })}>Download grade card</Button>} />
+            <CardBody className="space-y-2">
+              <p className="text-[14px]"><b>SGPA {n(c.sgpa)}</b> · CGPA {n(c.cgpa)} · {n(c.credits_earned)} of {n(c.credits_registered)} credits earned{c.backlogs ? <span className="text-down"> · {c.backlogs} backlog{c.backlogs > 1 ? "s" : ""}</span> : null}</p>
+              {studentId && windowOpen && <p className="text-[12px] text-ink-500">Revaluation{revalFee ? ` (Rs ${n(revalFee)})` : ""} or retotalling{retotalFee ? ` (Rs ${n(retotalFee)})` : ""} can be asked for up to {windowDays} days after the results.</p>}
+              <table className="w-full text-[13px]"><tbody>{c.courses.map((x) => {
+                const asked = requested.filter((r) => r.result_id === x.result_id);
+                return (
+                  <tr key={x.code} className="border-t border-hair first:border-t-0"><td className="py-1 pr-3 font-medium">{x.code}</td><td className="pr-3">{x.name}</td><td className="pr-3 tabular">{n(x.credits)} cr</td>
+                    <td className={`pr-3 ${x.passed ? "" : "text-down"}`}>{x.grade === "Ab" ? "Absent" : x.grade}{x.grace ? <span className="text-[11px] text-ink-500"> (grace {n(x.grace)})</span> : null}</td><td className="pr-3 tabular">{n(x.point)}</td>
+                    <td className="py-1 text-right">
+                      {asked.length ? <span className="text-[12px] text-ink-700">{asked.map((a) => `${a.kind}: ${a.status.replace("_", " ")}`).join(", ")}</span> : studentId && windowOpen && x.grade !== "Ab" ? (
+                        <span className="inline-flex gap-1">
+                          <Button size="sm" variant="ghost" disabled={pending} aria-label={`Revaluation of ${x.code}`} onClick={() => act(() => requestRevaluation(x.result_id, "revaluation"))}>Revaluation</Button>
+                          <Button size="sm" variant="ghost" disabled={pending} aria-label={`Retotalling of ${x.code}`} onClick={() => act(() => requestRevaluation(x.result_id, "retotalling"))}>Retotalling</Button>
+                        </span>) : null}
+                      {studentId && improve && x.passed && <Button size="sm" variant="ghost" disabled={pending} aria-label={`Improve ${x.code}`} onClick={() => act(() => applySupplementary(improve.session_id, studentId, x.course_id))}>Improve{improve.fee_per_course ? ` (Rs ${n(improve.fee_per_course)})` : ""}</Button>}
+                    </td></tr>);
+              })}</tbody></table>
+            </CardBody>
+          </Card>
+        );
+      })}
     </div>
+  );
+}
+
+// The semester's rank list (first-attempt passes, no grace), by programme.
+export function RankList({ semesterId }: { semesterId: number }) {
+  const [rows, setRows] = useState<{ rank: number; student_name: string; admission_no: string; programme: string; sgpa: number }[] | null>(null);
+  const [pending, start] = useTransition();
+  return (
+    <Card>
+      <CardHeader title="Rank list" action={<Button size="sm" variant="subtle" disabled={pending} onClick={() => start(async () => setRows(await rankList(semesterId)))}>{rows ? "Refresh" : "Show"}</Button>} />
+      {rows && <CardBody className="p-0">{rows.length === 0 ? <p className="px-4 py-3 text-[13px] text-ink-500">No results to rank yet.</p> : (
+        <table className="w-full text-[13px]"><thead className="bg-[#fafafa] text-left text-ink-500"><tr><th className="px-4 py-2 font-medium">Rank</th><th className="px-4 py-2 font-medium">Student</th><th className="px-4 py-2 font-medium">Programme</th><th className="px-4 py-2 text-right font-medium">SGPA</th></tr></thead>
+          <tbody>{rows.slice(0, 50).map((r, i) => <tr key={i} className="border-t border-hair"><td className="px-4 py-1.5 tabular">{r.rank}</td><td className="px-4 py-1.5">{r.student_name} <span className="text-ink-500">{r.admission_no}</span></td><td className="px-4 py-1.5">{r.programme}</td><td className="px-4 py-1.5 text-right tabular">{n(r.sgpa)}</td></tr>)}</tbody></table>)}
+        <p className="px-4 py-2 text-[12px] text-ink-500">Students who passed every course at the first attempt without grace marks.</p></CardBody>}
+    </Card>
   );
 }

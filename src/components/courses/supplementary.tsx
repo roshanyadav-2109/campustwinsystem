@@ -31,6 +31,7 @@ export function NewSupplementary({ semesters }: { semesters: { id: number; label
   const [fee, setFee] = useState("");
   const [closes, setCloses] = useState("");
   const [paperMax, setPaperMax] = useState("100");
+  const [kind, setKind] = useState<"supplementary" | "improvement">("supplementary");
   const { msg, pending, run } = useAct();
   const router = useRouter();
   if (!open) return <div className="flex items-center gap-3"><Button size="sm" variant="subtle" onClick={() => setOpen(true)}>New supplementary exam</Button><Msg m={msg} /></div>;
@@ -38,20 +39,21 @@ export function NewSupplementary({ semesters }: { semesters: { id: number; label
     <Card>
       <CardHeader title="New supplementary exam" action={<Msg m={msg} />} />
       <CardBody className="flex flex-wrap items-end gap-2">
+        <Select className="h-9 text-[13px]" aria-label="Kind of exam" value={kind} onChange={(e) => setKind(e.target.value as "supplementary" | "improvement")}><option value="supplementary">Supplementary (backlogs)</option><option value="improvement">Improvement (passed courses)</option></Select>
         <Select className="h-9 text-[13px]" aria-label="For semester" value={sem} onChange={(e) => setSem(Number(e.target.value))}>{semesters.map((s) => <option key={s.id} value={s.id}>{s.label}</option>)}</Select>
         <Input className="h-9 w-64 text-[13px]" aria-label="Exam name" placeholder="Name, for example Supplementary May 2027" value={name} onChange={(e) => setName(e.target.value)} />
         <label className="text-[12px] text-ink-700">Fee per course, Rs (optional)<Input className="mt-0.5 h-9 w-28 text-[13px]" value={fee} onChange={(e) => setFee(e.target.value)} /></label>
         <label className="text-[12px] text-ink-700">Applications and fee close<Input type="date" className="mt-0.5 h-9 text-[13px]" value={closes} onChange={(e) => setCloses(e.target.value)} /></label>
         <label className="text-[12px] text-ink-700">Paper out of<Input className="mt-0.5 h-9 w-20 text-[13px]" value={paperMax} onChange={(e) => setPaperMax(e.target.value)} /></label>
-        <Button disabled={pending} onClick={() => run(() => createSupplementary({ semesterId: sem, name, fee, closes, paperMax }), (id) => { setOpen(false); if (id) router.push(`?session=${id}`); })}>Create</Button>
+        <Button disabled={pending} onClick={() => run(() => createSupplementary({ semesterId: sem, name, fee, closes, paperMax, kind }), (id) => { setOpen(false); if (id) router.push(`?session=${id}`); })}>Create</Button>
         <Button variant="ghost" onClick={() => setOpen(false)}>Cancel</Button>
       </CardBody>
     </Card>
   );
 }
 
-export function SupplementaryDesk({ sessionId, name, semester, fee, rows, openBacklogs, canPublish }: {
-  sessionId: number; name: string; semester: string; fee: number | null; rows: SuppRow[]; openBacklogs: number; canPublish: boolean;
+export function SupplementaryDesk({ sessionId, name, kind = "supplementary", semester, fee, rows, openBacklogs, canPublish }: {
+  kind?: string; sessionId: number; name: string; semester: string; fee: number | null; rows: SuppRow[]; openBacklogs: number; canPublish: boolean;
 }) {
   const [marks, setMarks] = useState<Record<number, { marks: string; absent: boolean }>>(
     Object.fromEntries(rows.map((r) => [r.id, { marks: r.ese_marks == null ? "" : String(Number(r.ese_marks)), absent: r.is_absent }])));
@@ -63,7 +65,7 @@ export function SupplementaryDesk({ sessionId, name, semester, fee, rows, openBa
       <CardHeader title={`${name}: ${semester}`} action={
         <div className="flex flex-wrap items-center gap-2">
           <Msg m={msg} />
-          <Button size="sm" variant="subtle" disabled={pending} title="Registers every open backlog of the semester and raises the fee" onClick={() => run(() => registerBacklogs(sessionId))}>Register all backlogs</Button>
+          {kind === "supplementary" && <Button size="sm" variant="subtle" disabled={pending} title="Registers every open backlog of the semester and raises the fee" onClick={() => run(() => registerBacklogs(sessionId))}>Register all backlogs</Button>}
           {dirty.length > 0 && <Button size="sm" disabled={pending} onClick={() => run(() => saveSuppMarks(dirty.map((r) => ({ id: r.id, ...marks[r.id] }))))}>Save marks ({dirty.length})</Button>}
           {canPublish && waiting.length > 0 && <Button size="sm" disabled={pending || dirty.length > 0} onClick={() => run(() => publishSupplementary(sessionId))}>Publish results</Button>}
           {canPublish && waiting.length > 0 && <Button size="sm" variant="ghost" disabled={pending || dirty.length > 0} title="Anyone without marks is marked absent, then everything is published" onClick={() => run(() => closeSupplementary(sessionId))}>Close and publish</Button>}

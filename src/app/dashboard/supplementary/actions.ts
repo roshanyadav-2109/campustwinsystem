@@ -8,7 +8,7 @@ type R = { ok: true; message?: string; id?: number } | { ok: false; error: strin
 const PATH = "/dashboard/supplementary";
 const clean = (e: { message: string }, f: string) => (e.message.length < 160 && !e.message.includes("violates") ? e.message : f);
 
-export async function createSupplementary(input: { semesterId: number; name: string; fee: string; closes: string; paperMax?: string }): Promise<R> {
+export async function createSupplementary(input: { semesterId: number; name: string; fee: string; closes: string; paperMax?: string; kind?: "supplementary" | "improvement" }): Promise<R> {
   const s = await getSession();
   if (!isExams(s)) return { ok: false, error: "Only the exam cell can set up supplementary exams." };
   const name = input.name.trim();
@@ -26,7 +26,7 @@ export async function createSupplementary(input: { semesterId: number; name: str
   const { data: t } = await supabase.from("assessment_type").select("id").eq("code", "annual").maybeSingle();
   if (!t) return { ok: false, error: "The end-semester exam type is missing (Settings, Exams)." };
   const { data, error } = await supabase.from("exam_session" as never).insert({
-    academic_year_id: year.id, paper_max: input.paperMax?.trim() ? Number(input.paperMax) : 100, name, term: semRow.kind === "even" ? 2 : 1, assessment_type_id: t.id, kind: "supplementary",
+    academic_year_id: year.id, paper_max: input.paperMax?.trim() ? Number(input.paperMax) : 100, name, term: semRow.kind === "even" ? 2 : 1, assessment_type_id: t.id, kind: input.kind === "improvement" ? "improvement" : "supplementary",
     for_semester_id: input.semesterId, fee_per_course: input.fee.trim() ? Number(input.fee) : null, registration_closes: input.closes || null,
   } as never).select("id").single();
   if (error) return { ok: false, error: error.message.includes("duplicate") ? "An exam with this name already exists this year." : clean(error, "Could not create it.") };

@@ -29,7 +29,7 @@ export async function createStandardScheme(): Promise<R> {
   return { ok: true, message: "Scheme created. Choose it for your programmes below." };
 }
 
-export async function saveScheme(id: number, input: { passPercent: string; eseMin: string; weights: Record<number, string> }): Promise<R> {
+export async function saveScheme(id: number, input: { passPercent: string; eseMin: string; weights: Record<number, string>; gracePer?: string; graceTotal?: string; suppCap?: string }): Promise<R> {
   if (!(await office())) return { ok: false, error: "Only the office can change evaluation." };
   const pct = (v: string) => v.trim() === "" || (/^\d{1,3}(\.\d{1,2})?$/.test(v) && Number(v) <= 100);
   if (!pct(input.passPercent) || !input.passPercent.trim() || !pct(input.eseMin)) return { ok: false, error: "Pass marks are percentages." };
@@ -38,7 +38,10 @@ export async function saveScheme(id: number, input: { passPercent: string; eseMi
   const lowRows = (low ?? []) as unknown as { point: number }[];
   if (lowRows.length && Number(lowRows[0].point) <= 0)
     return { ok: false, error: "At this pass mark a passing student would get 0 grade points. Raise the pass mark to a grade that carries points." };
-  const { error } = await supabase.from("eval_scheme" as never).update({ pass_percent: Number(input.passPercent), ese_min_percent: input.eseMin.trim() ? Number(input.eseMin) : null } as never).eq("id", id);
+  const num = (v?: string) => (v && v.trim() ? Number(v) : null);
+  for (const v of [input.gracePer, input.graceTotal, input.suppCap]) if (v && v.trim() && !/^\d{1,3}(\.\d{1,2})?$/.test(v.trim())) return { ok: false, error: "Grace marks and the grade cap are numbers." };
+  const { error } = await supabase.from("eval_scheme" as never).update({ pass_percent: Number(input.passPercent), ese_min_percent: input.eseMin.trim() ? Number(input.eseMin) : null,
+    grace_per_course: num(input.gracePer), grace_total: num(input.graceTotal), supp_max_point: num(input.suppCap) } as never).eq("id", id);
   if (error) return { ok: false, error: "Could not save." };
   for (const [cid, w] of Object.entries(input.weights)) {
     if (!/^\d{1,3}(\.\d{1,2})?$/.test(w) || Number(w) <= 0) return { ok: false, error: "Weights must be numbers above 0." };
@@ -55,6 +58,21 @@ export async function assignScheme(programmeId: number, schemeId: number | null)
   const supabase = await createClient();
   const { error } = await supabase.from("programme" as never).update({ eval_scheme_id: schemeId } as never).eq("id", programmeId);
   if (error) return { ok: false, error: "Could not save." };
+  revalidatePath(PATH);
+  return { ok: true, message: "Saved." };
+}
+
+// revaluation fees and window, and how CGPA converts to a percentage (institution-wide)
+export async function saveExamRules(input: { revalFee: string; retotalFee: string; windowDays: string; pctMultiplier: string; pctOffset: string }): Promise<R> {
+  if (!(await office())) return { ok: false, error: "Only the exam cell or the office can change these." };
+  const num = (v: string) => (v.trim() ? Number(v) : null);
+  for (const v of [input.revalFee, input.retotalFee, input.pctMultiplier, input.pctOffset]) if (v.trim() && !/^\d{1,6}(\.\d{1,2})?$/.test(v.trim())) return { ok: false, error: "Use numbers." };
+  if (!/^\d{1,2}$/.test(input.windowDays.trim()) || Number(input.windowDays) > 90) return { ok: false, error: "Days for revaluation requests: 0 to 90." };
+  const s = await getSession();
+  const supabase = await createClient();
+  const { error } = await supabase.rpc("set_exam_rules" as never, { p_reval_fee: num(input.revalFee), p_retotal_fee: num(input.retotalFee), p_window: Number(input.windowDays),
+    p_mult: num(input.pctMultiplier), p_offset: num(input.pctOffset) ?? 0, p_school: s?.schoolId ?? 0 } as never);
+  if (error) return { ok: false, error: error.message.length < 140 ? error.message : "Could not save." };
   revalidatePath(PATH);
   return { ok: true, message: "Saved." };
 }

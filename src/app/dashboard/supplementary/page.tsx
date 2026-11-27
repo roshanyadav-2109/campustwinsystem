@@ -18,11 +18,11 @@ export default async function SupplementaryPage({ searchParams }: { searchParams
   if (!session || !isExams(session)) return <EmptyState art="no-results" title="For the exam cell" />;
   const supabase = await createClient();
   const [{ data: sessData }, { data: semData }, { data: pub }] = await Promise.all([
-    supabase.from("exam_session" as never).select("id, name, for_semester_id, fee_per_course, registration_closes, created_at").eq("kind", "supplementary").order("created_at", { ascending: false }).limit(30),
+    supabase.from("exam_session" as never).select("id, name, kind, for_semester_id, fee_per_course, registration_closes, created_at").in("kind", ["supplementary", "improvement"]).order("created_at", { ascending: false }).limit(30),
     supabase.from("semester" as never).select("id, kind, starts_on").in("kind", ["odd", "even"]).order("starts_on", { ascending: false }).limit(12),
     supabase.rpc("can_publish_results" as never),
   ]);
-  const sessions = (sessData ?? []) as unknown as { id: number; name: string; for_semester_id: number; fee_per_course: number | null; registration_closes: string | null }[];
+  const sessions = (sessData ?? []) as unknown as { id: number; name: string; kind: string; for_semester_id: number; fee_per_course: number | null; registration_closes: string | null }[];
   // only semesters with published results can have backlogs
   const semIds = ((semData ?? []) as unknown as { id: number }[]).map((x) => x.id);
   const withResults = new Set<number>();
@@ -53,7 +53,7 @@ export default async function SupplementaryPage({ searchParams }: { searchParams
   }
   return (
     <div className="space-y-4">
-      <PageHeader title="Supplementary exams" description="Backlogs (courses not yet passed), supplementary exams for them, marks and results. Internal marks carry forward; the original grade card stays as published." />
+      <PageHeader title="Supplementary and improvement exams" description="Supplementary exams clear backlogs; improvement exams let students try to better a passed course (the better grade counts). Internal marks carry forward; the original grade card stays as published." />
       <div className="flex flex-wrap gap-1.5">{sessions.map((s) => (
         <Link key={s.id} href={`?session=${s.id}`} className={`rounded-sm border px-2.5 py-1 text-[13px] ${s.id === sessionId ? "border-ink-900 bg-ink-900 text-white" : "border-hair bg-white text-ink-700"}`}>{s.name}</Link>))}
       </div>
@@ -64,7 +64,7 @@ export default async function SupplementaryPage({ searchParams }: { searchParams
         </div>
       )}
       {cur ? (
-        <SupplementaryDesk key={cur.id} sessionId={cur.id} name={cur.name} fee={cur.fee_per_course} rows={rows} openBacklogs={backlogCount} canPublish={pub === true}
+        <SupplementaryDesk key={cur.id} sessionId={cur.id} name={cur.name} kind={cur.kind} fee={cur.fee_per_course} rows={rows} openBacklogs={backlogCount} canPublish={pub === true}
           semester={allSems.find((s) => s.id === cur.for_semester_id)?.label ?? ""} />
       ) : <EmptyState art="nothing-yet" title="No supplementary exam yet" hint="Create one for the semester whose backlogs are to be cleared." />}
     </div>

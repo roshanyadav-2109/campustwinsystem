@@ -7,7 +7,7 @@ import { EmptyState } from "@/components/ui/empty";
 import { createClient } from "@/lib/supabase/server";
 import { getStaffScope } from "@/lib/data/scope";
 import { getMyChildren } from "@/lib/data/analytics";
-import { ResultsDesk, MyResults, type PreviewRow } from "@/components/courses/results";
+import { ResultsDesk, MyResults, RankList, type PreviewRow, type OpenExam } from "@/components/courses/results";
 import { MyBacklogs } from "@/components/courses/supplementary";
 import { loadCards } from "@/lib/data/results";
 
@@ -36,6 +36,11 @@ export default async function ResultsPage({ searchParams }: { searchParams: SP }
       supabase.rpc("student_backlogs" as never, { p_student: sid } as never), supabase.rpc("open_supplementary" as never, { p_student: sid } as never),
       supabase.rpc("my_supp_registrations" as never, { p_student: sid } as never), supabase.rpc("student_standing" as never, { p_student: sid } as never),
     ]) : [{ data: [] }, { data: [] }, { data: [] }, { data: [] }];
+    const [{ data: rulesData }, { data: reqData }] = await Promise.all([
+      supabase.from("school").select("reval_window_days, reval_fee, retotal_fee" as "id").eq("id", session.schoolId).maybeSingle(),
+      sid ? supabase.from("reval_request" as never).select("result_id, kind, status").eq("student_id", sid) : Promise.resolve({ data: [] }),
+    ]);
+    const rules = rulesData as unknown as { reval_window_days: number; reval_fee: number | null; retotal_fee: number | null } | null;
     const backlogs = (blData ?? []) as unknown as { course_id: number; semester_id: number; course_code: string; course_name: string; semester_no: number | null; attempts: number; last_grade: string }[];
     const { data: att } = ids.length ? await supabase.from("course_result" as never).select("attempt, grade, passed, course:course_id(code, name)").in("student_id", ids).gt("attempt", 1).order("attempt") : { data: [] };
     const attempts = ((att ?? []) as unknown as { attempt: number; grade: string; passed: boolean; course: { code: string; name: string } }[]).map((a) => ({ code: a.course.code, name: a.course.name, attempt: a.attempt, grade: a.grade, passed: a.passed }));
@@ -47,7 +52,9 @@ export default async function ResultsPage({ searchParams }: { searchParams: SP }
         <MyBacklogs studentId={sid} backlogs={backlogs} attempts={attempts} open={(openData ?? []) as unknown as { session_id: number; session_name: string; for_semester_id: number; fee_per_course: number | null; registration_closes: string | null }[]}
           applied={(appliedData ?? []) as unknown as { id: number; session_id: number; session_name: string; course_id: number; course_code: string; status: string; fee_due: number | null }[]}
           standing={((standData ?? []) as unknown as { cgpa: number | null; credits_earned: number; backlogs: number }[])[0] ?? null} />
-        {cards.length === 0 ? (held.length ? null : <EmptyState art="no-marks" title="No results published yet" />) : <MyResults cards={cards} verifyBase={verifyBase} signers={signers} />}
+        {cards.length === 0 ? (held.length ? null : <EmptyState art="no-marks" title="No results published yet" />) : <MyResults cards={cards} verifyBase={verifyBase} signers={signers}
+          studentId={sid} open={(openData ?? []) as unknown as OpenExam[]} windowDays={rules?.reval_window_days ?? 15} revalFee={rules?.reval_fee ?? null} retotalFee={rules?.retotal_fee ?? null}
+          requested={(reqData ?? []) as unknown as { result_id: number; kind: string; status: string }[]} />}
       </div>
     );
   }
@@ -89,6 +96,7 @@ export default async function ResultsPage({ searchParams }: { searchParams: SP }
         )}
         <ResultsDesk key={`${semId}-${section.id}`} semesterId={semId} sectionId={section.id} rows={(prev ?? []) as unknown as PreviewRow[]}
           published={Object.fromEntries(published)} canPublish={mayPublish === true} verifyBase={verifyBase} signers={signers} />
+          <RankList semesterId={semId} />
         </>
       )}
     </div>

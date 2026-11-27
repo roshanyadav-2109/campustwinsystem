@@ -42,3 +42,49 @@ export async function sectionGradeCards(semesterId: number, sectionId: number): 
   const ids = (kids ?? []).map((k) => k.student_id);
   return { ok: true, cards: await loadCards(supabase, semesterId, ids, s.school.name) };
 }
+
+export async function requestRevaluation(resultId: number, kind: "revaluation" | "retotalling"): Promise<R> {
+  const supabase = await createClient();
+  const { error } = await supabase.rpc("request_revaluation" as never, { p_result: resultId, p_kind: kind } as never);
+  if (error) return { ok: false, error: error.message.length < 140 ? error.message : "Could not send the request." };
+  revalidatePath("/dashboard/results"); revalidatePath("/dashboard/revaluation");
+  return { ok: true, message: "Requested. Any fee appears under Fees; the exam cell decides after it is paid." };
+}
+
+export async function decideRevaluation(id: number, newEse: string, note: string): Promise<R> {
+  if (newEse.trim() && !/^\d{1,3}(\.\d{1,2})?$/.test(newEse.trim())) return { ok: false, error: "Marks are a number." };
+  const supabase = await createClient();
+  const { data, error } = await supabase.rpc("decide_revaluation" as never, { p_id: id, p_new_ese: newEse.trim() ? Number(newEse) : null, p_note: note.trim() || null } as never);
+  if (error) return { ok: false, error: error.message.length < 160 ? error.message : "Could not save." };
+  revalidatePath("/dashboard/revaluation"); revalidatePath("/dashboard/results");
+  return { ok: true, message: data === "revised" ? "Revised. The grade card now shows the new result." : "No change recorded." };
+}
+
+export async function consolidatedData(studentId: number) {
+  const supabase = await createClient();
+  const [{ data: rows }, { data: st }, { data: me }] = await Promise.all([
+    supabase.rpc("student_consolidated" as never, { p_student: studentId } as never),
+    supabase.rpc("student_standing" as never, { p_student: studentId } as never),
+    supabase.from("student").select("full_name, admission_no").eq("id", studentId).maybeSingle(),
+  ]);
+  const standing = ((st ?? []) as unknown as { cgpa: number | null; credits_earned: number; backlogs: number }[])[0] ?? null;
+  const { data: pct } = standing?.cgpa != null ? await supabase.rpc("cgpa_percent" as never, { p_cgpa: standing.cgpa } as never) : { data: null };
+  const { data: prog } = await supabase.from("student_enrollment").select("section:section_id(class:class_id(programme:programme_id(name)))" as "student_id").eq("student_id", studentId).eq("status", "active").limit(1).maybeSingle();
+  const session = await getSession();
+  return {
+    student: { name: me?.full_name ?? "", admission_no: me?.admission_no ?? "", programme: (prog as unknown as { section: { class: { programme: { name: string } | null } } } | null)?.section?.class?.programme?.name ?? null, school: session?.school.name ?? "" },
+    rows: (rows ?? []) as unknown as import("@/components/courses/grade-card-pdf").ConsolidatedRow[], standing, percent: pct == null ? null : Number(pct),
+  };
+}
+
+export async function suppMemoData(studentId: number) {
+  const supabase = await createClient();
+  const { data } = await supabase.rpc("student_supp_results" as never, { p_student: studentId } as never);
+  return (data ?? []) as unknown as import("@/components/courses/grade-card-pdf").SuppResultRow[];
+}
+
+export async function rankList(semesterId: number) {
+  const supabase = await createClient();
+  const { data } = await supabase.rpc("rank_list" as never, { p_semester: semesterId, p_programme: null } as never);
+  return (data ?? []) as unknown as { rank: number; student_name: string; admission_no: string; programme: string; sgpa: number }[];
+}
