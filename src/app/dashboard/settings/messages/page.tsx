@@ -1,3 +1,4 @@
+import { ParentsInformed } from "@/components/settings/parents-informed";
 import { guardTab } from "@/lib/access";
 import { getSession } from "@/lib/session";
 import { PageHeader } from "@/components/ui/page-header";
@@ -47,9 +48,12 @@ export default async function MessagesSettingsPage() {
   const deliveries = (delRes.data ?? []) as unknown as DeliveryRow[];
   const canEdit = session?.staffRole === "office";
 
+  const { data: ng } = session?.school.higherEd ? await supabase.from("school").select("notify_guardians" as "id").eq("id", session.schoolId).maybeSingle() : { data: null };
+  const guardiansOn = (ng as unknown as { notify_guardians: boolean } | null)?.notify_guardians ?? true;
   return (
     <div className="space-y-5">
       <PageHeader title="Messages and alerts" description="Everyone always gets messages in their CampusTwin notifications. Switch on email, SMS or WhatsApp to send them there too." />
+      {session?.school.higherEd && canEdit && <ParentsInformed on={guardiansOn} />}
       {canEdit
         ? <MessageChannels channels={channels} canEdit />
         : <p className="text-[13px] text-ink-700">Only the office can change these settings.</p>}
