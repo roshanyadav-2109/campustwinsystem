@@ -19,12 +19,22 @@ export default async function LecturesPage({ searchParams }: { searchParams: SP 
   const { data: semData } = await supabase.from("semester" as never).select("id, kind, starts_on, ends_on").eq("is_current", true).maybeSingle();
   const sem = semData as unknown as { id: number; kind: string; starts_on: string; ends_on: string } | null;
   if (!session || !year || !sem) return (<div><PageHeader title="Lectures" /><EmptyState art="nothing-yet" title="No current semester" /></div>);
-  const { data: sch } = await supabase.from("school").select("attendance_minimum" as "id").eq("id", session.schoolId).maybeSingle();
-  const minimum = Number((sch as unknown as { attendance_minimum: number } | null)?.attendance_minimum ?? 75);
+  const { data: sch } = await supabase.from("school").select("attendance_minimum, attendance_lock_mode, attendance_edit_days" as "id").eq("id", session.schoolId).maybeSingle();
+  const rules = sch as unknown as { attendance_minimum: number; attendance_lock_mode: string; attendance_edit_days: number } | null;
+  const minimum = Number(rules?.attendance_minimum ?? 75);
+  const { data: cutData } = await supabase.from("semester" as never).select("attendance_cutoff").eq("id", sem.id).maybeSingle();
+  const cutoff = (cutData as unknown as { attendance_cutoff: string | null } | null)?.attendance_cutoff ?? null;
+  const mode = rules?.attendance_lock_mode ?? "daily";
+  const lockNote = [
+    mode === "daily" || mode === "both" ? `A lecture can be marked or corrected up to ${rules?.attendance_edit_days ?? 3} days later.` : "",
+    (mode === "cutoff" || mode === "both") && cutoff ? `Attendance up to ${new Date(cutoff + "T00:00:00").toLocaleDateString("en-IN", { day: "numeric", month: "short" })} is frozen for exams after that date.` : "",
+  ].filter(Boolean).join(" ") || null;
+  const { data: waitData } = await supabase.from("relaxation_request" as never).select("student_id, subject_id").eq("kind", "attendance").eq("status", "pending").eq("semester_id", sem.id);
+  const waiting = ((waitData ?? []) as unknown as { student_id: number; subject_id: number }[]).map((w) => `${w.student_id}-${w.subject_id}`);
 
   if (session.role === "student" && session.studentId) {
     const { data } = await supabase.rpc("course_attendance" as never, { p_section: null, p_student: session.studentId } as never);
-    return (<div className="space-y-4"><PageHeader title="My attendance" description={`This semester, per course. At least ${minimum}% is needed to sit the exam.`} /><MyAttendance rows={(data ?? []) as unknown as AttRow[]} minimum={minimum} /></div>);
+    return (<div className="space-y-4"><PageHeader title="My attendance" description={`This semester, per course. At least ${minimum}% is needed to sit the exam.`} /><MyAttendance rows={(data ?? []) as unknown as AttRow[]} minimum={minimum} waiting={waiting} /></div>);
   }
 
   const scope = await getStaffScope();
@@ -44,8 +54,8 @@ export default async function LecturesPage({ searchParams }: { searchParams: SP 
       <div className="flex flex-wrap gap-1.5">{sections.map((s) => (
         <Link key={s.id} href={`?section=${s.id}`} className={`rounded-sm border px-2.5 py-1 text-[13px] ${s.id === section.id ? "border-ink-900 bg-ink-900 text-white" : "border-hair bg-white text-ink-700 hover:bg-panel"}`}>{s.label}</Link>))}
       </div>
-      <LectureMarker key={section.id} sectionId={section.id} subjects={section.subjects.map((x) => ({ id: x.id, name: x.name }))} roster={roster.map((r) => ({ id: r.id, name: r.name, roll: r.roll }))} />
-      <AttendanceShortage rows={(att.data ?? []) as unknown as AttRow[]} minimum={minimum} semesterId={sem.id} canCondone={session.staffRole === "office"} />
+      <LectureMarker key={section.id} sectionId={section.id} subjects={section.subjects.map((x) => ({ id: x.id, name: x.name }))} roster={roster.map((r) => ({ id: r.id, name: r.name, roll: r.roll }))} lockNote={lockNote} />
+      <AttendanceShortage rows={(att.data ?? []) as unknown as AttRow[]} minimum={minimum} waiting={waiting} />
     </div>
   );
 }

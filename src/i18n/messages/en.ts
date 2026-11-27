@@ -33,6 +33,7 @@ const en = {
     noAccess: "You don't have access to this page.",
   },
   nav: {
+    relaxations: "Relaxations",
     results: "Results",
     lectures: "Lectures",
     courses: "Courses",
@@ -531,6 +532,7 @@ const en = {
     transport: "Buses and routes",
     access: "Logins and access",
     messages: "Messages and alerts",
+    attendanceRules: "Attendance lock and holds",
     evaluation: "Evaluation and grading",
     programmes: "Programmes and courses",
     payments: "Online payment",

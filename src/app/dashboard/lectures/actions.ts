@@ -13,12 +13,3 @@ export async function markLecture(input: { sectionId: number; subjectId: number;
   revalidatePath("/dashboard/lectures");
   return { ok: true, message: `Saved for ${Number(data ?? 0)} students; ${input.absent.length} absent.` };
 }
-
-export async function condone(input: { semesterId: number; studentId: number; subjectId: number; reason: string }): Promise<R> {
-  if (!input.reason.trim()) return { ok: false, error: "Give the reason (for example: medical certificate)." };
-  const supabase = await createClient();
-  const { error } = await supabase.from("attendance_condonation" as never).insert({ semester_id: input.semesterId, student_id: input.studentId, subject_id: input.subjectId, reason: input.reason.trim().slice(0, 200) } as never);
-  if (error) return { ok: false, error: error.message.includes("duplicate") ? "Already condoned." : "Only the office can condone." };
-  revalidatePath("/dashboard/lectures");
-  return { ok: true, message: "Condoned." };
-}

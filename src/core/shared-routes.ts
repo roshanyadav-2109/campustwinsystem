@@ -17,6 +17,7 @@ export const SHARED_ROUTES: RouteDef[] = [
   { href: "/dashboard/progress", icon: ProgressIcon, labelKey: "nav.progress", roles: ["subject_teacher", "class_teacher", "principal"], group: "academics" },
   { href: "/dashboard/courses", icon: MarksIcon, labelKey: "nav.courses", roles: ["office", "principal", "student"], group: "academics", editions: ["college", "university"] },
   { href: "/dashboard/lectures", icon: AttendanceIcon, labelKey: "nav.lectures", roles: ["subject_teacher", "class_teacher", "principal", "office", "student"], group: "academics", editions: ["college", "university"] },
+  { href: "/dashboard/relaxations", icon: LeaveIcon, labelKey: "nav.relaxations", roles: ["subject_teacher", "class_teacher", "principal", "office"], group: "academics", editions: ["college", "university"] },
   { href: "/dashboard/results", icon: ReportIcon, labelKey: "nav.results", roles: ["class_teacher", "principal", "office", "student", "guardian"], group: "academics", editions: ["college", "university"] },
   // Exam timetable and admit cards (hall tickets in colleges: registered courses only)
   { href: "/dashboard/exam-timetable", icon: CalendarIcon, labelKey: "nav.examTimetable", roles: ["subject_teacher", "class_teacher", "principal", "office", "guardian", "student"], group: "academics" },
@@ -51,6 +52,7 @@ export const SHARED_ROUTES: RouteDef[] = [
   { href: "/dashboard/settings", icon: ManageIcon, labelKey: "nav.settings", roles: ["office", "principal"], group: "settings" },
   { href: "/dashboard/settings/institution", labelKey: "settings.institution", roles: ["office"], group: "settings", menu: false },
   { href: "/dashboard/settings/programmes", labelKey: "settings.programmes", roles: ["office", "principal"], group: "settings", menu: false, editions: ["college", "university"] },
+  { href: "/dashboard/settings/attendance-rules", labelKey: "settings.attendanceRules", roles: ["office", "principal"], group: "settings", menu: false, editions: ["college", "university"] },
   { href: "/dashboard/settings/evaluation", labelKey: "settings.evaluation", roles: ["office", "principal"], group: "settings", menu: false, editions: ["college", "university"] },
   { href: "/dashboard/settings/classes", labelKey: "settings.classes", roles: ["office"], group: "settings", menu: false },
   { href: "/dashboard/settings/teachers", labelKey: "settings.teachers", roles: ["office"], group: "settings", menu: false },
