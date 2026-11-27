@@ -35,7 +35,10 @@ export default async function ExamTimetablePage({ searchParams }: { searchParams
       .map((e) => ({ id: e.student_id, name: e.student.full_name, sectionId: e.section_id, classId: e.section.class_id }));
     const { data: pData } = await supabase.from("exam_paper" as never).select("id, session_id, class_id, subject_id, exam_date, starts_at, ends_at, max_marks, note, component, optional_group, subject:subject_id(name)")
       .in("class_id", children.length ? children.map((c) => c.classId) : [0]).order("exam_date").order("starts_at");
-    const papers = (pData ?? []) as unknown as PaperView[];
+    const suppP = (await Promise.all(children.map(async (c) => ((await supabase.rpc("my_supp_papers" as never, { p_student: c.id } as never)).data ?? []) as unknown as
+      { id: number; session_id: number; subject_id: number; exam_date: string; starts_at: string; ends_at: string; max_marks: number; note: string | null; subject_name: string }[]))).flat();
+    const papers = [...((pData ?? []) as unknown as PaperView[]),
+      ...suppP.filter((x, i, a) => a.findIndex((y) => y.id === x.id) === i).map((x) => ({ ...x, class_id: null, subject: { name: x.subject_name } }) as PaperView)];
     return (
       <div className="space-y-4">
         <PageHeader title="Exam timetable" description="Date sheets the school has published, and admit cards to download." />

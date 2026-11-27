@@ -2,7 +2,7 @@
 -- exams, the workload report, electives across sections. Rolled back.
 begin;
 do $$ declare of uuid := gen_random_uuid(); te uuid := gen_random_uuid(); v_off bigint; v_t bigint; v_sem record; v_type bigint; v_reg bigint; v_supp bigint; v_subj bigint;
-  ok boolean; v_pc record; v_secs bigint[]; n int; v_roster int; d date := (now() at time zone 'Asia/Kolkata')::date;
+  ok boolean; v_first bigint; v_sec1 bigint; v_other bigint; v_pc record; v_secs bigint[]; n int; v_roster int; d date := (now() at time zone 'Asia/Kolkata')::date;
 begin
   insert into auth.users (id, email, aud, role) values (of, 'qa-b-office@example.com', 'authenticated', 'authenticated'), (te, 'qa-b-t@example.com', 'authenticated', 'authenticated');
   insert into public.staff (school_id, full_name, email, role) values (11, 'QA Office', 'qa-b-office@example.com', 'office') returning id into v_off;
@@ -50,5 +50,21 @@ begin
   reset role;
   if exists (select 1 from public.attendance_record a join public.student_enrollment e on e.student_id = a.student_id and e.academic_year_id = v_sem.academic_year_id and e.status = 'active'
              where a.subject_id = v_pc.subject_id and a.on_date = d and a.period = 7 and a.section_id <> e.section_id) then raise exception 'FAIL record in the wrong section'; end if;
+  -- re-marking is logged; a clash with another course in the same period names the student
+  select r.student_id, r.section_id into v_first, v_sec1 from public.course_roster(v_pc.subject_id) r limit 1;
+  perform set_config('request.jwt.claims', json_build_object('sub', te, 'role', 'authenticated')::text, true); set local role authenticated;
+  perform public.mark_course_lecture(v_pc.subject_id, d, 7::smallint, array[v_first]);
+  reset role;
+  if not exists (select 1 from public.attendance_change_log where subject_id = v_pc.subject_id and on_date = d and period = 7 and section_id = v_sec1) then raise exception 'FAIL elective re-mark not logged'; end if;
+  select id into v_other from public.subject where school_id = 11 and id <> v_pc.subject_id limit 1;
+  insert into public.attendance_record (student_id, section_id, academic_year_id, on_date, period, subject_id, status, school_id) values (v_first, v_sec1, v_sem.academic_year_id, d, 6, v_other, 'present', 11);
+  perform set_config('request.jwt.claims', json_build_object('sub', te, 'role', 'authenticated')::text, true); set local role authenticated;
+  ok := false; begin perform public.mark_course_lecture(v_pc.subject_id, d, 6::smallint, '{}'); exception when others then ok := sqlerrm like '%already marked for another course%'; end;
+  if not ok then raise exception 'FAIL period clash not named'; end if;
+  -- marking the elective from a section page: only students registered in it
+  n := public.mark_lecture(v_sec1, v_pc.subject_id, d, 5::smallint, '{}');
+  select count(*) into v_roster from public.course_roster(v_pc.subject_id) r where r.section_id = v_sec1;
+  reset role;
+  if v_roster = 0 or n <> v_roster then raise exception 'FAIL section marking: % marked, % registered in the section', n, v_roster; end if;
 end $$;
 rollback;

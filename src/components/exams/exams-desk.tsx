@@ -6,7 +6,7 @@ import { Button } from "@/components/ui/button";
 import { Field, Input, Select, Textarea } from "@/components/ui/field";
 import { downloadPdf, downloadPdfBook } from "@/lib/pdf";
 import { admitCardPdf } from "@/components/exams/admit-pdf";
-import { saveSession, publishSession, deleteSession, savePaper, deletePaper, admitCards } from "@/app/dashboard/exam-timetable/actions";
+import { saveSession, publishSession, deleteSession, savePaper, deletePaper, admitCards, suppAdmitCards } from "@/app/dashboard/exam-timetable/actions";
 
 export type SessionView = { id: number; name: string; term: number; assessment_type_id: number; instructions: string | null; withhold_fee_dues: boolean; published_at: string | null; kind?: string };
 export type PaperView = { id: number; session_id: number; class_id: number | null; subject_id: number; exam_date: string; starts_at: string; ends_at: string; max_marks: number; note: string | null; component?: string; optional_group?: string | null; subject: { name: string } | null };
@@ -85,6 +85,21 @@ export function ExamsDesk({ canEdit, sessions, sessionId, papers, types, classes
     if (!ok.length) { setMsg({ ok: false, text: "Every admit card in this section is held back." }); return; }
     await downloadPdfBook(ok.map((x) => admitCardPdf({ exam: s.name, school, student: x.student_name, admissionNo: x.admission_no, roll: x.roll_no, classLabel: x.class_label, instructions: s.instructions, papers: papersFor(x.subject_ids), verifyUrl: verifyBase + x.verify_token })), `Admit cards ${sec.label} ${s.name}`);
     setMsg({ ok: true, text: `${ok.length} admit cards downloaded.` });
+  });
+
+  const printAll = () => start(async () => {
+    if (!s) return;
+    const r = await suppAdmitCards(s.id);
+    if (!r.ok) { setMsg({ ok: false, text: r.error }); return; }
+    const course = papers.filter((p) => p.class_id == null && p.session_id === s.id);
+    if (!course.length) { setMsg({ ok: false, text: "Set the papers (By course) first." }); return; }
+    const ok = r.rows.filter((x) => !x.withheld);
+    setWithheld(r.rows.filter((x) => x.withheld).map((x) => ({ name: x.student_name, reason: x.reason ?? "" })));
+    if (!ok.length) { setMsg({ ok: false, text: "Every hall ticket is held back." }); return; }
+    await downloadPdfBook(ok.map((x) => admitCardPdf({ exam: s.name, school, student: x.student_name, admissionNo: x.admission_no, roll: x.roll_no, classLabel: x.class_label, instructions: s.instructions,
+      papers: course.filter((p) => (x.subject_ids ?? []).includes(p.subject_id)).map((p) => ({ date: p.exam_date, start: p.starts_at, end: p.ends_at, subject: p.subject?.name ?? "", note: p.note })),
+      verifyUrl: verifyBase + x.verify_token })), `Hall tickets ${s.name}`);
+    setMsg({ ok: true, text: `${ok.length} hall tickets downloaded.` });
   });
 
   return (
@@ -172,6 +187,7 @@ export function ExamsDesk({ canEdit, sessions, sessionId, papers, types, classes
               <Select className="h-9 w-40 text-[13px]" aria-label="Section for admit cards" value={sectionId} onChange={(e) => setSectionId(Number(e.target.value))}>
                 {sections.map((x) => <option key={x.id} value={x.id}>{x.label}</option>)}</Select>
               <Button size="sm" variant="subtle" disabled={pending} onClick={printAdmit}>Download admit cards</Button>
+              {byCourse && <Button size="sm" variant="subtle" disabled={pending} onClick={printAll}>All candidates</Button>}
               {s.withhold_fee_dues && <span className="text-[12px] text-ink-500">Students with overdue fees are held back.</span>}
             </div>
             {withheld.length > 0 && (

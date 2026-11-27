@@ -4,6 +4,7 @@ import { PageHeader } from "@/components/ui/page-header";
 import { EmptyState } from "@/components/ui/empty";
 import { Card, CardBody, CardHeader } from "@/components/ui/card";
 import { createClient } from "@/lib/supabase/server";
+import { WorkloadLimits } from "@/components/courses/workload-limits";
 
 type Row = { staff_id: number; staff_name: string; department: string | null; courses: string | null; sections: number; planned_hours: number; timetabled_periods: number; clashes: number; load: string };
 
@@ -26,7 +27,8 @@ export default async function WorkloadPage() {
   const over = rows.filter((r) => r.load === "over").length, under = rows.filter((r) => r.load === "under").length, clash = rows.filter((r) => r.clashes > 0).length;
   return (
     <div className="space-y-4">
-      <PageHeader title="Workload" description={`${s.kind === "odd" ? "Odd" : "Even"} semester ${s.starts_on.slice(0, 4)}. Weekly hours from the courses each teacher is allotted (lecture, tutorial and practical hours), against ${l?.workload_min_hours ?? 8} to ${l?.workload_max_hours ?? 18} hours.`} />
+      <PageHeader title="Workload" description={`${s.kind === "odd" ? "Odd" : "Even"} semester ${s.starts_on.slice(0, 4)}. Weekly hours from the courses each teacher is allotted (lecture, tutorial and practical hours; an elective taught to several sections together counts once), against ${l?.workload_min_hours ?? 8} to ${l?.workload_max_hours ?? 18} hours.`} />
+      {(session.staffRole === "office" || session.staffRole === "principal") && <WorkloadLimits min={l?.workload_min_hours ?? 8} max={l?.workload_max_hours ?? 18} />}
       <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
         {[["Teachers", rows.length], ["Overloaded", over], ["Underloaded", under], ["Timetable clashes", clash]].map(([k, v]) => (
           <div key={k as string} className="rounded-sm border border-hair bg-white p-3"><div className="text-[22px] font-semibold tabular">{v}</div><div className="text-[12px] text-ink-700">{k}</div></div>

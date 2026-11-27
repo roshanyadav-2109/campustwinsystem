@@ -77,6 +77,13 @@ export async function deletePaper(id: number): Promise<Result> {
 export type AdmitRow = { student_id: number; student_name: string; admission_no: string; roll_no: number | null; class_label: string; withheld: boolean; reason: string | null; verify_token: string; subject_ids: number[] | null };
 
 // Admit cards for a section (office, class teacher) or one student (their family).
+export async function suppAdmitCards(sessionId: number): Promise<{ ok: true; rows: AdmitRow[] } | { ok: false; error: string }> {
+  const supabase = await createClient();
+  const { data, error } = await supabase.rpc("prepare_supp_admit_cards" as never, { p_session: sessionId } as never);
+  if (error) return { ok: false, error: err(error, "Could not prepare hall tickets.") };
+  return { ok: true, rows: (data ?? []) as unknown as AdmitRow[] };
+}
+
 export async function admitCards(sessionId: number, sectionId: number, studentId?: number): Promise<{ ok: true; rows: AdmitRow[] } | { ok: false; error: string }> {
   const supabase = await createClient();
   const { data, error } = await supabase.rpc("prepare_admit_cards" as never, { p_session: sessionId, p_section: sectionId, p_student: studentId ?? null } as never);

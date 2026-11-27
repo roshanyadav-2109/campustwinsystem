@@ -55,7 +55,7 @@ export default async function LecturesPage({ searchParams }: { searchParams: SP 
   const sectionId = Number(one(sp.section)) || sections[0].id;
   const section = sections.find((s) => s.id === sectionId) ?? sections[0];
   const { data: elR } = elective ? await supabase.rpc("course_roster" as never, { p_subject: elective.subject_id } as never) : { data: [] };
-  const elRoster = (elR ?? []) as unknown as { student_id: number; student_name: string; roll_no: number | null; section_label: string }[];
+  const elRoster = (elR ?? []) as unknown as { student_id: number; student_name: string; roll_no: number | null; section_id: number; section_label: string }[];
   const [roster, att] = await Promise.all([
     getSectionStudents(section.id, year.id),
     supabase.rpc("course_attendance" as never, { p_section: section.id, p_student: null } as never),
@@ -69,7 +69,7 @@ export default async function LecturesPage({ searchParams }: { searchParams: SP 
         <Link key={s.id} href={`?section=${s.id}`} className={`rounded-sm border px-2.5 py-1 text-[13px] ${s.id === section.id ? "border-ink-900 bg-ink-900 text-white" : "border-hair bg-white text-ink-700 hover:bg-panel"}`}>{s.label}</Link>))}
       </div>
       {elective ? (
-        <LectureMarker key={`el-${elective.subject_id}`} sectionId={section.id} subjects={[{ id: elective.subject_id, name: elective.subject_name }]} electiveSubject={elective.subject_id}
+        <LectureMarker key={`el-${elective.subject_id}`} sectionId={elRoster[0]?.section_id ?? section.id} subjects={[{ id: elective.subject_id, name: elective.subject_name }]} electiveSubject={elective.subject_id}
           roster={elRoster.map((r) => ({ id: r.student_id, name: r.student_name, roll: r.roll_no, section: r.section_label }))} lockNote={lockNote} />
       ) : <>
       {section.subjects.length === 0 && <p className="text-[13px] text-ink-700">Attendance shortage for {section.label}. Lectures are marked by the course teachers.</p>}
