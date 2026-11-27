@@ -29,9 +29,11 @@ begin
   select count(*) into v_cnt from public.semester_backlogs(v_sem) b where b.student_id in (select e.student_id from public.student_enrollment e where e.section_id = v_sec);
   if n < v_cnt then raise exception 'FAIL registered % of % backlogs', n, v_cnt; end if;
   if public.register_backlogs(v_sess) <> 0 then raise exception 'FAIL registered twice'; end if;
+  reset role;
   select i.amount into v_amt from public.supp_registration sr join public.fee_invoice i on i.id = sr.invoice_id where sr.session_id = v_sess and sr.student_id = k1 limit 1;
-  if v_amt <> 500 * (select count(*) from public.supp_registration where session_id = v_sess and student_id = k1) then raise exception 'FAIL fee %', v_amt; end if;
+  if v_amt is distinct from 500 * (select count(*) from public.supp_registration where session_id = v_sess and student_id = k1) then raise exception 'FAIL fee %', v_amt; end if;
   if (select attempt from public.supp_registration where session_id = v_sess and student_id = k1 and course_id = c1) <> 2 then raise exception 'FAIL attempt number'; end if;
+  perform set_config('request.jwt.claims', json_build_object('sub', u, 'role', 'authenticated')::text, true); set local role authenticated;
   select sr.id, sr.invoice_id into r3, v_inv from public.supp_registration sr where sr.session_id = v_sess and sr.student_id = k1 and sr.course_id <> c1 limit 1;
   if r3 is not null then
     select amount into v_amt2 from public.fee_invoice where id = v_inv;
