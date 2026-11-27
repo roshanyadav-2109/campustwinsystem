@@ -47,6 +47,7 @@ try {
   await p.locator("tr", { hasText: name }).getByRole("button", { name: "Send" }).click();
   await p.getByText("Sent for approval.").first().waitFor({ timeout: 20000 });
   check(true, "the office asked to relax the shortage");
+  await p.reload({ waitUntil: "networkidle" });
   check(await p.locator("tr", { hasText: name }).getByText("Waiting for approval").count() >= 1, "it shows as waiting");
   // a principal (another person) approves
   const pemail = `qa-lec-p-${stamp}@example.com`;

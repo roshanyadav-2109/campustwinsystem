@@ -23,7 +23,8 @@ export default async function RelaxationsPage() {
     supabase.rpc("my_relaxation_queue" as never),
     supabase.rpc("current_holds" as never, { p_section: null } as never),
   ]);
-  const mine = new Set(((q ?? []) as unknown as number[]).map(Number));
+  // a set-returning function comes back as [{ my_relaxation_queue: id }]
+  const mine = new Set(((q ?? []) as unknown as (number | Record<string, number>)[]).map((x) => Number(typeof x === "object" ? Object.values(x)[0] : x)));
   const chain = (sch as unknown as { relax_chain: Record<string, string[]> } | null)?.relax_chain ?? {};
   return (
     <div className="space-y-4">
