@@ -58,10 +58,11 @@ try {
   await p.getByRole("button", { name: "Register all backlogs" }).click();
   await p.getByText(/(\d+ backlog courses registered|No new backlogs)/).waitFor({ timeout: 60000 }).catch(async () => { console.log("DEBUG", await p.locator("[role=alert],[role=status]").allInnerTexts()); throw new Error("no registration message"); }); await settle(p);
   const { data: sess } = await admin.from("exam_session").select("id").eq("school_id", S).eq("name", `QA Supplementary ${stamp}`).single(); made.session = sess.id;
-  const { data: sr } = await admin.from("supp_registration").select("id, student_id, invoice_id, course:course_id(code)").eq("session_id", sess.id).order("id").limit(1).single();
+  const { data: sr } = await admin.from("supp_registration").select("id, student_id, invoice_id, course_id, course:course_id(code)").eq("session_id", sess.id).order("id").limit(1).single();
   check(!!sr && !!sr.invoice_id, "backlogs registered, with a fee invoice");
 
   const { data: stu } = await admin.from("student").select("full_name").eq("id", sr.student_id).single();
+  await p.goto(`${HOST}/dashboard/supplementary?session=${sess.id}&course=${sr.course_id}`, { waitUntil: "load", timeout: 90000 }); await settle(p);
   await p.getByLabel(`Marks for ${stu.full_name}, ${sr.course.code}`).fill("92");
   await p.getByRole("button", { name: /^Save marks/ }).click();
   await p.getByText(/^Saved \d+\.$/).waitFor({ timeout: 60000 }); await settle(p);
