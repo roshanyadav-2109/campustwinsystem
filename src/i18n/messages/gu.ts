@@ -533,6 +533,7 @@ const gu: PartialMessages = {
     transport: "બસો અને રૂટ",
     access: "લૉગિન અને ઍક્સેસ",
     messages: "સંદેશા અને સૂચનાઓ",
+    positions: "Roles and positions",
     attendanceRules: "હાજરી લોક અને રોક",
     evaluation: "મૂલ્યાંકન અને ગ્રેડ",
     programmes: "કાર્યક્રમ અને અભ્યાસક્રમ",

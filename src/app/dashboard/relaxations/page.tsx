@@ -13,9 +13,18 @@ export default async function RelaxationsPage() {
   const supabase = await createClient();
   const { data: sch } = await supabase.from("school").select("relax_chain" as "id").eq("id", session.schoolId).maybeSingle();
   const { data } = await supabase.from("relaxation_request" as never)
-    .select("id, kind, status, step, chain, requested_by, reason, until, on_date, created_at, semester_id, student_id, subject_id, section_id, student:student_id(full_name, admission_no), subject:subject_id(name), section:section_id(name, class:class_id(name)), steps:relaxation_step(step_no, as_type, decision, note, at, staff:staff_id(full_name))")
+    .select("id, kind, status, step, chain, requested_by, reason, until, on_date, created_at, semester_id, student_id, subject_id, section_id, student:student_id(full_name, admission_no), subject:subject_id(name), section:section_id(name, class:class_id(name)), steps:relaxation_step(step_no, as_type, decision, note, at, staff_id, staff:staff_id(full_name))")
     .order("created_at", { ascending: false }).limit(200);
   const rows = (data ?? []) as unknown as RelaxRow[];
+  const deciders = [...new Set(rows.flatMap((r) => r.steps.map((x) => x.staff_id)).filter(Boolean))] as number[];
+  if (deciders.length) {
+    const today = new Date(Date.now() + 5.5 * 3600 * 1000).toISOString().slice(0, 10);
+    const { data: pos } = await supabase.from("staff_position" as never).select("staff_id, starts_on, ends_on, title:title_id(name, sort)").in("staff_id", deciders);
+    const t = new Map<number, string>();
+    for (const p of (pos ?? []) as unknown as { staff_id: number; starts_on: string; ends_on: string | null; title: { name: string } | null }[])
+      if (p.title && p.starts_on <= today && (!p.ends_on || p.ends_on >= today) && !t.has(p.staff_id)) t.set(p.staff_id, p.title.name);
+    for (const r of rows) for (const x of r.steps) if (x.staff && x.staff_id && t.has(x.staff_id)) x.staff.full_name = `${x.staff.full_name} (${t.get(x.staff_id)})`;
+  }
   if (!session.staffRole) return null;
 
   // requests waiting for the caller, and the students held back this semester

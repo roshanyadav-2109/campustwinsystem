@@ -533,6 +533,7 @@ const pa: PartialMessages = {
     transport: "ਬੱਸਾਂ ਅਤੇ ਰੂਟ",
     access: "ਲੌਗਇਨ ਅਤੇ ਪਹੁੰਚ",
     messages: "ਸੁਨੇਹੇ ਅਤੇ ਸੂਚਨਾਵਾਂ",
+    positions: "Roles and positions",
     attendanceRules: "ਹਾਜ਼ਰੀ ਲੌਕ ਅਤੇ ਰੋਕ",
     evaluation: "ਮੁਲਾਂਕਣ ਅਤੇ ਗ੍ਰੇਡ",
     programmes: "ਪ੍ਰੋਗਰਾਮ ਅਤੇ ਕੋਰਸ",

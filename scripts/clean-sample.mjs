@@ -18,6 +18,7 @@ const SAMPLE = { greenfield: "GFP", riverside: "RIS", "st-aldric": "SAC", meridi
 
 // Children before parents.
 const TABLES = [
+  "staff_position", "position_log", "position_title", "academic_unit",
   "fee_payment", "fee_invoice_line", "fee_invoice", "fee_structure", "fee_head",
   "library_issue", "library_book", "library_setting",
   "admission_followup", "admission_enquiry",

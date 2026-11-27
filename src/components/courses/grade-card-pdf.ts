@@ -4,7 +4,7 @@ import type { GradeCard } from "@/lib/data/results";
 
 const n = (v: number | null | undefined) => (v == null ? "-" : Number.isInteger(Number(v)) ? String(Number(v)) : Number(v).toFixed(2).replace(/\.?0+$/, ""));
 
-export function gradeCardPdf(c: GradeCard, verifyUrl: string): PdfDoc {
+export function gradeCardPdf(c: GradeCard, verifyUrl: string, signers: string[] = ["Controller of Examinations", "Principal"]): PdfDoc {
   return {
     filename: `Grade card ${c.student} semester ${c.semester_no ?? ""}`,
     title: "Grade card",
@@ -17,7 +17,7 @@ export function gradeCardPdf(c: GradeCard, verifyUrl: string): PdfDoc {
           x.passed ? x.grade : { text: x.grade, low: true }, n(x.point)]) },
       { kind: "facts", heading: "Result", items: [["Credits registered", n(c.credits_registered)], ["Credits earned", n(c.credits_earned)], ["SGPA", n(c.sgpa)], ["CGPA", n(c.cgpa)],
         ["Backlogs", String(c.backlogs)], ["Result", c.backlogs ? `To reappear in ${c.backlogs} course${c.backlogs > 1 ? "s" : ""}` : "Pass"]] },
-      { kind: "signatures", labels: ["Controller of examinations", "Principal"] },
+      { kind: "signatures", labels: signers },
       { kind: "qr", data: verifyUrl, lines: ["Scan to check this grade card.", verifyUrl.replace(/^https:\/\//, "")] },
     ],
   };

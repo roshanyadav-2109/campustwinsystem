@@ -14,7 +14,8 @@ export type PreviewRow = { student_id: number; student_name: string; roll_no: nu
 
 const n = (v: number | null | undefined) => (v == null ? "-" : Number.isInteger(Number(v)) ? String(Number(v)) : Number(v).toFixed(2));
 
-export function ResultsDesk({ semesterId, sectionId, rows, published, canPublish, verifyBase }: {
+export function ResultsDesk({ semesterId, sectionId, rows, published, canPublish, verifyBase, signers }: {
+  signers: string[];
   semesterId: number; sectionId: number; rows: PreviewRow[]; published: Record<number, { sgpa: number | null; cgpa: number | null; withheld_reason: string | null }>; canPublish: boolean; verifyBase: string;
 }) {
   const [msg, setMsg] = useState<{ ok: boolean; text: string } | null>(null);
@@ -44,7 +45,7 @@ export function ResultsDesk({ semesterId, sectionId, rows, published, canPublish
           <Button size="sm" variant="subtle" disabled={pending || Object.keys(published).length === 0} onClick={() => start(async () => {
             const r = await sectionGradeCards(semesterId, sectionId);
             if (!r.ok || !r.cards.length) { setMsg({ ok: false, text: r.ok ? "No published results yet." : r.error }); return; }
-            await downloadPdfBook(r.cards.map((c) => gradeCardPdf(c, verifyBase + c.token)), "Grade cards");
+            await downloadPdfBook(r.cards.map((c) => gradeCardPdf(c, verifyBase + c.token, signers)), "Grade cards");
           })}>Download grade cards</Button>
         </div>} />
       <CardBody className="p-0">
@@ -101,13 +102,13 @@ export function ResultsDesk({ semesterId, sectionId, rows, published, canPublish
   );
 }
 
-export function MyResults({ cards, verifyBase }: { cards: GradeCard[]; verifyBase: string }) {
+export function MyResults({ cards, verifyBase, signers }: { cards: GradeCard[]; verifyBase: string; signers: string[] }) {
   const [pending, start] = useTransition();
   return (
     <div className="space-y-4">
       {cards.map((c) => (
         <Card key={c.token}>
-          <CardHeader title={`${c.student}: semester ${c.semester_no ?? ""}`} action={<Button size="sm" variant="subtle" disabled={pending} onClick={() => start(async () => { await downloadPdf(gradeCardPdf(c, verifyBase + c.token)); })}>Download grade card</Button>} />
+          <CardHeader title={`${c.student}: semester ${c.semester_no ?? ""}`} action={<Button size="sm" variant="subtle" disabled={pending} onClick={() => start(async () => { await downloadPdf(gradeCardPdf(c, verifyBase + c.token, signers)); })}>Download grade card</Button>} />
           <CardBody className="space-y-2">
             <p className="text-[14px]"><b>SGPA {n(c.sgpa)}</b> · CGPA {n(c.cgpa)} · {n(c.credits_earned)} of {n(c.credits_registered)} credits earned{c.backlogs ? <span className="text-down"> · {c.backlogs} backlog{c.backlogs > 1 ? "s" : ""}</span> : null}</p>
             <table className="w-full text-[13px]"><tbody>{c.courses.map((x) => (

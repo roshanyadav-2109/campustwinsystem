@@ -20,6 +20,10 @@ export default async function ResultsPage({ searchParams }: { searchParams: SP }
   if (!session) return null;
   const supabase = await createClient();
   const verifyBase = `https://verify.${process.env.NEXT_PUBLIC_BASE_DOMAIN || "campustwin.org"}/verify/`;
+  // signature lines carry the institution's own titles
+  const [{ data: coe }, { data: head }] = await Promise.all([
+    supabase.rpc("signatory" as never, { p_type: "exams_head" } as never), supabase.rpc("signatory" as never, { p_type: "head" } as never)]);
+  const signers = [((coe ?? []) as unknown as { title: string }[])[0]?.title ?? "Controller of Examinations", ((head ?? []) as unknown as { title: string }[])[0]?.title ?? "Principal"];
 
   if (session.role === "student" || session.role === "guardian") {
     const ids = session.role === "student" ? (session.studentId ? [session.studentId] : []) : (await getMyChildren()).map((k) => k.id);
@@ -29,7 +33,7 @@ export default async function ResultsPage({ searchParams }: { searchParams: SP }
       <div className="space-y-4">
         <PageHeader title="Results" description="Published semester results, with SGPA and CGPA. Download the grade card." />
         {held.map((h, i) => <p key={i} role="status" className="rounded-sm border border-down bg-white px-3 py-2 text-[13px] text-down">Semester {h.semester_no ?? ""} result is held back: {h.reason}. Speak to the office.</p>)}
-        {cards.length === 0 ? (held.length ? null : <EmptyState art="no-marks" title="No results published yet" />) : <MyResults cards={cards} verifyBase={verifyBase} />}
+        {cards.length === 0 ? (held.length ? null : <EmptyState art="no-marks" title="No results published yet" />) : <MyResults cards={cards} verifyBase={verifyBase} signers={signers} />}
       </div>
     );
   }
@@ -62,7 +66,7 @@ export default async function ResultsPage({ searchParams }: { searchParams: SP }
       </div>
       {error ? <EmptyState art="error" title="Could not prepare results" hint={error.message} /> : (
         <ResultsDesk key={`${semId}-${section.id}`} semesterId={semId} sectionId={section.id} rows={(prev ?? []) as unknown as PreviewRow[]}
-          published={Object.fromEntries(published)} canPublish={session.staffRole === "office"} verifyBase={verifyBase} />
+          published={Object.fromEntries(published)} canPublish={session.staffRole === "office"} verifyBase={verifyBase} signers={signers} />
       )}
     </div>
   );

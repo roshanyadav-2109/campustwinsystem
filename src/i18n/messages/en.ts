@@ -532,6 +532,7 @@ const en = {
     transport: "Buses and routes",
     access: "Logins and access",
     messages: "Messages and alerts",
+    positions: "Roles and positions",
     attendanceRules: "Attendance lock and holds",
     evaluation: "Evaluation and grading",
     programmes: "Programmes and courses",

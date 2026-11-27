@@ -52,6 +52,7 @@ export const SHARED_ROUTES: RouteDef[] = [
   { href: "/dashboard/settings", icon: ManageIcon, labelKey: "nav.settings", roles: ["office", "principal"], group: "settings" },
   { href: "/dashboard/settings/institution", labelKey: "settings.institution", roles: ["office"], group: "settings", menu: false },
   { href: "/dashboard/settings/programmes", labelKey: "settings.programmes", roles: ["office", "principal"], group: "settings", menu: false, editions: ["college", "university"] },
+  { href: "/dashboard/settings/positions", labelKey: "settings.positions", roles: ["office", "principal"], group: "settings", menu: false, editions: ["college", "university"] },
   { href: "/dashboard/settings/attendance-rules", labelKey: "settings.attendanceRules", roles: ["office", "principal"], group: "settings", menu: false, editions: ["college", "university"] },
   { href: "/dashboard/settings/evaluation", labelKey: "settings.evaluation", roles: ["office", "principal"], group: "settings", menu: false, editions: ["college", "university"] },
   { href: "/dashboard/settings/classes", labelKey: "settings.classes", roles: ["office"], group: "settings", menu: false },

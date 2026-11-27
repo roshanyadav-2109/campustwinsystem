@@ -42,6 +42,16 @@ async function ManageTeachersPageBody() {
   ]);
 
   const withLogin = new Set((loginRes.data ?? []).map((p) => p.staff_id));
+  // current positions (colleges and universities): "Dean, Faculty of Engineering; Director, Department of CSE"
+  const today = new Date(Date.now() + 5.5 * 3600 * 1000).toISOString().slice(0, 10);
+  const { data: posData } = await supabase.from("staff_position" as never)
+    .select("staff_id, acting, starts_on, ends_on, title:title_id(name, sort), unit:unit_id(name), department:department_id(name), programme:programme_id(name)").limit(2000);
+  const titlesOf = new Map<number, string[]>();
+  for (const p of (posData ?? []) as unknown as { staff_id: number; acting: boolean; starts_on: string; ends_on: string | null; title: { name: string } | null; unit: { name: string } | null; department: { name: string } | null; programme: { name: string } | null }[]) {
+    if (p.starts_on > today || (p.ends_on && p.ends_on < today) || !p.title) continue;
+    const where = p.unit?.name ?? p.department?.name ?? p.programme?.name;
+    titlesOf.set(p.staff_id, [...(titlesOf.get(p.staff_id) ?? []), `${p.acting ? "Acting " : ""}${p.title.name}${where ? `, ${where}` : ""}`]);
+  }
   const staff: StaffRow[] = (staffRes.data ?? []).map((s) => ({
     id: s.id,
     fullName: s.full_name,
@@ -51,6 +61,7 @@ async function ManageTeachersPageBody() {
     phone: s.phone ?? "",
     hasLogin: withLogin.has(s.id),
     photoUrl: (s as { photo_path?: string | null }).photo_path ?? null,
+    titles: titlesOf.get(s.id)?.join("; ") ?? null,
   }));
 
   const sections: SectionOpt[] = (sectionRes.data ?? [])

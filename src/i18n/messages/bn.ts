@@ -364,6 +364,7 @@ const bn: PartialMessages = {
     transport: "বাস ও রুট",
     access: "লগইন ও অ্যাক্সেস",
     messages: "বার্তা ও সতর্কতা",
+    positions: "Roles and positions",
     attendanceRules: "উপস্থিতি লক ও আটক",
     evaluation: "মূল্যায়ন ও গ্রেড",
     programmes: "প্রোগ্রাম ও কোর্স",

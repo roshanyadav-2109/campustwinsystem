@@ -10,7 +10,7 @@ export type RelaxRow = {
   id: number; kind: "attendance" | "fees" | "unlock"; status: string; step: number; chain: string[]; requested_by: string | null; reason: string; until: string | null; on_date: string | null; created_at: string;
   semester_id: number; student_id: number | null; subject_id: number | null; section_id: number | null;
   student: { full_name: string; admission_no: string } | null; subject: { name: string } | null; section: { name: string; class: { name: string } } | null;
-  steps: { step_no: number; as_type: string; decision: string; note: string | null; at: string; staff: { full_name: string } | null }[];
+  steps: { step_no: number; as_type: string; decision: string; note: string | null; at: string; staff_id: number | null; staff: { full_name: string } | null }[];
 };
 export const WHO: Record<string, string> = { advisor: "Class teacher", head: "Principal / head", office: "Office" };
 const KIND: Record<string, string> = { attendance: "Attendance relaxation", fees: "Fee extension", unlock: "Unlock attendance" };

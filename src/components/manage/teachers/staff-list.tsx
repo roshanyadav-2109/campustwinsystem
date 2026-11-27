@@ -19,6 +19,7 @@ export type StaffRow = {
   phone: string;
   hasLogin: boolean;
   photoUrl: string | null;
+  titles?: string | null;
 };
 
 export const ROLE_LABEL: Record<StaffRole, string> = {
@@ -138,7 +139,7 @@ export function StaffList({ staff }: { staff: StaffRow[] }) {
                     </tr>
                   ) : (
                     <tr key={s.id}>
-                      <td className="py-2 font-medium text-ink-900">{s.fullName}</td>
+                      <td className="py-2 font-medium text-ink-900">{s.fullName}{s.titles ? <span className="block text-[12px] font-normal text-ink-500">{s.titles}</span> : null}</td>
                       <td className="py-2 text-ink-700">{ROLE_LABEL[s.role]}</td>
                       <td className="py-2 tabular text-ink-900">{s.employeeCode || "—"}</td>
                       <td className="py-2 text-ink-700">{s.email || "—"}</td>

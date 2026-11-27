@@ -364,6 +364,7 @@ const hi: PartialMessages = {
     transport: "बसें और रूट",
     access: "लॉगिन और पहुँच",
     messages: "संदेश और सूचनाएँ",
+    positions: "Roles and positions",
     attendanceRules: "उपस्थिति लॉक और रोक",
     evaluation: "मूल्यांकन और ग्रेड",
     programmes: "कार्यक्रम और पाठ्यक्रम",
