@@ -4,6 +4,7 @@ import { isExamsLead } from "@/lib/roles";
 import { PageHeader } from "@/components/ui/page-header";
 import { createClient } from "@/lib/supabase/server";
 import { EvaluationAdmin, type SchemeRow } from "@/components/settings/evaluation";
+import { OwnTeacherEvaluation } from "@/components/settings/own-teacher-evaluation";
 
 // Settings → Evaluation and grading (colleges and universities).
 export default async function EvaluationPage() {
@@ -16,7 +17,7 @@ export default async function EvaluationPage() {
     supabase.from("eval_component" as never).select("id, scheme_id, part, name, rule, best_n, weight").order("part"),
     supabase.from("eval_grade" as never).select("scheme_id, min_percent, grade, point").order("min_percent", { ascending: false }),
     supabase.from("programme" as never).select("id, code, name, eval_scheme_id").order("code"),
-    supabase.from("school").select("reval_fee, retotal_fee, reval_window_days, cgpa_pct_multiplier, cgpa_pct_offset" as "id").eq("id", session?.schoolId ?? 0).maybeSingle(),
+    supabase.from("school").select("reval_fee, retotal_fee, reval_window_days, cgpa_pct_multiplier, cgpa_pct_offset, allow_own_teacher_evaluation" as "id").eq("id", session?.schoolId ?? 0).maybeSingle(),
   ]);
   const comps = (c.data ?? []) as unknown as { id: number; scheme_id: number; part: string; name: string; rule: string; best_n: number | null; weight: number }[];
   const grades = (g.data ?? []) as unknown as { scheme_id: number; min_percent: number; grade: string; point: number }[];
@@ -25,6 +26,7 @@ export default async function EvaluationPage() {
   return (
     <div className="space-y-4">
       <PageHeader title="Evaluation and grading" description="How internal assessment (CIA) and the end-semester exam (ESE) make a course result, the pass marks, and the grade points used for SGPA and CGPA." />
+      <OwnTeacherEvaluation on={!!(r.data as unknown as { allow_own_teacher_evaluation?: boolean } | null)?.allow_own_teacher_evaluation} canEdit={isExamsLead(session)} />
       <EvaluationAdmin schemes={schemes} programmes={(p.data ?? []) as unknown as { id: number; code: string; name: string; eval_scheme_id: number | null }[]} canEdit={isExamsLead(session)} rules={r.data as unknown as { reval_fee: number | null; retotal_fee: number | null; reval_window_days: number; cgpa_pct_multiplier: number | null; cgpa_pct_offset: number } | null} />
     </div>
   );

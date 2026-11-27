@@ -5,7 +5,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/field";
 import { roomRoster, markExamAttendance, reportIncident } from "@/app/dashboard/exam-cell/actions";
 
-export type Duty = { session_id: number; exam_date: string; starts_at: string; room: { name: string }; session: { name: string } };
+export type Duty = { session_id: number; exam_date: string; starts_at: string; room_id: number; room: { name: string }; session: { name: string } };
 type Seat = { seat_id: number; seat_no: number; student_name: string; admission_no: string; room: string; present: boolean | null };
 
 export function InvigilationDesk({ duties }: { duties: Duty[] }) {
@@ -19,10 +19,10 @@ export function InvigilationDesk({ duties }: { duties: Duty[] }) {
   return (
     <div className="space-y-3">
       {msg && <p role={msg.ok ? "status" : "alert"} className={`text-[13px] font-medium ${msg.ok ? "text-up" : "text-down"}`}>{msg.text}</p>}
-      {duties.map((d) => { const key = `${d.session_id}|${d.exam_date}|${d.starts_at}`; return (
+      {duties.map((d) => { const key = `${d.session_id}|${d.exam_date}|${d.starts_at}|${d.room_id}`; return (
         <Card key={key}>
           <CardHeader title={`${d.exam_date} ${d.starts_at.slice(0, 5)} · ${d.room.name}`} action={<Button size="sm" variant="subtle" disabled={pending} onClick={() => start(async () => {
-            const r = await roomRoster(d.session_id, d.exam_date, d.starts_at); setSeats(r); setAbsent(new Set(r.filter((x) => x.present === false).map((x) => x.seat_id))); setOpen(key); })}>{open === key ? "Reload" : "Open roster"}</Button>} />
+            const r = await roomRoster(d.session_id, d.exam_date, d.starts_at, d.room_id); setSeats(r); setAbsent(new Set(r.filter((x) => x.present === false).map((x) => x.seat_id))); setOpen(key); })}>{open === key ? "Reload" : "Open roster"}</Button>} />
           {open === key && <CardBody className="space-y-2 p-0">
             <p className="px-4 pt-2 text-[12px] text-ink-500">{d.session.name}. Tap a student to mark absent.</p>
             <div className="grid grid-cols-2 gap-1.5 px-4 sm:grid-cols-4">{seats.map((x) => (
@@ -30,7 +30,10 @@ export function InvigilationDesk({ duties }: { duties: Duty[] }) {
                 className={`rounded-sm border px-2 py-1.5 text-left text-[12px] ${absent.has(x.seat_id) ? "border-down bg-down text-white" : "border-hair bg-white"}`}>
                 <span className="tabular">{x.seat_no}</span> {x.student_name}</button>))}</div>
             <div className="flex flex-wrap items-center gap-2 px-4 pb-3">
-              <Button size="sm" disabled={pending} onClick={() => start(async () => { const r = await markExamAttendance(seats.map((x) => x.seat_id), seats.map((x) => !absent.has(x.seat_id))); setMsg(r.ok ? { ok: true, text: r.message ?? "" } : { ok: false, text: r.error }); })}>Save attendance ({absent.size} absent)</Button>
+              <Button size="sm" disabled={pending} onClick={() => start(async () => { const changed = seats.filter((x) => x.present === null || (x.present === false) !== absent.has(x.seat_id));
+                if (!changed.length) { setMsg({ ok: true, text: "Nothing changed." }); return; }
+                const r = await markExamAttendance(changed.map((x) => x.seat_id), changed.map((x) => !absent.has(x.seat_id)));
+                if (r.ok) setSeats(seats.map((x) => ({ ...x, present: !absent.has(x.seat_id) }))); setMsg(r.ok ? { ok: true, text: r.message ?? "" } : { ok: false, text: r.error }); })}>Save attendance ({absent.size} absent)</Button>
               <select className="h-8 rounded-sm border border-hair text-[12px]" aria-label="Student for a malpractice report" value={incident?.seat ?? ""} onChange={(e) => setIncident({ seat: Number(e.target.value), text: incident?.text ?? "" })}>
                 <option value="">Report malpractice…</option>{seats.map((x) => <option key={x.seat_id} value={x.seat_id}>{x.seat_no} {x.student_name}</option>)}</select>
               {incident?.seat ? <>

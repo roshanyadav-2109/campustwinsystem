@@ -13,10 +13,22 @@ export async function issueTranscript(admissionNo: string) {
   if (!st) return { ok: false as const, error: "No student with that admission number." };
   const { data: token, error } = await supabase.rpc("issue_transcript" as never, { p_student: st.id } as never);
   if (error) return { ok: false as const, error: clean(error, "Could not issue the transcript.") };
+  const { data: t } = await supabase.from("transcript_issue" as never).select("serial").eq("verify_token", String(token)).maybeSingle();
   const d = await consolidatedData(st.id);
-  if (!d.rows.length) return { ok: false as const, error: "This student has no published results yet." };
   revalidatePath("/dashboard/transcripts");
-  return { ok: true as const, token: String(token), ...d };
+  return { ok: true as const, token: String(token), serial: (t as unknown as { serial: string | null } | null)?.serial ?? null, ...d };
+}
+
+// The issued record again (same serial and QR), for a lost or extra copy.
+export async function reprintTranscript(id: number) {
+  const supabase = await createClient();
+  const { data } = await supabase.from("transcript_issue" as never).select("verify_token, serial, cgpa, credits, snapshot, student_id, revoked_at").eq("id", id).maybeSingle();
+  const t = data as unknown as { verify_token: string; serial: string | null; cgpa: number | null; credits: number | null; snapshot: { rows?: unknown[] } | null; student_id: number; revoked_at: string | null } | null;
+  if (!t) return { ok: false as const, error: "Not found." };
+  if (t.revoked_at) return { ok: false as const, error: "This transcript was withdrawn." };
+  const d = await consolidatedData(t.student_id);
+  const rows = (t.snapshot?.rows ?? d.rows) as typeof d.rows;
+  return { ok: true as const, token: t.verify_token, serial: t.serial, student: d.student, rows, standing: { cgpa: t.cgpa, credits_earned: Number(t.credits ?? 0), backlogs: d.standing?.backlogs ?? 0 }, percent: d.percent };
 }
 
 export async function revokeTranscript(id: number): Promise<R> {
@@ -39,7 +51,15 @@ export async function internalMarks(semesterId: number, sectionId: number) {
   return { ok: true as const, rows: rows.map((r) => ({ ...r, admission_no: adm.get(r.student_id) ?? "" })) };
 }
 
-export type ImportRow = { admission_no: string; course_code: string; grade: string; point: number | null; passed: boolean | null };
+export type ImportRow = { admission_no: string | null; register_no: string | null; course_code: string; grade: string; point: number | null; passed: boolean | null };
+
+export async function setRegisterNumbers(rows: { admission_no: string; register_no: string }[]): Promise<R> {
+  if (!rows.length) return { ok: false, error: "The file has no rows." };
+  const supabase = await createClient();
+  const { data, error } = await supabase.rpc("set_register_numbers" as never, { p_rows: rows } as never);
+  if (error) return { ok: false, error: clean(error, "Could not save the register numbers.") };
+  return { ok: true, message: `Register numbers saved for ${Number(data ?? 0)} students.` };
+}
 export async function importUniversityResults(semesterId: number, rows: ImportRow[]): Promise<R> {
   if (!rows.length) return { ok: false, error: "The file has no rows." };
   if (rows.length > 5000) return { ok: false, error: "Import at most 5,000 rows at a time." };

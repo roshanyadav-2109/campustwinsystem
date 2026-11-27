@@ -3,7 +3,7 @@ import { useState, useTransition } from "react";
 import { Card, CardBody, CardHeader } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Select } from "@/components/ui/field";
-import { internalMarks, importUniversityResults, type ImportRow } from "@/app/dashboard/returns/actions";
+import { internalMarks, importUniversityResults, setRegisterNumbers, type ImportRow } from "@/app/dashboard/returns/actions";
 
 export type Stats = { students: number; by_gender: Record<string, number>; by_programme: { programme: string; year: number | null; students: number; female: number }[];
   staff: number; staff_by_title: Record<string, number>; pass_rates: { semester: string; students: number; all_passed: number }[]; programmes: number; departments: number };
@@ -71,17 +71,26 @@ export function Returns({ stats, semesters, sections, canImport, collegeCode }: 
       {canImport && <Card>
         <CardHeader title="Bring in the university's results" />
         <CardBody className="space-y-2 text-[13px]">
-          <p className="text-ink-700">A CSV with the columns <b>admission_no, course_code, grade, point, passed</b>. Each row replaces that course&apos;s first-attempt result for the semester; SGPA and CGPA are worked out again.</p>
+          <p className="text-ink-700">A CSV with the columns <b>register_no</b> (or <b>admission_no</b>)<b>, course_code, grade, point, passed</b>. Each row sets that course&apos;s first-attempt result for the semester (an earlier one is kept in the record of changes); SGPA and CGPA are worked out again and students are told.</p>
           <div className="flex flex-wrap items-end gap-2">
             <label>Semester<Select className="mt-1" value={impSem} onChange={(e) => setImpSem(Number(e.target.value))}>{semesters.map((s) => <option key={s.id} value={s.id}>{s.label}</option>)}</Select></label>
             <input type="file" accept=".csv,text/csv" aria-label="University results file" disabled={pending} onChange={(e) => { const file = e.target.files?.[0]; e.target.value = ""; if (!file) return; start(async () => {
               const rows = parseCsv(await file.text()); const head = (rows.shift() ?? []).map((h) => h.trim().toLowerCase().replace(/[^a-z]+/g, "_").replace(/^_|_$/g, ""));
               const at = (k: string) => head.indexOf(k);
-              if (at("admission_no") < 0 || at("course_code") < 0 || at("grade") < 0) { setMsg({ ok: false, text: "The first row must name admission_no, course_code and grade." }); return; }
+              if ((at("admission_no") < 0 && at("register_no") < 0) || at("course_code") < 0 || at("grade") < 0) { setMsg({ ok: false, text: "The first row must name register_no or admission_no, course_code and grade." }); return; }
               const yes = (v: string | undefined) => v == null || v.trim() === "" ? null : /^(y|yes|p|pass|passed|true|1)$/i.test(v.trim());
-              const data: ImportRow[] = rows.map((r) => ({ admission_no: r[at("admission_no")]?.trim() ?? "", course_code: r[at("course_code")]?.trim() ?? "", grade: r[at("grade")]?.trim() ?? "",
+              const data: ImportRow[] = rows.map((r) => ({ admission_no: at("admission_no") >= 0 ? r[at("admission_no")]?.trim() || null : null, register_no: at("register_no") >= 0 ? r[at("register_no")]?.trim() || null : null, course_code: r[at("course_code")]?.trim() ?? "", grade: r[at("grade")]?.trim() ?? "",
                 point: at("point") >= 0 && r[at("point")]?.trim() ? Number(r[at("point")]) : null, passed: at("passed") >= 0 ? yes(r[at("passed")]) : null }));
               show(await importUniversityResults(impSem, data));
+            }); }} />
+          </div>
+          <div className="flex flex-wrap items-center gap-2 border-t border-hair pt-2">
+            <span className="text-ink-700">University register numbers: a CSV with <b>admission_no, register_no</b>.</span>
+            <input type="file" accept=".csv,text/csv" aria-label="Register numbers file" disabled={pending} onChange={(e) => { const file = e.target.files?.[0]; e.target.value = ""; if (!file) return; start(async () => {
+              const rows = parseCsv(await file.text()); const head = (rows.shift() ?? []).map((h) => h.trim().toLowerCase().replace(/[^a-z]+/g, "_").replace(/^_|_$/g, ""));
+              const a = head.indexOf("admission_no"), g = head.indexOf("register_no");
+              if (a < 0 || g < 0) { setMsg({ ok: false, text: "The first row must name admission_no and register_no." }); return; }
+              show(await setRegisterNumbers(rows.map((r) => ({ admission_no: r[a]?.trim() ?? "", register_no: r[g]?.trim() ?? "" })).filter((r) => r.admission_no)));
             }); }} />
           </div>
         </CardBody>

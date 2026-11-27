@@ -79,7 +79,7 @@ export function ExamsDesk({ canEdit, sessions, sessionId, papers, types, classes
     const classPapers = papers.filter((p) => p.class_id === sec.classId || p.class_id == null);
     if (!classPapers.length) { setMsg({ ok: false, text: `No papers are set for ${sec.label} in this exam.` }); return; }
     // colleges: a hall ticket lists only the student's registered courses
-    const seats = await sessionSeats(s.id);
+    const seats = await sessionSeats(s.id, undefined, sec.id);
     const seatOf = (sid: number, d: string, t: string) => { const x = seats.find((y) => y.student_id === sid && y.exam_date === d && y.starts_at.slice(0, 5) === t.slice(0, 5)); return x ? `${x.room}, seat ${x.seat_no}` : null; };
     const papersFor = (ids: number[] | null, sid?: number) => classPapers.filter((p) => !ids || ids.includes(p.subject_id))
       .map((p) => ({ date: p.exam_date, start: p.starts_at, end: p.ends_at, subject: p.subject?.name ?? "", note: [p.note, sid ? seatOf(sid, p.exam_date, p.starts_at) : null].filter(Boolean).join(" · ") || null }));

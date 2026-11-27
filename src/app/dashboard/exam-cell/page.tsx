@@ -21,7 +21,7 @@ export default async function ExamCellPage() {
   const supabase = await createClient();
   const { data } = await supabase.rpc("exam_cell_overview" as never);
   const o = data as unknown as Overview | null;
-  const { data: inc } = await supabase.from("exam_incident" as never).select("id, exam_date, description, status, student:student_id(full_name, admission_no), session:session_id(name)").order("created_at", { ascending: false }).limit(50);
+  const { data: inc } = await supabase.from("exam_incident" as never).select("id, exam_date, description, status, penalty, student:student_id(full_name, admission_no), session:session_id(name)").order("created_at", { ascending: false }).limit(50);
   if (!session || !o) return (<div><PageHeader title="Exam cell" /><EmptyState art="no-results" title="For the exam cell" /></div>);
   const alerts = [
     o.reval_waiting ? [`${o.reval_waiting} revaluation request${o.reval_waiting > 1 ? "s" : ""} waiting${o.reval_fee_pending ? ` (${o.reval_fee_pending} with the fee unpaid)` : ""}`, "/dashboard/revaluation"] : null,

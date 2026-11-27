@@ -10,7 +10,7 @@ type Card = { student_name: string; class_label: string | null; school_name: str
 type Report = { valid: boolean; reason: string; student_name: string; class_label: string | null; term_name: string | null; year_name: string | null; school_name: string; published_on: string };
 type Admit = { valid: boolean; student_name: string; class_label: string | null; exam_name: string; school_name: string };
 type Grade = { valid: boolean; student_name: string; programme: string | null; semester_no: number | null; sgpa: number | null; cgpa: number | null; school_name: string; published_on: string };
-type Transcript = { valid: boolean; student_name: string; programme: string | null; cgpa: number | null; credits: number | null; school_name: string; issued_on: string };
+type Transcript = { valid: boolean; serial: string | null; semesters: string | null; student_name: string; programme: string | null; cgpa: number | null; credits: number | null; school_name: string; issued_on: string };
 type Cert = { kind: string; number: string | null; student_name: string; admission_no: string; issued_on: string; school_name: string; school_place: string | null; status: string };
 
 function Facts({ rows }: { rows: [string, string][] }) {
@@ -61,8 +61,8 @@ export default async function VerifyPage({ params }: { params: Promise<{ token: 
       ) : transcript ? (
         <>
           <h1 className={`mt-2 text-[22px] font-semibold ${transcript.valid ? "text-up" : "text-down"}`}>{transcript.valid ? "Transcript on record" : "This transcript has been withdrawn"}</h1>
-          <Facts rows={[["Student", transcript.student_name], ["Programme", transcript.programme ?? ""], ["CGPA", transcript.cgpa == null ? "" : String(transcript.cgpa)], ["Credits earned", transcript.credits == null ? "" : String(transcript.credits)], ["Institution", transcript.school_name], ["Issued", day(transcript.issued_on)]]} />
-          <p className="mt-4 text-[12px] text-ink-500">Compare the CGPA and credits with the printed transcript.</p>
+          <Facts rows={[["Number", transcript.serial ?? ""], ["Student", transcript.student_name], ["Programme", transcript.programme ?? ""], ["SGPA", transcript.semesters ?? ""], ["CGPA", transcript.cgpa == null ? "" : String(transcript.cgpa)], ["Credits earned", transcript.credits == null ? "" : String(transcript.credits)], ["Institution", transcript.school_name], ["Issued", day(transcript.issued_on)]]} />
+          <p className="mt-4 text-[12px] text-ink-500">Compare the number, each semester&apos;s SGPA, the CGPA and credits with the printed transcript.</p>
         </>
       ) : gcard ? (
         <>

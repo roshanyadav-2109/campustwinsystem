@@ -30,6 +30,18 @@ begin
   reset role;
   if (select count(*) from public.course_result where student_id = k and semester_id = v_sem) <> 2 then raise exception 'FAIL re-import duplicated'; end if;
   if (select backlogs from public.semester_result where student_id = k and semester_id = v_sem) <> 0 then raise exception 'FAIL re-import did not clear the backlog'; end if;
+  -- register numbers: the university's own key
+  perform set_config('request.jwt.claims', json_build_object('sub', of, 'role', 'authenticated')::text, true); set local role authenticated;
+  perform public.set_register_numbers(jsonb_build_array(jsonb_build_object('admission_no', v_adm, 'register_no', 'QAREG' || k)));
+  perform public.import_university_results(v_sem, jsonb_build_array(jsonb_build_object('register_no', 'QAREG' || k, 'course_code', v_c2, 'grade', 'A', 'point', 9, 'passed', true)));
+  ok := false; begin perform public.import_university_results(v_sem, jsonb_build_array(
+      jsonb_build_object('register_no', 'QAREG' || k, 'course_code', v_c2, 'grade', 'A', 'point', 9),
+      jsonb_build_object('register_no', 'QAREG' || k, 'course_code', v_c2, 'grade', 'B', 'point', 8)));
+  exception when others then ok := sqlerrm like '%appear twice%'; end;
+  if not ok then raise exception 'FAIL duplicate rows accepted'; end if;
+  reset role;
+  if (select grade from public.course_result c join public.course cc on cc.id = c.course_id where c.student_id = k and c.semester_id = v_sem and cc.code = v_c2) <> 'A' then raise exception 'FAIL register-number import'; end if;
+  if not exists (select 1 from public.course_result_revision where reason = 'Imported from the university' and (old ->> 'student_id')::bigint = k) then raise exception 'FAIL no revision trail'; end if;
   -- transcript issued and verified publicly
   perform set_config('request.jwt.claims', json_build_object('sub', of, 'role', 'authenticated')::text, true); set local role authenticated;
   tok := public.issue_transcript(k);
@@ -39,6 +51,6 @@ begin
   set local role anon;
   select * into v from public.verify_transcript(tok);
   reset role;
-  if not coalesce(v.valid, false) or v.cgpa is null then raise exception 'FAIL transcript check %', row_to_json(v); end if;
+  if not coalesce(v.valid, false) or v.cgpa is null or v.serial not like 'TR-%' or v.semesters is null then raise exception 'FAIL transcript check %', row_to_json(v); end if;
 end $$;
 rollback;

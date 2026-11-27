@@ -33,7 +33,7 @@ begin
     if n <> v_need then raise exception 'FAIL seated % of %', n, v_need; end if;
     if exists (select 1 from public.exam_seat x join public.exam_room rm on rm.id = x.room_id where x.session_id = v_sess and x.seat_no > rm.capacity) then raise exception 'FAIL room over capacity'; end if;
     -- duties: an invigilator for every room in use
-    n := public.assign_duties(v_sess);
+    n := (public.assign_duties(v_sess) ->> 'assigned')::int;
     if n <> (select count(distinct room_id) from public.exam_seat where session_id = v_sess) then raise exception 'FAIL duties % for % rooms', n, (select count(distinct room_id) from public.exam_seat where session_id = v_sess); end if;
   end if;
   update public.exam_room set capacity = 1 where name like 'QA Hall %';
@@ -46,6 +46,11 @@ begin
   perform public.report_incident((select id from public.exam_seat where session_id = v_sess order by seat_no desc limit 1), 'QA phone found');
   reset role;
   if public.result_hold_reason((select student_id from public.exam_seat where session_id = v_sess order by seat_no desc limit 1), v_sem.id) is distinct from 'Malpractice report under inquiry' then raise exception 'FAIL malpractice does not hold the result'; end if;
+  -- a debarment keeps the result withheld after the decision
+  perform set_config('request.jwt.claims', json_build_object('sub', u, 'role', 'authenticated')::text, true); set local role authenticated;
+  perform public.decide_incident((select max(id) from public.exam_incident where session_id = v_sess), 'penalised', 'QA debarred', 'debar');
+  reset role;
+  if public.result_hold_reason((select student_id from public.exam_seat where session_id = v_sess order by seat_no desc limit 1), v_sem.id) is distinct from 'Result withheld: malpractice penalty' then raise exception 'FAIL debarment does not withhold'; end if;
   perform set_config('request.jwt.claims', json_build_object('sub', u, 'role', 'authenticated')::text, true); set local role authenticated;
   -- coded scripts: the evaluator sees codes only; decoding writes the marks
   n := public.generate_scripts(v_paper);
@@ -62,7 +67,7 @@ begin
   if public.save_script_marks(v_ids, array_fill(77::numeric, array[cardinality(v_ids)]), array_fill(false, array[cardinality(v_ids)])) <> n - 1 then raise exception 'FAIL saving script marks'; end if;
   reset role;
   perform set_config('request.jwt.claims', json_build_object('sub', u, 'role', 'authenticated')::text, true); set local role authenticated;
-  if public.decode_scripts(v_paper) <> n then raise exception 'FAIL decode'; end if;
+  if (public.decode_scripts(v_paper) ->> 'decoded')::int <> n then raise exception 'FAIL decode'; end if;
   reset role;
   if (select count(*) from public.mark m join public.assessment a on a.id = m.assessment_id where a.exam_paper_id = v_paper and m.marks_obtained = 77) <> n - 1 then raise exception 'FAIL decoded marks not in the record'; end if;
   if not (select m.is_absent from public.mark m join public.assessment a on a.id = m.assessment_id where a.exam_paper_id = v_paper and m.student_id = v_abs) then raise exception 'FAIL absentee not recorded absent'; end if;

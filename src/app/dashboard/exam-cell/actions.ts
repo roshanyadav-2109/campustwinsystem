@@ -28,7 +28,7 @@ export async function setRoomActive(id: number, active: boolean): Promise<R> {
   return { ok: true, message: active ? "In use." : "Not in use." };
 }
 export const generateSeating = async (sessionId: number) => rpc("generate_seating", { p_session: sessionId }, ["/dashboard/seating"], (d) => `${Number(d ?? 0)} candidates seated.`, "Could not plan the seating.");
-export const assignDuties = async (sessionId: number, perRoom: number) => rpc("assign_duties", { p_session: sessionId, p_per_room: perRoom }, ["/dashboard/seating"], (d) => `${Number(d ?? 0)} duties assigned.`, "Could not assign duties.");
+export const assignDuties = async (sessionId: number, perRoom: number) => rpc("assign_duties", { p_session: sessionId, p_per_room: perRoom }, ["/dashboard/seating"], (d) => { const x = d as { assigned: number; short: string | null }; return `${Number(x?.assigned ?? 0)} duties assigned.${x?.short ? ` Not enough free teachers on ${x.short}; some rooms are short.` : ""}`; }, "Could not assign duties.");
 type ChartRow = { exam_date: string; starts_at: string; room: string; seat_no: number; student_name: string; admission_no: string; invigilators: string | null };
 export async function seatingChart(sessionId: number) {
   const supabase = await createClient();
@@ -43,7 +43,7 @@ export async function seatingChart(sessionId: number) {
 }
 export const generateScripts = async (paperId: number) => rpc("generate_scripts", { p_paper: paperId }, ["/dashboard/scripts"], (d) => `${Number(d ?? 0)} scripts coded.`, "Could not code the scripts.");
 export const allotEvaluators = async (paperId: number, staff: number[]) => rpc("allot_evaluators", { p_paper: paperId, p_staff: staff }, ["/dashboard/scripts"], (d) => `${Number(d ?? 0)} scripts allotted.`, "Could not allot.");
-export const decodeScripts = async (paperId: number) => rpc("decode_scripts", { p_paper: paperId }, ["/dashboard/scripts"], (d) => `${Number(d ?? 0)} marks decoded into the records.`, "Could not decode.");
+export const decodeScripts = async (paperId: number) => rpc("decode_scripts", { p_paper: paperId }, ["/dashboard/scripts"], (d) => { const x = d as { decoded: number; left: number; codes: string | null }; return `${Number(x?.decoded ?? 0)} marks decoded into the records.${x?.left ? ` ${x.left} could not be written (no marks column for the student, or the result is already published): ${x.codes ?? ""}.` : ""}`; }, "Could not decode.");
 export async function saveScriptMarks(rows: { id: number; marks: string; absent: boolean }[]): Promise<R> {
   for (const r of rows) if (!r.absent && r.marks.trim() && !/^\d{1,3}(\.\d{1,2})?$/.test(r.marks.trim())) return { ok: false, error: "Marks are numbers." };
   const supabase = await createClient();
@@ -58,20 +58,20 @@ export const signCia = async (semesterId: number, sectionId: number, subjectId: 
 export const setCiaRequired = async (required: boolean) =>
   rpc("set_cia_signoff_required", { p_required: required }, ["/dashboard/settings/evaluation"], () => "Saved.", "Could not save.");
 
-export async function sessionSeats(sessionId: number, studentId?: number) {
+export async function sessionSeats(sessionId: number, studentId?: number, sectionId?: number) {
   const supabase = await createClient();
   const out: { student_id: number; exam_date: string; starts_at: string; room: string; seat_no: number }[] = [];
   for (let from = 0; from < 50000; from += 1000) {
-    const { data } = await supabase.rpc("session_seats" as never, { p_session: sessionId, p_student: studentId ?? null } as never).range(from, from + 999);
+    const { data } = await supabase.rpc("session_seats" as never, { p_session: sessionId, p_student: studentId ?? null, p_section: sectionId ?? null } as never).range(from, from + 999);
     const rows = (data ?? []) as unknown as typeof out;
     out.push(...rows);
     if (rows.length < 1000) break;
   }
   return out;
 }
-export async function roomRoster(sessionId: number, date: string, start: string) {
+export async function roomRoster(sessionId: number, date: string, start: string, roomId?: number) {
   const supabase = await createClient();
-  const { data } = await supabase.rpc("my_room_roster" as never, { p_session: sessionId, p_date: date, p_start: start } as never);
+  const { data } = await supabase.rpc("my_room_roster" as never, { p_session: sessionId, p_date: date, p_start: start, p_room: roomId ?? null } as never);
   return (data ?? []) as unknown as { seat_id: number; seat_no: number; student_name: string; admission_no: string; room: string; present: boolean | null }[];
 }
 export async function markExamAttendance(seats: number[], present: boolean[]): Promise<R> {
@@ -85,5 +85,9 @@ export async function reportIncident(seatId: number, description: string): Promi
   if (description.trim().length < 3) return { ok: false, error: "Describe what happened." };
   return rpc("report_incident", { p_seat: seatId, p_description: description.trim() }, ["/dashboard/invigilation", "/dashboard/exam-cell"], () => "Reported to the exam cell. The result is held until it is decided.", "Could not report.");
 }
-export const decideIncident = async (id: number, status: "cleared" | "penalised", decision: string) =>
-  rpc("decide_incident", { p_id: id, p_status: status, p_decision: decision }, ["/dashboard/exam-cell"], () => (status === "cleared" ? "Cleared; the result is released." : "Penalty recorded."), "Could not save.");
+export type Penalty = "warning" | "cancel_paper" | "cancel_all" | "debar";
+export const decideIncident = async (id: number, status: "cleared" | "penalised", decision: string, penalty?: Penalty) =>
+  rpc("decide_incident", { p_id: id, p_status: status, p_decision: decision, p_penalty: penalty ?? null }, ["/dashboard/exam-cell"],
+    () => (status === "cleared" ? "Cleared; the result is released." : penalty === "cancel_all" || penalty === "debar" ? "Penalty recorded; the result stays withheld." : "Penalty recorded."), "Could not save.");
+export const setOwnTeacherEvaluation = async (on: boolean) =>
+  rpc("set_own_teacher_evaluation", { p_on: on }, ["/dashboard/settings/evaluation"], () => (on ? "Teachers may value their own students' coded scripts." : "Teachers cannot value their own students' scripts."), "Could not save.");

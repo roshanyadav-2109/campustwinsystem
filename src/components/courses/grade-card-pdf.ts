@@ -27,11 +27,11 @@ export type ConsolidatedRow = { semester_id: number; semester_no: number | null;
 
 // All semesters, the counted attempt of every course; SGPA per semester from those grades.
 export function consolidatedPdf(student: { name: string; admission_no: string; programme: string | null; school: string }, rows: ConsolidatedRow[],
-  standing: { cgpa: number | null; credits_earned: number; backlogs: number } | null, percent: number | null, transcript?: { verifyUrl: string; signers: string[] }): PdfDoc {
+  standing: { cgpa: number | null; credits_earned: number; backlogs: number } | null, percent: number | null, transcript?: { verifyUrl: string; signers: string[]; serial?: string | null }): PdfDoc {
   const sems = [...new Set(rows.map((r) => r.semester_no ?? 0))].sort((a, b) => a - b);
   const sg = (no: number) => { const l = rows.filter((r) => (r.semester_no ?? 0) === no); const cr = l.reduce((a, r) => a + Number(r.credits), 0); return cr ? l.reduce((a, r) => a + Number(r.credits) * Number(r.point), 0) / cr : null; };
   return {
-    filename: `${transcript ? "Transcript" : "Consolidated marksheet"} ${student.name}`, title: transcript ? "Transcript" : "Consolidated marksheet", meta: [student.programme ?? ""].filter(Boolean), school: student.school,
+    filename: `${transcript ? "Transcript" : "Consolidated marksheet"} ${student.name}`, title: transcript ? "Transcript" : "Consolidated marksheet", meta: [student.programme ?? "", transcript?.serial ? `No. ${transcript.serial}` : ""].filter(Boolean), school: student.school,
     blocks: [
       { kind: "facts", items: [["Student", student.name], ["Admission no.", student.admission_no], ["Programme", student.programme ?? "-"]] },
       { kind: "grouped", heading: "Courses (the attempt that counts)", headers: ["Code", "Course", "Credits", "Grade", "Points", "Attempt"], right: [2, 4, 5],

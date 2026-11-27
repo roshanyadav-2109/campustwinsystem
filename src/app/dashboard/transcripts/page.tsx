@@ -12,7 +12,7 @@ export default async function TranscriptsPage() {
   if (!session) return null;
   const supabase = await createClient();
   const [{ data }, { data: coe }, { data: reg }] = await Promise.all([
-    supabase.from("transcript_issue" as never).select("id, issued_at, revoked_at, cgpa, student:student_id(full_name, admission_no)").order("issued_at", { ascending: false }).limit(50),
+    supabase.from("transcript_issue" as never).select("id, serial, issued_at, revoked_at, cgpa, student:student_id(full_name, admission_no)").order("issued_at", { ascending: false }).limit(50),
     supabase.rpc("signatory" as never, { p_type: "exams_head" } as never), supabase.rpc("signatory" as never, { p_type: "registrar" } as never)]);
   const signers = [((coe ?? []) as unknown as { title: string }[])[0]?.title ?? "Controller of Examinations", ((reg ?? []) as unknown as { title: string }[])[0]?.title ?? "Registrar"];
   return (

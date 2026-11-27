@@ -26,6 +26,11 @@ begin
   if exists (select 1 from public.notification where dedupe_key like 'announcement:' || v_ann || '%' and guardian_id is not null) then raise exception 'FAIL parents told while switched off'; end if;
   -- results notifications reach the student
   perform public.notify_family(11, 'result_published', 'qa-sf', k, '{}'::jsonb, 'QA result', 'QA body', '/dashboard/results');
-  if not exists (select 1 from public.notification where dedupe_key = 'qa-sf:s' || k and student_id = k and guardian_id is null) then raise exception 'FAIL student not told of results'; end if;
+  if not exists (select 1 from public.notification where title = 'QA result' and student_id = k and guardian_id is null and staff_id is null) then raise exception 'FAIL student not told of results'; end if;
+  -- parents informed again: parents and the student, the student exactly once
+  update public.school set notify_guardians = true where id = 11;
+  perform public.notify_family(11, 'result_published', 'qa-sf2', k, '{}'::jsonb, 'QA result 2', 'QA body', '/dashboard/results');
+  if (select count(*) from public.notification where title = 'QA result 2' and student_id = k and guardian_id is null and staff_id is null) <> 1 then raise exception 'FAIL student copies'; end if;
+  if exists (select 1 from public.guardian_student where student_id = k) and not exists (select 1 from public.notification where title = 'QA result 2' and guardian_id is not null) then raise exception 'FAIL parents not told'; end if;
 end $$;
 rollback;
