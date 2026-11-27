@@ -24,3 +24,33 @@ export async function switchCampus(formData: FormData) {
   revalidatePath("/", "layout");
   redirect("/dashboard");
 }
+
+type R = { ok: true; message: string } | { ok: false; error: string };
+const clean = (e: { message?: string } | null, fallback: string) => (e?.message && !/[_(]|violates|function|relation/.test(e.message) ? e.message : fallback);
+
+export async function campusSections(campusId: number) {
+  const supabase = await createClient();
+  const { data } = await supabase.rpc("campus_sections" as never, { p_school: campusId } as never);
+  return (data ?? []) as unknown as { id: number; label: string }[];
+}
+
+// Departments, courses and programmes one campus lacks are copied from another (matched by code).
+export async function copyCatalogue(from: number, to: number): Promise<R> {
+  const supabase = await createClient();
+  const { data, error } = await supabase.rpc("copy_catalogue" as never, { p_from: from, p_to: to } as never);
+  if (error) return { ok: false, error: clean(error, "Could not copy.") };
+  const d = data as unknown as { departments: number; courses: number; programmes: number };
+  return { ok: true, message: `Copied ${d.departments} departments, ${d.courses} courses and ${d.programmes} programmes.` };
+}
+
+// A student moves campus: grades and CGPA carry over, the parents and the login come along.
+export async function transferStudent(from: number, admissionNo: string, to: number, sectionId: number, note: string): Promise<R> {
+  if (!admissionNo.trim()) return { ok: false, error: "Enter the admission number." };
+  if (!sectionId) return { ok: false, error: "Choose the section at the new campus." };
+  const supabase = await createClient();
+  const { data, error } = await supabase.rpc("transfer_student" as never, { p_from: from, p_admission_no: admissionNo.trim(), p_to: to, p_section: sectionId, p_note: note || null } as never);
+  if (error) return { ok: false, error: clean(error, "Could not transfer.") };
+  const d = data as unknown as { admission_no: string; carried: number; not_carried: string | null };
+  revalidatePath("/dashboard/university");
+  return { ok: true, message: `Transferred as ${d.admission_no}. ${d.carried} course results carried over.${d.not_carried ? ` Not carried (no matching course or semester at the new campus): ${d.not_carried}.` : ""}` };
+}

@@ -1,6 +1,8 @@
 import { redirect } from "next/navigation";
 import { getSession } from "@/lib/session";
 import { switchCampus } from "./actions";
+import { createClient } from "@/lib/supabase/server";
+import { CentralTools, type ExamRow, type TransferRow } from "@/components/university/central-tools";
 
 // Central university admin's cross-campus view: every campus of the university
 // with headline counts, and a one-click switch into any campus (which scopes the
@@ -14,6 +16,10 @@ export default async function UniversityPage() {
   const { university, campuses, activeCampusId } = session;
   const totalStudents = campuses.reduce((n, c) => n + c.students, 0);
   const totalStaff = campuses.reduce((n, c) => n + c.staff, 0);
+  const supabase = await createClient();
+  const [{ data: exams }, { data: transfers }] = await Promise.all([
+    supabase.rpc("university_exam_overview" as never),
+    supabase.from("student_transfer" as never).select("id, done_at, carried, not_carried, from_school, to_school, to_student:to_student(full_name, admission_no)").order("done_at", { ascending: false }).limit(20)]);
 
   return (
     <div className="mx-auto w-full max-w-4xl">
@@ -66,6 +72,8 @@ export default async function UniversityPage() {
           );
         })}
       </div>
+
+      <CentralTools campuses={campuses.map((c) => ({ id: c.id, name: c.name }))} exams={(exams ?? []) as unknown as ExamRow[]} transfers={(transfers ?? []) as unknown as TransferRow[]} />
 
       {campuses.length === 0 && (
         <p className="rounded-md border border-hair px-4 py-3 text-[14px] text-ink-700">
