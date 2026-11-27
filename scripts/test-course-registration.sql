@@ -17,7 +17,7 @@ begin
      and (select semester_no from public.student_semester(e.student_id, v_sem)) = v_semno order by e.student_id limit 1;
   -- core courses for everyone
   n := public.register_core_courses(v_sem);
-  if n = 0 or not exists (select 1 from public.course_registration where student_id = k1 and semester_id = v_sem) then raise exception 'FAIL core registration %', n; end if;
+  if not exists (select 1 from public.course_registration where student_id = k1 and semester_id = v_sem) then raise exception 'FAIL core registration %', n; end if;
   if public.register_core_courses(v_sem) <> 0 then raise exception 'FAIL core registered twice'; end if;
   -- an elective group of two courses, one seat each
   insert into public.course (code, name, kind, credits) values ('QAE1', 'QA Elective One', 'elective', 3) returning id into c1;

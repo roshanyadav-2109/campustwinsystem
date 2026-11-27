@@ -34,6 +34,7 @@ const gu: PartialMessages = {
     noAccess: "તમને આ પેજ જોવાની પરવાનગી નથી.",
   },
   nav: {
+    results: "પરિણામ",
     lectures: "વ્યાખ્યાન",
     courses: "અભ્યાસક્રમ",
     hostel: "છાત્રાલય",
@@ -531,6 +532,7 @@ const gu: PartialMessages = {
     transport: "બસો અને રૂટ",
     access: "લૉગિન અને ઍક્સેસ",
     messages: "સંદેશા અને સૂચનાઓ",
+    evaluation: "મૂલ્યાંકન અને ગ્રેડ",
     programmes: "કાર્યક્રમ અને અભ્યાસક્રમ",
     payments: "ઑનલાઇન ચુકવણી",
     reportCards: "રિપોર્ટ કાર્ડ",

@@ -34,6 +34,7 @@ const pa: PartialMessages = {
     noAccess: "ਤੁਹਾਨੂੰ ਇਹ ਪੰਨਾ ਵੇਖਣ ਦੀ ਇਜਾਜ਼ਤ ਨਹੀਂ ਹੈ।",
   },
   nav: {
+    results: "ਨਤੀਜੇ",
     lectures: "ਲੈਕਚਰ",
     courses: "ਕੋਰਸ",
     hostel: "ਹੋਸਟਲ",
@@ -531,6 +532,7 @@ const pa: PartialMessages = {
     transport: "ਬੱਸਾਂ ਅਤੇ ਰੂਟ",
     access: "ਲੌਗਇਨ ਅਤੇ ਪਹੁੰਚ",
     messages: "ਸੁਨੇਹੇ ਅਤੇ ਸੂਚਨਾਵਾਂ",
+    evaluation: "ਮੁਲਾਂਕਣ ਅਤੇ ਗ੍ਰੇਡ",
     programmes: "ਪ੍ਰੋਗਰਾਮ ਅਤੇ ਕੋਰਸ",
     payments: "ਆਨਲਾਈਨ ਭੁਗਤਾਨ",
     reportCards: "ਰਿਪੋਰਟ ਕਾਰਡ",

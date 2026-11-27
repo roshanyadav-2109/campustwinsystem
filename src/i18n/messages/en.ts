@@ -33,6 +33,7 @@ const en = {
     noAccess: "You don't have access to this page.",
   },
   nav: {
+    results: "Results",
     lectures: "Lectures",
     courses: "Courses",
     hostel: "Hostel",
@@ -530,6 +531,7 @@ const en = {
     transport: "Buses and routes",
     access: "Logins and access",
     messages: "Messages and alerts",
+    evaluation: "Evaluation and grading",
     programmes: "Programmes and courses",
     payments: "Online payment",
     reportCards: "Report cards",

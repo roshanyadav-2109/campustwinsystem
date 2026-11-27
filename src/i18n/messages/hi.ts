@@ -34,6 +34,7 @@ const hi: PartialMessages = {
     noAccess: "आपको इस पृष्ठ तक पहुँच नहीं है।",
   },
   nav: {
+    results: "परिणाम",
     lectures: "व्याख्यान",
     courses: "पाठ्यक्रम",
     hostel: "छात्रावास",
@@ -362,6 +363,7 @@ const hi: PartialMessages = {
     transport: "बसें और रूट",
     access: "लॉगिन और पहुँच",
     messages: "संदेश और सूचनाएँ",
+    evaluation: "मूल्यांकन और ग्रेड",
     programmes: "कार्यक्रम और पाठ्यक्रम",
     payments: "ऑनलाइन भुगतान",
     reportCards: "रिपोर्ट कार्ड",
