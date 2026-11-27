@@ -7,6 +7,7 @@ import { Field, Input, Select, Textarea } from "@/components/ui/field";
 import { downloadPdf, downloadPdfBook } from "@/lib/pdf";
 import { admitCardPdf } from "@/components/exams/admit-pdf";
 import { saveSession, publishSession, deleteSession, savePaper, deletePaper, admitCards, suppAdmitCards } from "@/app/dashboard/exam-timetable/actions";
+import { sessionSeats } from "@/app/dashboard/exam-cell/actions";
 
 export type SessionView = { id: number; name: string; term: number; assessment_type_id: number; instructions: string | null; withhold_fee_dues: boolean; published_at: string | null; kind?: string };
 export type PaperView = { id: number; session_id: number; class_id: number | null; subject_id: number; exam_date: string; starts_at: string; ends_at: string; max_marks: number; note: string | null; component?: string; optional_group?: string | null; subject: { name: string } | null };
@@ -78,12 +79,14 @@ export function ExamsDesk({ canEdit, sessions, sessionId, papers, types, classes
     const classPapers = papers.filter((p) => p.class_id === sec.classId || p.class_id == null);
     if (!classPapers.length) { setMsg({ ok: false, text: `No papers are set for ${sec.label} in this exam.` }); return; }
     // colleges: a hall ticket lists only the student's registered courses
-    const papersFor = (ids: number[] | null) => classPapers.filter((p) => !ids || ids.includes(p.subject_id))
-      .map((p) => ({ date: p.exam_date, start: p.starts_at, end: p.ends_at, subject: p.subject?.name ?? "", note: p.note }));
+    const seats = await sessionSeats(s.id);
+    const seatOf = (sid: number, d: string, t: string) => { const x = seats.find((y) => y.student_id === sid && y.exam_date === d && y.starts_at.slice(0, 5) === t.slice(0, 5)); return x ? `${x.room}, seat ${x.seat_no}` : null; };
+    const papersFor = (ids: number[] | null, sid?: number) => classPapers.filter((p) => !ids || ids.includes(p.subject_id))
+      .map((p) => ({ date: p.exam_date, start: p.starts_at, end: p.ends_at, subject: p.subject?.name ?? "", note: [p.note, sid ? seatOf(sid, p.exam_date, p.starts_at) : null].filter(Boolean).join(" · ") || null }));
     const ok = r.rows.filter((x) => !x.withheld);
     setWithheld(r.rows.filter((x) => x.withheld).map((x) => ({ name: x.student_name, reason: x.reason ?? "" })));
     if (!ok.length) { setMsg({ ok: false, text: "Every admit card in this section is held back." }); return; }
-    await downloadPdfBook(ok.map((x) => admitCardPdf({ exam: s.name, school, student: x.student_name, admissionNo: x.admission_no, roll: x.roll_no, classLabel: x.class_label, instructions: s.instructions, papers: papersFor(x.subject_ids), verifyUrl: verifyBase + x.verify_token })), `Admit cards ${sec.label} ${s.name}`);
+    await downloadPdfBook(ok.map((x) => admitCardPdf({ exam: s.name, school, student: x.student_name, admissionNo: x.admission_no, roll: x.roll_no, classLabel: x.class_label, instructions: s.instructions, papers: papersFor(x.subject_ids, x.student_id), verifyUrl: verifyBase + x.verify_token })), `Admit cards ${sec.label} ${s.name}`);
     setMsg({ ok: true, text: `${ok.length} admit cards downloaded.` });
   });
 
@@ -96,8 +99,10 @@ export function ExamsDesk({ canEdit, sessions, sessionId, papers, types, classes
     const ok = r.rows.filter((x) => !x.withheld);
     setWithheld(r.rows.filter((x) => x.withheld).map((x) => ({ name: x.student_name, reason: x.reason ?? "" })));
     if (!ok.length) { setMsg({ ok: false, text: "Every hall ticket is held back." }); return; }
+    const seatsAll = await sessionSeats(s.id);
     await downloadPdfBook(ok.map((x) => admitCardPdf({ exam: s.name, school, student: x.student_name, admissionNo: x.admission_no, roll: x.roll_no, classLabel: x.class_label, instructions: s.instructions,
-      papers: course.filter((p) => (x.subject_ids ?? []).includes(p.subject_id)).map((p) => ({ date: p.exam_date, start: p.starts_at, end: p.ends_at, subject: p.subject?.name ?? "", note: p.note })),
+      papers: course.filter((p) => (x.subject_ids ?? []).includes(p.subject_id)).map((p) => { const st = seatsAll.find((y) => y.student_id === x.student_id && y.exam_date === p.exam_date && y.starts_at.slice(0, 5) === p.starts_at.slice(0, 5));
+        return { date: p.exam_date, start: p.starts_at, end: p.ends_at, subject: p.subject?.name ?? "", note: [p.note, st ? `${st.room}, seat ${st.seat_no}` : null].filter(Boolean).join(" · ") || null }; }),
       verifyUrl: verifyBase + x.verify_token })), `Hall tickets ${s.name}`);
     setMsg({ ok: true, text: `${ok.length} hall tickets downloaded.` });
   });

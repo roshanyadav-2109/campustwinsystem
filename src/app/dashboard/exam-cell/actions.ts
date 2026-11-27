@@ -29,10 +29,17 @@ export async function setRoomActive(id: number, active: boolean): Promise<R> {
 }
 export const generateSeating = async (sessionId: number) => rpc("generate_seating", { p_session: sessionId }, ["/dashboard/seating"], (d) => `${Number(d ?? 0)} candidates seated.`, "Could not plan the seating.");
 export const assignDuties = async (sessionId: number, perRoom: number) => rpc("assign_duties", { p_session: sessionId, p_per_room: perRoom }, ["/dashboard/seating"], (d) => `${Number(d ?? 0)} duties assigned.`, "Could not assign duties.");
+type ChartRow = { exam_date: string; starts_at: string; room: string; seat_no: number; student_name: string; admission_no: string; invigilators: string | null };
 export async function seatingChart(sessionId: number) {
   const supabase = await createClient();
-  const { data } = await supabase.rpc("seating_chart" as never, { p_session: sessionId } as never);
-  return (data ?? []) as unknown as { exam_date: string; starts_at: string; room: string; seat_no: number; student_name: string; admission_no: string; invigilators: string | null }[];
+  const out: ChartRow[] = [];
+  for (let from = 0; from < 50000; from += 1000) {
+    const { data } = await supabase.rpc("seating_chart" as never, { p_session: sessionId } as never).range(from, from + 999);
+    const rows = (data ?? []) as unknown as ChartRow[];
+    out.push(...rows);
+    if (rows.length < 1000) break;
+  }
+  return out;
 }
 export const generateScripts = async (paperId: number) => rpc("generate_scripts", { p_paper: paperId }, ["/dashboard/scripts"], (d) => `${Number(d ?? 0)} scripts coded.`, "Could not code the scripts.");
 export const allotEvaluators = async (paperId: number, staff: number[]) => rpc("allot_evaluators", { p_paper: paperId, p_staff: staff }, ["/dashboard/scripts"], (d) => `${Number(d ?? 0)} scripts allotted.`, "Could not allot.");
@@ -50,3 +57,33 @@ export const signCia = async (semesterId: number, sectionId: number, subjectId: 
   rpc("sign_cia", { p_semester: semesterId, p_section: sectionId, p_subject: subjectId, p_undo: undo }, ["/dashboard"], () => (undo ? "Sign-off removed." : "Signed off."), "Could not sign off.");
 export const setCiaRequired = async (required: boolean) =>
   rpc("set_cia_signoff_required", { p_required: required }, ["/dashboard/settings/evaluation"], () => "Saved.", "Could not save.");
+
+export async function sessionSeats(sessionId: number, studentId?: number) {
+  const supabase = await createClient();
+  const out: { student_id: number; exam_date: string; starts_at: string; room: string; seat_no: number }[] = [];
+  for (let from = 0; from < 50000; from += 1000) {
+    const { data } = await supabase.rpc("session_seats" as never, { p_session: sessionId, p_student: studentId ?? null } as never).range(from, from + 999);
+    const rows = (data ?? []) as unknown as typeof out;
+    out.push(...rows);
+    if (rows.length < 1000) break;
+  }
+  return out;
+}
+export async function roomRoster(sessionId: number, date: string, start: string) {
+  const supabase = await createClient();
+  const { data } = await supabase.rpc("my_room_roster" as never, { p_session: sessionId, p_date: date, p_start: start } as never);
+  return (data ?? []) as unknown as { seat_id: number; seat_no: number; student_name: string; admission_no: string; room: string; present: boolean | null }[];
+}
+export async function markExamAttendance(seats: number[], present: boolean[]): Promise<R> {
+  const supabase = await createClient();
+  const { data, error } = await supabase.rpc("mark_exam_attendance" as never, { p_seats: seats, p_present: present } as never);
+  if (error) return { ok: false, error: clean(error, "Could not save attendance.") };
+  revalidatePath("/dashboard/invigilation");
+  return { ok: true, message: `Attendance saved for ${Number(data ?? 0)}.` };
+}
+export async function reportIncident(seatId: number, description: string): Promise<R> {
+  if (description.trim().length < 3) return { ok: false, error: "Describe what happened." };
+  return rpc("report_incident", { p_seat: seatId, p_description: description.trim() }, ["/dashboard/invigilation", "/dashboard/exam-cell"], () => "Reported to the exam cell. The result is held until it is decided.", "Could not report.");
+}
+export const decideIncident = async (id: number, status: "cleared" | "penalised", decision: string) =>
+  rpc("decide_incident", { p_id: id, p_status: status, p_decision: decision }, ["/dashboard/exam-cell"], () => (status === "cleared" ? "Cleared; the result is released." : "Penalty recorded."), "Could not save.");

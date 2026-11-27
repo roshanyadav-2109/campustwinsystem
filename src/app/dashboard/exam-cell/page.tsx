@@ -5,6 +5,7 @@ import { PageHeader } from "@/components/ui/page-header";
 import { EmptyState } from "@/components/ui/empty";
 import { Card, CardBody, CardHeader } from "@/components/ui/card";
 import { createClient } from "@/lib/supabase/server";
+import { Incidents, type Incident } from "@/components/exams/incidents";
 
 type Overview = {
   sessions: { id: number; name: string; kind: string; published: boolean; papers: number; tickets: number; candidates: number; marks_missing: number; seated: number }[];
@@ -20,6 +21,7 @@ export default async function ExamCellPage() {
   const supabase = await createClient();
   const { data } = await supabase.rpc("exam_cell_overview" as never);
   const o = data as unknown as Overview | null;
+  const { data: inc } = await supabase.from("exam_incident" as never).select("id, exam_date, description, status, student:student_id(full_name, admission_no), session:session_id(name)").order("created_at", { ascending: false }).limit(50);
   if (!session || !o) return (<div><PageHeader title="Exam cell" /><EmptyState art="no-results" title="For the exam cell" /></div>);
   const alerts = [
     o.reval_waiting ? [`${o.reval_waiting} revaluation request${o.reval_waiting > 1 ? "s" : ""} waiting${o.reval_fee_pending ? ` (${o.reval_fee_pending} with the fee unpaid)` : ""}`, "/dashboard/revaluation"] : null,
@@ -35,6 +37,7 @@ export default async function ExamCellPage() {
         {[["Revaluations waiting", o.reval_waiting, "/dashboard/revaluation"], ["Scripts to mark", o.scripts_unmarked, "/dashboard/scripts"], ["Scripts to decode", o.scripts_to_decode, "/dashboard/scripts"], ["Invigilation duties today", o.duties_today, "/dashboard/seating"]].map(([k, v, href]) => (
           <Link key={k as string} href={href as string} className="rounded-sm border border-hair bg-white p-3 hover:bg-panel"><div className="text-[22px] font-semibold tabular">{v as number}</div><div className="text-[12px] text-ink-700">{k}</div></Link>))}
       </div>
+      <Incidents rows={(inc ?? []) as unknown as Incident[]} canDecide={!!o.can_publish} />
       {alerts.length > 0 && <Card><CardHeader title="Needs attention" /><CardBody className="space-y-1 text-[13px]">{alerts.map(([t, href]) => <p key={t}><Link href={href} className="text-[#0F6CBD] hover:underline">{t}</Link></p>)}</CardBody></Card>}
       <Card>
         <CardHeader title="Exams this year" />

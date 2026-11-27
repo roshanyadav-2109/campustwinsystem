@@ -2,7 +2,7 @@
 -- internal-marks sign-off, the exam cell dashboard. Rolled back.
 begin;
 do $$ declare u uuid := gen_random_uuid(); te uuid := gen_random_uuid(); v_coe bigint; v_t bigint; v_sem record; v_sec bigint; v_class bigint; v_type bigint; v_sess bigint; v_subj bigint;
-  v_paper bigint; n int; v_need int; ok boolean; v_row record; v_ids bigint[]; v_odd record; v_osec bigint; d date := (now() at time zone 'Asia/Kolkata')::date + 10;
+  v_paper bigint; n int; v_need int; ok boolean; v_row record; v_seat bigint; v_abs bigint; v_ids bigint[]; v_odd record; v_osec bigint; d date := (now() at time zone 'Asia/Kolkata')::date + 10;
 begin
   insert into auth.users (id, email, aud, role) values (u, 'qa-d-coe@example.com', 'authenticated', 'authenticated'), (te, 'qa-d-t@example.com', 'authenticated', 'authenticated');
   insert into public.staff (school_id, full_name, email, role) values (11, 'QA CoE', 'qa-d-coe@example.com', 'subject_teacher') returning id into v_coe;
@@ -40,6 +40,13 @@ begin
   ok := false; begin perform public.generate_seating(v_sess); exception when others then ok := sqlerrm like '%rooms seat%'; end;
   if not ok and v_need > 2 then raise exception 'FAIL too small rooms accepted'; end if;
 
+  -- exam-day attendance: one candidate absent; a malpractice report holds the result
+  select id, student_id into v_seat, v_abs from public.exam_seat where session_id = v_sess order by seat_no limit 1;
+  perform public.mark_exam_attendance(array[v_seat], array[false]);
+  perform public.report_incident((select id from public.exam_seat where session_id = v_sess order by seat_no desc limit 1), 'QA phone found');
+  reset role;
+  if public.result_hold_reason((select student_id from public.exam_seat where session_id = v_sess order by seat_no desc limit 1), v_sem.id) is distinct from 'Malpractice report under inquiry' then raise exception 'FAIL malpractice does not hold the result'; end if;
+  perform set_config('request.jwt.claims', json_build_object('sub', u, 'role', 'authenticated')::text, true); set local role authenticated;
   -- coded scripts: the evaluator sees codes only; decoding writes the marks
   n := public.generate_scripts(v_paper);
   reset role;
@@ -50,13 +57,15 @@ begin
   perform set_config('request.jwt.claims', json_build_object('sub', te, 'role', 'authenticated')::text, true); set local role authenticated;
   if (select count(*) from public.exam_script) <> 0 then raise exception 'FAIL evaluator reads the script table (names)'; end if;
   select array_agg(id) into v_ids from public.my_scripts();
-  if coalesce(cardinality(v_ids), 0) <> n then raise exception 'FAIL evaluator sees % scripts', cardinality(v_ids); end if;
-  if public.save_script_marks(v_ids, array_fill(77::numeric, array[cardinality(v_ids)]), array_fill(false, array[cardinality(v_ids)])) <> n then raise exception 'FAIL saving script marks'; end if;
+  -- the absentee's script is already marked absent and not given to the evaluator
+  if coalesce(cardinality(v_ids), 0) <> n - 1 then raise exception 'FAIL evaluator sees % scripts of %', cardinality(v_ids), n; end if;
+  if public.save_script_marks(v_ids, array_fill(77::numeric, array[cardinality(v_ids)]), array_fill(false, array[cardinality(v_ids)])) <> n - 1 then raise exception 'FAIL saving script marks'; end if;
   reset role;
   perform set_config('request.jwt.claims', json_build_object('sub', u, 'role', 'authenticated')::text, true); set local role authenticated;
   if public.decode_scripts(v_paper) <> n then raise exception 'FAIL decode'; end if;
   reset role;
-  if (select count(*) from public.mark m join public.assessment a on a.id = m.assessment_id where a.exam_paper_id = v_paper and m.marks_obtained = 77) <> n then raise exception 'FAIL decoded marks not in the record'; end if;
+  if (select count(*) from public.mark m join public.assessment a on a.id = m.assessment_id where a.exam_paper_id = v_paper and m.marks_obtained = 77) <> n - 1 then raise exception 'FAIL decoded marks not in the record'; end if;
+  if not (select m.is_absent from public.mark m join public.assessment a on a.id = m.assessment_id where a.exam_paper_id = v_paper and m.student_id = v_abs) then raise exception 'FAIL absentee not recorded absent'; end if;
 
   -- internal-marks sign-off holds publishing when required (on the odd semester, which has results to publish)
   select * into v_odd from public.semester where school_id = 11 and kind = 'odd' order by starts_on desc limit 1;
@@ -67,6 +76,15 @@ begin
   if not ok then raise exception 'FAIL published without sign-off'; end if;
   for v_row in select * from public.cia_signoff_status(v_odd.id) x where x.section_id = v_osec loop perform public.sign_cia(v_odd.id, v_row.section_id, v_row.subject_id); end loop;
   if public.publish_semester_results(v_odd.id, v_osec) = 0 then raise exception 'FAIL publish after sign-off'; end if;
+  reset role;
+  -- signed-off internal marks are locked
+  ok := false; begin
+    update public.mark m set marks_obtained = m.marks_obtained from public.assessment a
+     where a.id = m.assessment_id and a.section_id = v_osec and a.term = 1 and a.academic_year_id = v_odd.academic_year_id
+       and a.assessment_type_id = (select id from public.assessment_type where school_id = 11 and code = 'periodic_test');
+  exception when others then ok := sqlerrm like '%signed off%' or sqlerrm like '%published result%'; end;
+  if not ok then raise exception 'FAIL signed-off marks editable'; end if;
+  perform set_config('request.jwt.claims', json_build_object('sub', u, 'role', 'authenticated')::text, true); set local role authenticated;
   if (public.exam_cell_overview() -> 'sessions') is null then raise exception 'FAIL dashboard'; end if;
   reset role;
 end $$;
