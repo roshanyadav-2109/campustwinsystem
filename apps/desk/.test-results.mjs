@@ -45,6 +45,7 @@ try {
   await op.goto(`${HOST}/dashboard/settings/evaluation`, { waitUntil: "load", timeout: 90000 });
 
   await op.waitForLoadState("networkidle", { timeout: 45000 }).catch(() => {});
+  await op.getByText("O: 90%+ = 10").first().waitFor({ timeout: 60000 }).catch(() => {});
   check(await op.getByText("Standard (CIA 40 + ESE 60)").count() >= 1 && await op.getByText("O: 90%+ = 10").count() === 1, "the evaluation scheme and grade scale are shown");
 
   await op.goto(`${HOST}/dashboard/results?semester=${sem.id}&section=${en.section_id}`, { waitUntil: "load", timeout: 90000 });
@@ -55,7 +56,9 @@ try {
   await op.getByText(/Results published for \d+ students\./).waitFor({ timeout: 60000 });
   const { data: sr } = await admin.from("semester_result").select("sgpa, cgpa, verify_token").eq("semester_id", sem.id).eq("student_id", reg.student_id).single();
   check(sr && sr.sgpa != null && Number(sr.sgpa) === Number(sr.cgpa), `published with SGPA ${sr?.sgpa} (= CGPA after one semester)`);
-  const [dl] = await Promise.all([op.waitForEvent("download", { timeout: 60000 }), op.getByRole("button", { name: "Download grade cards" }).click()]);
+  // the table refreshes after publishing (slow on the live site); the download button waits for it
+  await op.getByText(/^SGPA [\d.]+ · CGPA/).first().waitFor({ timeout: 90000 });
+  const [dl] = await Promise.all([op.waitForEvent("download", { timeout: 90000 }), op.getByRole("button", { name: "Download grade cards" }).click({ timeout: 60000 })]);
   check((await dl.suggestedFilename()).startsWith("Grade cards"), "the section's grade cards download");
 
   const sctx = await b.newContext({ viewport: { width: 420, height: 900 }, acceptDownloads: true });
@@ -63,6 +66,7 @@ try {
   const sp = await sctx.newPage(); sp.on("pageerror", (e) => errors.push(e.message));
   await sp.goto(`${HOST}/dashboard/results`, { waitUntil: "load", timeout: 90000 });
   await sp.waitForLoadState("networkidle", { timeout: 45000 }).catch(() => {});
+  await sp.getByText(`SGPA ${Number(sr.sgpa).toFixed(2)}`, { exact: false }).first().waitFor({ timeout: 30000 }).catch(async () => console.log("DEBUG student page:", (await sp.locator("main").innerText().catch(() => "")).slice(0, 600)));
   check(await sp.getByText(`SGPA ${Number(sr.sgpa).toFixed(2)}`, { exact: false }).count() >= 1, "the student sees their SGPA");
   const [sdl] = await Promise.all([sp.waitForEvent("download", { timeout: 30000 }), sp.getByRole("button", { name: "Download grade card" }).first().click()]);
   check((await sdl.suggestedFilename()).startsWith("Grade card"), "the student downloads the grade card");
