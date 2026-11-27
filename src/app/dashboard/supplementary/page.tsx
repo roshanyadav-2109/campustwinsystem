@@ -23,7 +23,15 @@ export default async function SupplementaryPage({ searchParams }: { searchParams
     supabase.rpc("can_publish_results" as never),
   ]);
   const sessions = (sessData ?? []) as unknown as { id: number; name: string; for_semester_id: number; fee_per_course: number | null; registration_closes: string | null }[];
-  const sems = ((semData ?? []) as unknown as { id: number; kind: string; starts_on: string }[]).map((s) => ({ id: s.id, label: `${s.kind === "odd" ? "Odd" : "Even"} semester ${s.starts_on.slice(0, 4)}` }));
+  // only semesters with published results can have backlogs
+  const semIds = ((semData ?? []) as unknown as { id: number }[]).map((x) => x.id);
+  const withResults = new Set<number>();
+  await Promise.all(semIds.map(async (id) => {
+    const { count } = await supabase.from("semester_result" as never).select("id", { count: "exact", head: true }).eq("semester_id", id);
+    if (count) withResults.add(id);
+  }));
+  const allSems = ((semData ?? []) as unknown as { id: number; kind: string; starts_on: string }[]).map((s) => ({ id: s.id, label: `${s.kind === "odd" ? "Odd" : "Even"} semester ${s.starts_on.slice(0, 4)}` }));
+  const sems = allSems.filter((s) => withResults.has(s.id));
   const sessionId = Number(one(sp.session)) || sessions[0]?.id || 0;
   const cur = sessions.find((s) => s.id === sessionId) ?? null;
   let rows: SuppRow[] = [];
@@ -43,10 +51,10 @@ export default async function SupplementaryPage({ searchParams }: { searchParams
       <div className="flex flex-wrap gap-1.5">{sessions.map((s) => (
         <Link key={s.id} href={`?session=${s.id}`} className={`rounded-sm border px-2.5 py-1 text-[13px] ${s.id === sessionId ? "border-ink-900 bg-ink-900 text-white" : "border-hair bg-white text-ink-700"}`}>{s.name}</Link>))}
       </div>
-      <NewSupplementary semesters={sems} />
+      {sems.length ? <NewSupplementary semesters={sems} /> : <p className="text-[13px] text-ink-500">Supplementary exams can be set up once results for a semester are published.</p>}
       {cur ? (
         <SupplementaryDesk key={cur.id} sessionId={cur.id} name={cur.name} fee={cur.fee_per_course} rows={rows} openBacklogs={backlogCount} canPublish={pub === true}
-          semester={sems.find((s) => s.id === cur.for_semester_id)?.label ?? ""} />
+          semester={allSems.find((s) => s.id === cur.for_semester_id)?.label ?? ""} />
       ) : <EmptyState art="nothing-yet" title="No supplementary exam yet" hint="Create one for the semester whose backlogs are to be cleared." />}
     </div>
   );

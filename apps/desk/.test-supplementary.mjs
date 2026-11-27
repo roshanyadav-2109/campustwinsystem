@@ -56,7 +56,7 @@ try {
   await p.getByText(`QA Supplementary ${stamp}:`, { exact: false }).first().waitFor({ timeout: 60000 }); await settle(p);
   check(true, "the exam cell created a supplementary exam");
   await p.getByRole("button", { name: "Register all backlogs" }).click();
-  await p.getByText(/\d+ backlog courses registered\./).waitFor({ timeout: 60000 }); await settle(p);
+  await p.getByText(/(\d+ backlog courses registered|No new backlogs)/).waitFor({ timeout: 60000 }).catch(async () => { console.log("DEBUG", await p.locator("[role=alert],[role=status]").allInnerTexts()); throw new Error("no registration message"); }); await settle(p);
   const { data: sess } = await admin.from("exam_session").select("id").eq("school_id", S).eq("name", `QA Supplementary ${stamp}`).single(); made.session = sess.id;
   const { data: sr } = await admin.from("supp_registration").select("id, student_id, invoice_id, course:course_id(code)").eq("session_id", sess.id).order("id").limit(1).single();
   check(!!sr && !!sr.invoice_id, "backlogs registered, with a fee invoice");
