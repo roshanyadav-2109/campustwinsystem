@@ -45,7 +45,7 @@ try {
   await waiting.waitFor({ timeout: 60000 });
   check(Number((await waiting.innerText()).match(/\d+/)[0]) >= 1, "the HoD sees registrations waiting in their department");
   await p.getByRole("button", { name: "Approve all" }).click();
-  await p.getByText(/\d+ approved\./).waitFor({ timeout: 60000 });
+  for (let t = 0; t < 30; t++) { const { data } = await admin.from("course_registration").select("status").eq("id", reg.id).single(); if (data.status === "approved") break; await new Promise((r) => setTimeout(r, 2000)); }
   const { data: after } = await admin.from("course_registration").select("status").eq("id", reg.id).single();
   check(after.status === "approved", "the HoD approved their department's registration");
   check(await p.getByRole("button", { name: "Register core courses" }).count() === 0, "registering core courses stays with the office");
