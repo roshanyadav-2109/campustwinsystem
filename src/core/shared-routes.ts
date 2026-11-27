@@ -15,10 +15,10 @@ export const SHARED_ROUTES: RouteDef[] = [
   { href: "/dashboard/progress", icon: ProgressIcon, labelKey: "nav.myProgress", roles: ["student"], group: "academics" },
   { href: "/dashboard/progress", icon: ProgressIcon, labelKey: "nav.childProgress", roles: ["guardian"], group: "academics" },
   { href: "/dashboard/progress", icon: ProgressIcon, labelKey: "nav.progress", roles: ["subject_teacher", "class_teacher", "principal"], group: "academics" },
-  { href: "/dashboard/courses", icon: MarksIcon, labelKey: "nav.courses", roles: ["office", "principal", "student"], group: "academics", editions: ["college", "university"] },
-  { href: "/dashboard/lectures", icon: AttendanceIcon, labelKey: "nav.lectures", roles: ["subject_teacher", "class_teacher", "principal", "office", "student"], group: "academics", editions: ["college", "university"] },
+  { href: "/dashboard/courses", icon: MarksIcon, labelKey: "nav.courses", roles: ["office", "principal", "student"], group: "academics", editions: ["college", "university"] , types: ["dean", "dept_head", "programme_coord"] },
+  { href: "/dashboard/lectures", icon: AttendanceIcon, labelKey: "nav.lectures", roles: ["subject_teacher", "class_teacher", "principal", "office", "student"], group: "academics", editions: ["college", "university"] , types: ["dean", "dept_head", "programme_coord"] },
   { href: "/dashboard/relaxations", icon: LeaveIcon, labelKey: "nav.relaxations", roles: ["subject_teacher", "class_teacher", "principal", "office"], group: "academics", editions: ["college", "university"] },
-  { href: "/dashboard/results", icon: ReportIcon, labelKey: "nav.results", roles: ["class_teacher", "principal", "office", "student", "guardian"], group: "academics", editions: ["college", "university"] , types: ["exams_head", "exams_deputy", "exams_staff"] },
+  { href: "/dashboard/results", icon: ReportIcon, labelKey: "nav.results", roles: ["class_teacher", "principal", "office", "student", "guardian"], group: "academics", editions: ["college", "university"] , types: ["dean", "dept_head", "programme_coord", "exams_head", "exams_deputy", "exams_staff"] },
   // Exam timetable and admit cards (hall tickets in colleges: registered courses only)
   { href: "/dashboard/exam-timetable", icon: CalendarIcon, labelKey: "nav.examTimetable", roles: ["subject_teacher", "class_teacher", "principal", "office", "guardian", "student"], group: "academics" , types: ["exams_head", "exams_deputy", "exams_staff"] },
   { href: "/dashboard/attendance", icon: AttendanceIcon, labelKey: "nav.attendance", roles: ALL, group: "academics" },

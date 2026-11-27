@@ -28,3 +28,10 @@ export function isExamsLead(s: Session | null | undefined): boolean {
 export function setsAttendanceRules(s: Session | null | undefined): boolean {
   return !!s && (s.staffRole === "office" || s.staffRole === "principal" || s.accessTypes.includes("exams_head"));
 }
+
+export const SCOPED_TYPES = ["dean", "dept_head", "programme_coord"];
+
+/** Head of Department, Dean or Programme Coordinator: their own department, faculty or programme. */
+export function isScopedLead(s: Session | null | undefined): boolean {
+  return !!s && s.accessTypes.some((t) => SCOPED_TYPES.includes(t));
+}

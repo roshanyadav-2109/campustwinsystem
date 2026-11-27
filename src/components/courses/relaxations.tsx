@@ -12,7 +12,7 @@ export type RelaxRow = {
   student: { full_name: string; admission_no: string } | null; subject: { name: string } | null; section: { name: string; class: { name: string } } | null;
   steps: { step_no: number; as_type: string; decision: string; note: string | null; at: string; staff_id: number | null; staff: { full_name: string } | null }[];
 };
-export const WHO: Record<string, string> = { advisor: "Class teacher", head: "Principal / head", office: "Office", exams: "Examinations head", override: "Approved directly" };
+export const WHO: Record<string, string> = { advisor: "Class teacher", hod: "Head of Department", dean: "Dean", head: "Principal / head", office: "Office", exams: "Examinations head", override: "Approved directly" };
 const KIND: Record<string, string> = { attendance: "Attendance relaxation", fees: "Fee extension", unlock: "Unlock attendance" };
 const day = (d: string) => new Date(d + (d.length === 10 ? "T00:00:00" : "")).toLocaleDateString("en-IN", { day: "numeric", month: "short", year: "numeric" });
 

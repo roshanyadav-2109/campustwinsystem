@@ -41,6 +41,11 @@ export default async function LecturesPage({ searchParams }: { searchParams: SP 
   const metas = scope.isAdmin ? scope.sectionMeta.length ? scope.sectionMeta : [] : scope.sectionMeta;
   const sections = (scope.isAdmin ? scope.sections.map((s) => ({ id: s.id, label: `${s.class_name}-${s.name}`, subjects: scope.subjectsByClass[s.class_id] ?? [] }))
     : metas.map((m) => ({ id: m.id, label: m.label, subjects: m.subjects })));
+  // Heads of Department, Deans and coordinators also see their department's sections (shortage list; marking stays with teachers)
+  if (!scope.isAdmin) {
+    const { data: scoped } = await supabase.rpc("my_scope_sections" as never);
+    for (const x of (scoped ?? []) as unknown as { id: number; label: string }[]) if (!sections.some((o) => o.id === x.id)) sections.push({ id: x.id, label: x.label, subjects: [] });
+  }
   if (!sections.length) return (<div><PageHeader title="Lectures" /><EmptyState art="no-sections" title="No sections to show" /></div>);
   const sectionId = Number(one(sp.section)) || sections[0].id;
   const section = sections.find((s) => s.id === sectionId) ?? sections[0];
@@ -54,7 +59,7 @@ export default async function LecturesPage({ searchParams }: { searchParams: SP 
       <div className="flex flex-wrap gap-1.5">{sections.map((s) => (
         <Link key={s.id} href={`?section=${s.id}`} className={`rounded-sm border px-2.5 py-1 text-[13px] ${s.id === section.id ? "border-ink-900 bg-ink-900 text-white" : "border-hair bg-white text-ink-700 hover:bg-panel"}`}>{s.label}</Link>))}
       </div>
-      <LectureMarker key={section.id} sectionId={section.id} subjects={section.subjects.map((x) => ({ id: x.id, name: x.name }))} roster={roster.map((r) => ({ id: r.id, name: r.name, roll: r.roll }))} lockNote={lockNote} />
+      {section.subjects.length > 0 && <LectureMarker key={section.id} sectionId={section.id} subjects={section.subjects.map((x) => ({ id: x.id, name: x.name }))} roster={roster.map((r) => ({ id: r.id, name: r.name, roll: r.roll }))} lockNote={lockNote} />}
       <AttendanceShortage rows={(att.data ?? []) as unknown as AttRow[]} minimum={minimum} waiting={waiting} />
     </div>
   );

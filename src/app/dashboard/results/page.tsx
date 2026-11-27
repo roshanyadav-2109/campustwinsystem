@@ -45,7 +45,10 @@ export default async function ResultsPage({ searchParams }: { searchParams: SP }
   if (!sems.length) return (<div><PageHeader title="Results" /><EmptyState art="nothing-yet" title="No semesters yet" /></div>);
   const semId = Number(one(sp.semester)) || sems[0].id;
   const scope = await getStaffScope();
-  const sections = scope.isAdmin ? scope.sections.map((s) => ({ id: s.id, label: `${s.class_name}-${s.name}` })) : scope.sectionMeta.filter((m) => m.isClassTeacher).map((m) => ({ id: m.id, label: m.label }));
+  const own = scope.isAdmin ? scope.sections.map((s) => ({ id: s.id, label: `${s.class_name}-${s.name}` })) : scope.sectionMeta.filter((m) => m.isClassTeacher).map((m) => ({ id: m.id, label: m.label }));
+  // Heads of Department, Deans and coordinators: their department's sections too
+  const { data: scoped } = scope.isAdmin ? { data: [] } : await supabase.rpc("my_scope_sections" as never);
+  const sections = [...own, ...((scoped ?? []) as unknown as { id: number; label: string }[]).filter((x) => !own.some((o) => o.id === x.id))];
   if (!sections.length) return (<div><PageHeader title="Results" /><EmptyState art="no-sections" title="No sections to show" /></div>);
   const sectionId = Number(one(sp.section)) || sections[0].id;
   const section = sections.find((s) => s.id === sectionId) ?? sections[0];

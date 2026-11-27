@@ -23,7 +23,7 @@ function Msg({ m }: { m: { ok: boolean; text: string } | null }) {
   return <span role={m.ok ? "status" : "alert"} className={`text-[13px] font-medium ${m.ok ? "text-up" : "text-down"}`}>{m.text}</span>;
 }
 
-export function CourseOffice({ semesterId, electives, pending: waiting, canEdit }: { semesterId: number; electives: ElectiveRow[]; pending: PendingRow[]; canEdit: boolean }) {
+export function CourseOffice({ semesterId, electives, pending: waiting, canEdit, canApprove = canEdit }: { semesterId: number; electives: ElectiveRow[]; pending: PendingRow[]; canEdit: boolean; canApprove?: boolean }) {
   const { msg, pending, run } = useAct();
   return (
     <div className="space-y-4">
@@ -49,7 +49,7 @@ export function CourseOffice({ semesterId, electives, pending: waiting, canEdit 
         </CardBody>
       </Card>
       <Card>
-        <CardHeader title={`Waiting for approval (${waiting.length})`} action={canEdit && waiting.length > 0 ? <Button size="sm" disabled={pending} onClick={() => run(() => approveAll(semesterId, waiting.map((w) => w.id)))}>Approve all</Button> : undefined} />
+        <CardHeader title={`Waiting for approval (${waiting.length})`} action={canApprove && waiting.length > 0 ? <Button size="sm" disabled={pending} onClick={() => run(() => approveAll(semesterId, waiting.map((w) => w.id)))}>Approve all</Button> : undefined} />
         <CardBody className="p-0">
           {waiting.length === 0 ? <p className="px-4 py-3 text-[13px] text-ink-500">Nothing waiting.</p> : (
             <ul>{waiting.slice(0, 200).map((w) => <li key={w.id} className="border-b border-hair px-4 py-1.5 text-[13px] last:border-b-0">{w.student} <span className="text-ink-500">{w.adm}</span>: {w.course}</li>)}</ul>

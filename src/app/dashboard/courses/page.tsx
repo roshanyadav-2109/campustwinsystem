@@ -1,5 +1,6 @@
 import { guardTab } from "@/lib/access";
 import { getSession } from "@/lib/session";
+import { isScopedLead } from "@/lib/roles";
 import { PageHeader } from "@/components/ui/page-header";
 import { EmptyState } from "@/components/ui/empty";
 import { createClient } from "@/lib/supabase/server";
@@ -47,7 +48,7 @@ export default async function CoursesPage() {
   return (
     <div className="space-y-4">
       <PageHeader title="Course registration" description={`${s.kind === "odd" ? "Odd" : "Even"} semester, ${s.starts_on.split("-").reverse().join("/")} to ${s.ends_on.split("-").reverse().join("/")}. ${regRows.length} registrations.`} />
-      <CourseOffice semesterId={s.id} electives={electives} pending={pending} canEdit={session?.staffRole === "office"} />
+      <CourseOffice semesterId={s.id} electives={electives} pending={pending} canEdit={session?.staffRole === "office"} canApprove={session?.staffRole === "office" || isScopedLead(session)} />
     </div>
   );
 }

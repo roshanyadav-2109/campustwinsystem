@@ -13,7 +13,7 @@ const MODES: [string, string][] = [
   ["both", "Both: daily lock, and a final freeze on the cut-off date"],
   ["none", "No lock"],
 ];
-const TYPES: [string, string][] = [["advisor", "Class teacher"], ["office", "Office"], ["exams", "Examinations head"], ["head", "Principal / head"]];
+const TYPES: [string, string][] = [["advisor", "Class teacher"], ["hod", "Head of Department"], ["dean", "Dean"], ["office", "Office"], ["exams", "Examinations head"], ["head", "Principal / head"]];
 const KINDS: [string, string][] = [["attendance", "Attendance relaxation"], ["fees", "Fee extension"], ["unlock", "Unlock locked attendance"]];
 
 function Chain({ value, onChange, disabled, label }: { value: string[]; onChange: (v: string[]) => void; disabled: boolean; label: string }) {
