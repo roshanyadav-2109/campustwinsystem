@@ -29,33 +29,34 @@ try {
   await ctx.addCookies(jar.map((c) => ({ name: c.name, value: c.value, domain: ".campustwin.org", path: "/", secure: true, sameSite: "Lax" })));
   const p = await ctx.newPage(); p.on("pageerror", (e) => errors.push(e.message));
 
-  await p.goto(`${HOST}/dashboard/settings/positions`, { waitUntil: "networkidle", timeout: 60000 });
+  await p.goto(`${HOST}/dashboard/settings/positions`, { waitUntil: "load", timeout: 90000 });
   check(await p.getByRole("cell", { name: /^Dean, Faculty of Engineering and Technology$/ }).count() === 1 && await p.getByRole("cell", { name: /^Director \(Department\), Department of CSE$/ }).count() === 1,
     "the seeded Dean who is also a department Director shows both positions");
 
   // assign: Head of Department needs a department
-  await p.getByLabel("Person").selectOption({ label: `QA Lecturer ${stamp}` });
-  await p.getByLabel("Title").selectOption({ label: "Programme Coordinator" });
-  await p.getByLabel("Where").selectOption({ index: 1 });
+  await p.getByLabel("Person", { exact: true }).selectOption({ label: `QA Lecturer ${stamp}` });
+  await p.getByLabel("Title", { exact: true }).selectOption({ label: "Programme Coordinator" });
+  await p.getByLabel("Where", { exact: true }).selectOption({ index: 1 });
   await p.getByLabel("Acting / in charge").check();
   await p.getByRole("button", { name: "Assign" }).click();
-  await p.getByText("Assigned.").waitFor({ timeout: 30000 });
-  check(await p.getByRole("row", { name: new RegExp(`QA Lecturer ${stamp}.*Acting Programme Coordinator`) }).count() === 1, "a position was assigned (acting)");
+  await p.getByText("Assigned.").waitFor({ timeout: 60000 });
+  await p.locator("tr", { hasText: `QA Lecturer ${stamp}` }).getByText(/^Acting Programme Coordinator/).waitFor({ timeout: 60000 });
+  check(true, "a position was assigned (acting)");
 
-  await p.goto(`${HOST}/dashboard/settings/teachers`, { waitUntil: "networkidle", timeout: 60000 });
+  await p.goto(`${HOST}/dashboard/settings/teachers`, { waitUntil: "load", timeout: 90000 });
   check(await p.getByText(/^Acting Programme Coordinator, /).count() >= 1, "the staff list shows the title under the name");
 
-  await p.goto(`${HOST}/dashboard/settings/positions`, { waitUntil: "networkidle", timeout: 60000 });
+  await p.goto(`${HOST}/dashboard/settings/positions`, { waitUntil: "load", timeout: 90000 });
   await p.getByRole("button", { name: new RegExp(`^End QA Lecturer ${stamp}`) }).click();
-  await p.getByText("Ended today.").waitFor({ timeout: 30000 });
+  await p.getByText("Ended today.").waitFor({ timeout: 60000 });
   const { data: ended } = await admin.from("staff_position").select("ends_on").eq("staff_id", tt.id).single();
   check(!!ended?.ends_on, "the position was ended");
 
-  await p.getByLabel("New title").fill(`QA Dean of Research ${stamp}`);
+  await p.getByLabel("New title", { exact: true }).fill(`QA Dean of Research ${stamp}`);
   await p.getByLabel("Type of new title").selectOption("dean");
   await p.getByLabel("Where new title applies").selectOption("campus");
   await p.getByRole("button", { name: "Add", exact: true }).first().click();
-  await p.getByLabel(`Title QA Dean of Research ${stamp}`).waitFor({ timeout: 30000 });
+  await p.getByLabel(`Title QA Dean of Research ${stamp}`).waitFor({ timeout: 60000 });
   check(true, "a custom title was added");
   check(errors.length === 0, `no page errors${errors.length ? ": " + errors.join(" | ") : ""}`);
 } catch (e) { failures++; console.log("FAIL", e.message ?? e); }

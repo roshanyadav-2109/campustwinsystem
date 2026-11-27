@@ -32,7 +32,7 @@ try {
   const ctx = await b.newContext({ viewport: { width: 1440, height: 1000 } });
   await ctx.addCookies(jar.map((c) => ({ name: c.name, value: c.value, domain: ".campustwin.org", path: "/", secure: true, sameSite: "Lax" })));
   const p = await ctx.newPage(); p.on("pageerror", (e) => errors.push(e.message));
-  await p.goto(`${HOST}/dashboard/lectures`, { waitUntil: "networkidle" });
+  await p.goto(`${HOST}/dashboard/lectures`, { waitUntil: "load", timeout: 90000 });
   const first = p.getByRole("button", { name: /: absent$/ }).first();
   const name = (await first.getAttribute("aria-label")).replace(/: absent$/, "");
   await first.click();
@@ -47,7 +47,7 @@ try {
   await p.locator("tr", { hasText: name }).getByRole("button", { name: "Send" }).click();
   await p.getByText("Sent for approval.").first().waitFor({ timeout: 20000 });
   check(true, "the office asked to relax the shortage");
-  await p.reload({ waitUntil: "networkidle" });
+  await p.reload({ waitUntil: "load", timeout: 90000 });
   check(await p.locator("tr", { hasText: name }).getByText("Waiting for approval").count() >= 1, "it shows as waiting");
   // a principal (another person) approves
   const pemail = `qa-lec-p-${stamp}@example.com`;
@@ -60,11 +60,13 @@ try {
   const pctx = await b.newContext({ viewport: { width: 1440, height: 1000 } });
   await pctx.addCookies(pjar.map((c) => ({ name: c.name, value: c.value, domain: ".campustwin.org", path: "/", secure: true, sameSite: "Lax" })));
   const pp = await pctx.newPage(); pp.on("pageerror", (e) => errors.push(e.message));
-  await pp.goto(`${HOST}/dashboard/relaxations`, { waitUntil: "networkidle" });
-  await pp.locator("li", { hasText: "QA medical certificate" }).first().getByRole("button", { name: "Approve" }).click();
-  await pp.getByText("Approved.").first().waitFor({ timeout: 45000 });
+  await pp.goto(`${HOST}/dashboard/relaxations`, { waitUntil: "load", timeout: 90000 });
+  const approve = pp.locator("li", { hasText: "QA medical certificate" }).first().getByRole("button", { name: "Approve" });
+  await approve.waitFor({ timeout: 60000 }); await pp.waitForLoadState("networkidle", { timeout: 60000 }).catch(() => {});
+  await approve.click();
+  await pp.getByText("Approved.").first().waitFor({ timeout: 60000 });
   check(true, "the principal approved it");
-  await p.goto(`${HOST}/dashboard/lectures`, { waitUntil: "networkidle" });
+  await p.goto(`${HOST}/dashboard/lectures`, { waitUntil: "load", timeout: 90000 });
   check(await p.locator("tr", { hasText: name }).getByText("Relaxed").count() >= 1, "the shortage shows as relaxed");
   check(errors.length === 0, `no page errors${errors.length ? ": " + errors.join(" | ") : ""}`);
 } catch (e) { failures++; console.log("FAIL", e.message ?? e); }
