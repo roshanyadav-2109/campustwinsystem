@@ -1,4 +1,4 @@
-import Link from "next/link";
+import Link from "@/components/ui/hover-link";
 import { Card, CardBody, CardHeader } from "@/components/ui/card";
 import { StatusPill } from "@/components/ui/status";
 import { ReceiptButton } from "@/components/fees/fees-downloads";

@@ -1,6 +1,6 @@
 "use client";
 import { useEffect, useId, useState, useTransition } from "react";
-import Link from "next/link";
+import Link from "@/components/ui/hover-link";
 import { Button } from "@/components/ui/button";
 import { Field, Input, Select, Textarea } from "@/components/ui/field";
 import { addFollowup, admitEnquiry, getAdmitOptions, updateEnquiry } from "@/app/dashboard/admissions/actions";

@@ -14,7 +14,7 @@ import {
   FinesDueTable, LoansOutTable, MyBooks, OverdueTable, Pager, SearchBar, StatTile, ViewTabs, hrefFor,
 } from "@/components/library/views";
 import { fmtMoney, plural, type LibrarySettings, type Loan, type MemberRef } from "@/components/library/shared";
-import Link from "next/link";
+import Link from "@/components/ui/hover-link";
 
 type SP = Promise<Record<string, string | string[] | undefined>>;
 type Params = Record<string, string | string[] | undefined>;

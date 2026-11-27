@@ -1,4 +1,4 @@
-import Link from "next/link";
+import Link from "@/components/ui/hover-link";
 import { getT } from "@/i18n/server";
 import { PageHeader } from "@/components/ui/page-header";
 import { EmptyState } from "@/components/ui/empty";

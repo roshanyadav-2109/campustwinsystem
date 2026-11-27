@@ -1,4 +1,4 @@
-import Link from "next/link";
+import Link from "@/components/ui/hover-link";
 import { getT } from "@/i18n/server";
 import { getTodo } from "@/lib/data/todo";
 import type { Session } from "@/lib/session";

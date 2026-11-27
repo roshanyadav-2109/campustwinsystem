@@ -1,5 +1,5 @@
 import { TrendArrow } from "@/components/ui/status";
-import Link from "next/link";
+import Link from "@/components/ui/hover-link";
 import { getSession, getCurrentYear } from "@/lib/session";
 import { getT } from "@/i18n/server";
 import { fmtDate, fmtMonth } from "@/i18n/format";

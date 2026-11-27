@@ -1,4 +1,4 @@
-import Link from "next/link";
+import Link from "@/components/ui/hover-link";
 import { RosterGrid } from "@/components/students/roster-grid";
 import { getSession } from "@/lib/session";
 import { getStudentRecords } from "@/app/dashboard/students/manage/data";

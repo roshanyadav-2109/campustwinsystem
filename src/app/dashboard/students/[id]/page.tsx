@@ -1,4 +1,4 @@
-import Link from "next/link";
+import Link from "@/components/ui/hover-link";
 import { notFound } from "next/navigation";
 import { getSession, getCurrentYear } from "@/lib/session";
 import { guardTab } from "@/lib/access";

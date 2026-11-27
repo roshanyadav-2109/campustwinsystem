@@ -1,4 +1,4 @@
-import Link from "next/link";
+import Link from "@/components/ui/hover-link";
 import { RANGES, type Range } from "@/lib/console/health";
 
 // Segmented time-window switch. Plain links, so the window lives in the URL and

@@ -1,5 +1,5 @@
 import { ArrowRightIcon, ProgressIcon, LeaveIcon, ReportIcon } from "@/components/icons";
-import Link from "next/link";
+import Link from "@/components/ui/hover-link";
 import { getCurrentYear, type Session } from "@/lib/session";
 import { getT } from "@/i18n/server";
 import { createClient } from "@/lib/supabase/server";

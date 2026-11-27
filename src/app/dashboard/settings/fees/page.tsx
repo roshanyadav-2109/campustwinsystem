@@ -4,7 +4,7 @@ import { getFeeHeads, getFeeStructure } from "@/lib/data/fees";
 import { EmptyState } from "@/components/ui/empty";
 import { FeeHeadsManager, FeeStructureGrid } from "@/components/fees/fees-office";
 import { HeadOptions } from "@/components/fees/fees-plan";
-import Link from "next/link";
+import Link from "@/components/ui/hover-link";
 import { createClient } from "@/lib/supabase/server";
 
 export default async function FeeStructurePage() {

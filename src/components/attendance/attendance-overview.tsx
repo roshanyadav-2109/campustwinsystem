@@ -1,5 +1,5 @@
 import { TrendArrow } from "@/components/ui/status";
-import Link from "next/link";
+import Link from "@/components/ui/hover-link";
 import { getT } from "@/i18n/server";
 import { Card, CardBody, CardHeader } from "@/components/ui/card";
 import { cn } from "@/lib/utils";
