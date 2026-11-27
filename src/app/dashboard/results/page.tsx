@@ -24,10 +24,12 @@ export default async function ResultsPage({ searchParams }: { searchParams: SP }
   if (session.role === "student" || session.role === "guardian") {
     const ids = session.role === "student" ? (session.studentId ? [session.studentId] : []) : (await getMyChildren()).map((k) => k.id);
     const cards = await loadCards(supabase, null, ids, session.school.name);
+    const held = (await Promise.all(ids.map(async (id) => ((await supabase.rpc("my_result_holds" as never, { p_student: id } as never)).data ?? []) as unknown as { semester_no: number | null; reason: string }[]))).flat();
     return (
       <div className="space-y-4">
         <PageHeader title="Results" description="Published semester results, with SGPA and CGPA. Download the grade card." />
-        {cards.length === 0 ? <EmptyState art="no-marks" title="No results published yet" /> : <MyResults cards={cards} verifyBase={verifyBase} />}
+        {held.map((h, i) => <p key={i} role="status" className="rounded-sm border border-down bg-white px-3 py-2 text-[13px] text-down">Semester {h.semester_no ?? ""} result is held back: {h.reason}. Speak to the office.</p>)}
+        {cards.length === 0 ? (held.length ? null : <EmptyState art="no-marks" title="No results published yet" />) : <MyResults cards={cards} verifyBase={verifyBase} />}
       </div>
     );
   }

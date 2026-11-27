@@ -27,7 +27,10 @@ begin
   select * into r from public.prepare_admit_cards(v_sess, v_sec, k);
   if not r.withheld or r.reason not like 'Attendance below%' or r.verify_token is not null then raise exception 'FAIL shortage not held: %', r; end if;
   -- condoned: released
-  insert into public.attendance_condonation (semester_id, student_id, subject_id, reason) values (v_sem.id, k, v_subj, 'QA medical');
+  reset role;
+  insert into public.attendance_condonation (school_id, semester_id, student_id, subject_id, reason) values (11, v_sem.id, k, v_subj, 'QA medical');
+  perform set_config('request.jwt.claims', json_build_object('sub', of, 'role', 'authenticated')::text, true);
+  set local role authenticated;
   select * into r from public.prepare_admit_cards(v_sess, v_sec, k);
   if r.withheld then raise exception 'FAIL condoned still held: %', r.reason; end if;
   reset role;

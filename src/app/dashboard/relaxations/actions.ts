@@ -9,7 +9,7 @@ const DATE = /^\d{4}-\d{2}-\d{2}$/;
 const refresh = () => { revalidatePath("/dashboard/relaxations"); revalidatePath("/dashboard/lectures"); };
 
 // Ask for attendance to be relaxed in one course, a fee extension, or a locked lecture day to be opened.
-export async function askRelaxation(input: { kind: "attendance" | "fees" | "unlock"; studentId?: number | null; subjectId?: number | null; sectionId?: number | null; date?: string | null; until?: string | null; reason: string }): Promise<R> {
+export async function askRelaxation(input: { kind: "attendance" | "fees" | "unlock"; studentId?: number | null; subjectId?: number | null; sectionId?: number | null; date?: string | null; until?: string | null; reason: string; direct?: boolean }): Promise<R> {
   if (!(await getSession())?.staffRole) return { ok: false, error: "Only staff can ask for a relaxation." };
   if (input.reason.trim().length < 3) return { ok: false, error: "Give the reason." };
   if (input.kind === "unlock" && !(input.date && DATE.test(input.date))) return { ok: false, error: "Choose the day." };
@@ -17,21 +17,21 @@ export async function askRelaxation(input: { kind: "attendance" | "fees" | "unlo
   const supabase = await createClient();
   const { error } = await supabase.rpc("request_relaxation" as never, {
     p_kind: input.kind, p_student: input.studentId ?? null, p_subject: input.subjectId ?? null, p_section: input.sectionId ?? null,
-    p_date: input.date ?? null, p_until: input.until ?? null, p_reason: input.reason.trim().slice(0, 300),
+    p_date: input.date ?? null, p_until: input.until ?? null, p_reason: input.reason.trim().slice(0, 300), p_override: !!input.direct,
   } as never);
   if (error) return { ok: false, error: clean(error, "Could not send the request.") };
   refresh();
-  return { ok: true, message: "Sent for approval." };
+  return { ok: true, message: input.direct ? "Approved." : "Sent for approval." };
 }
 
 // The office asks for a fee extension for a student, found by admission number.
-export async function askFeeExtension(admissionNo: string, until: string, reason: string): Promise<R> {
+export async function askFeeExtension(admissionNo: string, until: string, reason: string, direct = false): Promise<R> {
   const s = await getSession();
   if (!s?.staffRole) return { ok: false, error: "Not allowed." };
   const supabase = await createClient();
   const { data: st } = await supabase.from("student").select("id").eq("admission_no", admissionNo.trim()).maybeSingle();
   if (!st) return { ok: false, error: "No student with this admission number." };
-  return askRelaxation({ kind: "fees", studentId: st.id, until, reason });
+  return askRelaxation({ kind: "fees", studentId: st.id, until, reason, direct });
 }
 
 export async function decideRelaxation(id: number, approve: boolean, note: string): Promise<R> {
@@ -41,6 +41,14 @@ export async function decideRelaxation(id: number, approve: boolean, note: strin
   refresh();
   const r = String(data);
   return { ok: true, message: r === "approved" ? "Approved." : r === "rejected" ? "Rejected." : "Approved and sent to the next person." };
+}
+
+export async function revokeRelaxation(id: number, reason: string): Promise<R> {
+  const supabase = await createClient();
+  const { error } = await supabase.rpc("revoke_relaxation" as never, { p_id: id, p_reason: reason.trim().slice(0, 300) } as never);
+  if (error) return { ok: false, error: clean(error, "Could not withdraw.") };
+  refresh();
+  return { ok: true, message: "Withdrawn. The hold applies again." };
 }
 
 export async function cancelRelaxation(id: number): Promise<R> {

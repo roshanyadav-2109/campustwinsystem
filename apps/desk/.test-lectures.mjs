@@ -19,6 +19,8 @@ try {
   const today = new Date(Date.now() + 5.5 * 3600 * 1000).toISOString().slice(0, 10);
   const { data: sem } = await admin.from("semester").select("id, starts_on, ends_on").eq("school_id", S).eq("is_current", true).single();
   made.semester = sem;
+  const { data: sc } = await admin.from("school").select("relax_chain").eq("id", S).single(); made.chain = sc.relax_chain;
+  await admin.from("school").update({ relax_chain: { ...sc.relax_chain, attendance: ["head"] } }).eq("id", S);
   if (today > sem.ends_on) await admin.from("semester").update({ ends_on: today }).eq("id", sem.id);
   const email = `qa-lec-${stamp}@example.com`;
   const { data: st } = await admin.from("staff").insert({ school_id: S, full_name: "QA Lectures (temporary)", email, role: "office" }).select("id").single(); made.staff = st.id;
@@ -45,14 +47,22 @@ try {
   await p.locator("tr", { hasText: name }).getByRole("button", { name: "Send" }).click();
   await p.getByText("Sent for approval.").first().waitFor({ timeout: 20000 });
   check(true, "the office asked to relax the shortage");
-  // the principal approves (the principal can approve at any step)
-  await admin.from("staff").update({ role: "principal" }).eq("id", made.staff);
-  await p.goto(`${HOST}/dashboard/relaxations`, { waitUntil: "networkidle" });
-  const item = p.locator("li", { hasText: "QA medical certificate" }).first();
-  await item.getByRole("button", { name: "Approve" }).click();
-  await p.getByText("Approved.").first().waitFor({ timeout: 20000 });
+  check(await p.locator("tr", { hasText: name }).getByText("Waiting for approval").count() >= 1, "it shows as waiting");
+  // a principal (another person) approves
+  const pemail = `qa-lec-p-${stamp}@example.com`;
+  const { data: ps } = await admin.from("staff").insert({ school_id: S, full_name: "QA Principal (temporary)", email: pemail, role: "principal" }).select("id").single(); made.pstaff = ps.id;
+  const { data: pu } = await admin.auth.admin.createUser({ email: pemail, email_confirm: true }); made.puser = pu.user.id;
+  await admin.from("profile").insert({ id: pu.user.id, role: "staff", full_name: "QA Principal (temporary)", school_id: S, staff_id: ps.id });
+  const { data: pl } = await admin.auth.admin.generateLink({ type: "magiclink", email: pemail });
+  const { data: pv } = await createClient(env.NEXT_PUBLIC_SUPABASE_URL, env.NEXT_PUBLIC_SUPABASE_ANON_KEY, { auth: { persistSession: false } }).auth.verifyOtp({ type: "magiclink", token_hash: pl.properties.hashed_token });
+  const pjar = []; await createServerClient(env.NEXT_PUBLIC_SUPABASE_URL, env.NEXT_PUBLIC_SUPABASE_ANON_KEY, { cookies: { getAll: () => [], setAll: (c) => pjar.push(...c) } }).auth.setSession(pv.session);
+  const pctx = await b.newContext({ viewport: { width: 1440, height: 1000 } });
+  await pctx.addCookies(pjar.map((c) => ({ name: c.name, value: c.value, domain: ".campustwin.org", path: "/", secure: true, sameSite: "Lax" })));
+  const pp = await pctx.newPage(); pp.on("pageerror", (e) => errors.push(e.message));
+  await pp.goto(`${HOST}/dashboard/relaxations`, { waitUntil: "networkidle" });
+  await pp.locator("li", { hasText: "QA medical certificate" }).first().getByRole("button", { name: "Approve" }).click();
+  await pp.getByText("Approved.").first().waitFor({ timeout: 20000 });
   check(true, "the principal approved it");
-  await admin.from("staff").update({ role: "office" }).eq("id", made.staff);
   await p.goto(`${HOST}/dashboard/lectures`, { waitUntil: "networkidle" });
   check(await p.locator("tr", { hasText: name }).getByText("Relaxed").count() >= 1, "the shortage shows as relaxed");
   check(errors.length === 0, `no page errors${errors.length ? ": " + errors.join(" | ") : ""}`);
@@ -62,6 +72,9 @@ finally {
   await admin.from("attendance_condonation").delete().eq("school_id", S).like("reason", "QA%");
   await admin.from("relaxation_request").delete().eq("school_id", S).like("reason", "QA%");
   if (made.semester) await admin.from("semester").update({ ends_on: made.semester.ends_on }).eq("id", made.semester.id);
+  if (made.chain) await admin.from("school").update({ relax_chain: made.chain }).eq("id", S);
+  if (made.puser) { await admin.from("profile").delete().eq("id", made.puser); await admin.auth.admin.deleteUser(made.puser); }
+  if (made.pstaff) await admin.from("staff").delete().eq("id", made.pstaff);
   if (made.user) { await admin.from("profile").delete().eq("id", made.user); await admin.auth.admin.deleteUser(made.user); }
   if (made.staff) await admin.from("staff").delete().eq("id", made.staff);
   await b.close();
