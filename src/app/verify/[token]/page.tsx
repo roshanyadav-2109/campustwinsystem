@@ -10,6 +10,7 @@ type Card = { student_name: string; class_label: string | null; school_name: str
 type Report = { valid: boolean; reason: string; student_name: string; class_label: string | null; term_name: string | null; year_name: string | null; school_name: string; published_on: string };
 type Admit = { valid: boolean; student_name: string; class_label: string | null; exam_name: string; school_name: string };
 type Grade = { valid: boolean; student_name: string; programme: string | null; semester_no: number | null; sgpa: number | null; cgpa: number | null; school_name: string; published_on: string };
+type Transcript = { valid: boolean; student_name: string; programme: string | null; cgpa: number | null; credits: number | null; school_name: string; issued_on: string };
 type Cert = { kind: string; number: string | null; student_name: string; admission_no: string; issued_on: string; school_name: string; school_place: string | null; status: string };
 
 function Facts({ rows }: { rows: [string, string][] }) {
@@ -26,10 +27,12 @@ export default async function VerifyPage({ params }: { params: Promise<{ token: 
   const { token } = await params;
   const ok = /^[a-f0-9]{32,64}$/.test(token);
   const anon = createClient(SUPABASE_URL, SUPABASE_ANON_KEY, { auth: { persistSession: false } });
-  const [{ data: cardData }, { data: certData }, { data: repData }, { data: admData }, { data: gcData }] = ok
+  const [{ data: cardData }, { data: certData }, { data: repData }, { data: admData }, { data: gcData }, { data: trData }] = ok
     ? await Promise.all([anon.rpc("verify_id_card" as never, { p_token: token } as never), anon.rpc("verify_certificate" as never, { p_token: token } as never),
-        anon.rpc("verify_report_card" as never, { p_token: token } as never), anon.rpc("verify_admit_card" as never, { p_token: token } as never), anon.rpc("verify_grade_card" as never, { p_token: token } as never)])
-    : [{ data: null }, { data: null }, { data: null }, { data: null }, { data: null }];
+        anon.rpc("verify_report_card" as never, { p_token: token } as never), anon.rpc("verify_admit_card" as never, { p_token: token } as never), anon.rpc("verify_grade_card" as never, { p_token: token } as never),
+        anon.rpc("verify_transcript" as never, { p_token: token } as never)])
+    : [{ data: null }, { data: null }, { data: null }, { data: null }, { data: null }, { data: null }];
+  const transcript = ((trData ?? []) as Transcript[])[0];
   const report = ((repData ?? []) as Report[])[0];
   const admit = ((admData ?? []) as Admit[])[0];
   const gcard = ((gcData ?? []) as Grade[])[0];
@@ -54,6 +57,12 @@ export default async function VerifyPage({ params }: { params: Promise<{ token: 
           {!report.valid && <p className="mt-1 text-[14px] text-ink-900">{report.reason}</p>}
           <Facts rows={[["Student", report.student_name], ["Class", report.class_label ?? ""], ["Report", [report.term_name, report.year_name].filter(Boolean).join(", ")], ["Institution", report.school_name], ["Published", day(report.published_on)]]} />
           <p className="mt-4 text-[12px] text-ink-500">Marks are not shown here. Compare the printed card with the one in the parent&apos;s CampusTwin account.</p>
+        </>
+      ) : transcript ? (
+        <>
+          <h1 className={`mt-2 text-[22px] font-semibold ${transcript.valid ? "text-up" : "text-down"}`}>{transcript.valid ? "Transcript on record" : "This transcript has been withdrawn"}</h1>
+          <Facts rows={[["Student", transcript.student_name], ["Programme", transcript.programme ?? ""], ["CGPA", transcript.cgpa == null ? "" : String(transcript.cgpa)], ["Credits earned", transcript.credits == null ? "" : String(transcript.credits)], ["Institution", transcript.school_name], ["Issued", day(transcript.issued_on)]]} />
+          <p className="mt-4 text-[12px] text-ink-500">Compare the CGPA and credits with the printed transcript.</p>
         </>
       ) : gcard ? (
         <>

@@ -33,6 +33,8 @@ const en = {
     noAccess: "You don't have access to this page.",
   },
   nav: {
+    transcripts: "Transcripts",
+    returns: "Returns and university",
     invigilation: "Invigilation",
     examCell: "Exam cell",
     seating: "Seating and invigilation",
