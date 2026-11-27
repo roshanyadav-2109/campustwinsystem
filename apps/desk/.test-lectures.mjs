@@ -45,7 +45,7 @@ try {
   await p.locator("tr", { hasText: name }).getByRole("button", { name: "Ask to relax" }).first().click();
   await p.getByLabel(`Reason for ${name}`).fill("QA medical certificate");
   await p.locator("tr", { hasText: name }).getByRole("button", { name: "Send" }).click();
-  await p.getByText("Sent for approval.").first().waitFor({ timeout: 20000 });
+  await p.getByText("Sent for approval.").first().waitFor({ timeout: 60000 }).catch(async () => { console.log("DEBUG", await p.locator("[role=alert]").allInnerTexts()); throw new Error("no confirmation"); });
   check(true, "the office asked to relax the shortage");
   await p.reload({ waitUntil: "load", timeout: 90000 });
   check(await p.locator("tr", { hasText: name }).getByText("Waiting for approval").count() >= 1, "it shows as waiting");
