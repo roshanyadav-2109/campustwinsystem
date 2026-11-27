@@ -1,5 +1,6 @@
 import { guardTab } from "@/lib/access";
 import { getSession } from "@/lib/session";
+import { managesPeople } from "@/lib/roles";
 import { PageHeader } from "@/components/ui/page-header";
 import { createClient } from "@/lib/supabase/server";
 import { PositionsAdmin, type TitleRow, type UnitRow, type PositionRow } from "@/components/settings/positions";
@@ -30,7 +31,7 @@ export default async function PositionsPage() {
         staff={(s.data ?? []).map((x) => ({ id: x.id, name: x.full_name }))}
         positions={(p.data ?? []) as unknown as PositionRow[]}
         log={(l.data ?? []) as unknown as { at: string; action: string; detail: string; staff: { full_name: string } | null; by: { full_name: string } | null }[]}
-        canEdit={session?.staffRole === "office" || session?.staffRole === "principal"} />
+        canEdit={managesPeople(session)} />
     </div>
   );
 }

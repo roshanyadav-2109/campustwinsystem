@@ -2,7 +2,7 @@
 -- scope checks, several positions per person, titles and signatories. Rolled back.
 begin;
 do $$ declare of uuid := gen_random_uuid(); te uuid := gen_random_uuid(); v_off bigint; v_t bigint; v_hod bigint; v_dean bigint; v_dir bigint; v_dept bigint; v_unit bigint;
-  v_p bigint; ok boolean; v_titles text;
+  v_p bigint; ok boolean; v_titles text; de uuid := gen_random_uuid(); v_dep bigint; v_head_t bigint; v_hp bigint; gf uuid := gen_random_uuid(); v_gf bigint;
 begin
   insert into auth.users (id, email, aud, role) values (of, 'qa-pos-office@example.com', 'authenticated', 'authenticated'), (te, 'qa-pos-teacher@example.com', 'authenticated', 'authenticated');
   insert into public.staff (school_id, full_name, email, role) values (11, 'QA Office', 'qa-pos-office@example.com', 'office') returning id into v_off;
@@ -66,6 +66,44 @@ begin
   insert into public.staff_position (school_id, staff_id, title_id) values (11, v_t, v_dir);
   perform set_config('request.jwt.claims', json_build_object('sub', te, 'role', 'authenticated')::text, true); set local role authenticated;
   if app.is_office() or not app.is_exams() or not app.can_publish_results() then raise exception 'FAIL exams head access'; end if;
+  reset role;
+  -- a deputy head: no top positions, no assigning at all, cannot end the head
+  insert into auth.users (id, email, aud, role) values (de, 'qa-pos-deputy@example.com', 'authenticated', 'authenticated');
+  insert into public.staff (school_id, full_name, email, role) values (11, 'QA Deputy', 'qa-pos-deputy@example.com', 'subject_teacher') returning id into v_dep;
+  insert into public.profile (id, role, full_name, school_id, staff_id) values (de, 'staff', 'QA Deputy', 11, v_dep);
+  insert into public.staff_position (school_id, staff_id, title_id) select 11, v_dep, id from public.position_title where school_id = 11 and access_type = 'deputy_head' limit 1;
+  select p.id into v_hp from public.staff_position p join public.position_title t on t.id = p.title_id where p.school_id = 11 and t.access_type = 'head' limit 1;
+  perform set_config('request.jwt.claims', json_build_object('sub', de, 'role', 'authenticated')::text, true); set local role authenticated;
+  if not app.is_principal() or app.is_head() or not app.is_deputy_only() then raise exception 'FAIL deputy flags'; end if;
+  ok := false; begin perform public.assign_position(v_t, v_hod, null, v_dept, null, null, null, false); exception when others then ok := true; end;
+  if not ok then raise exception 'FAIL deputy assigned a position'; end if;
+  ok := false; begin perform public.end_position(v_hp, null); exception when others then ok := true; end;
+  if not ok then raise exception 'FAIL deputy ended the head'; end if;
+  -- nobody makes themselves principal through the staff record
+  ok := false; begin update public.staff set role = 'principal' where id = v_dep; exception when others then ok := true; end;
+  if not ok then raise exception 'FAIL deputy made self principal'; end if;
+  reset role;
+  -- the office cannot end the head position either, nor promote anyone to principal
+  perform set_config('request.jwt.claims', json_build_object('sub', of, 'role', 'authenticated')::text, true); set local role authenticated;
+  ok := false; begin perform public.end_position(v_hp, null); exception when others then ok := true; end;
+  if not ok then raise exception 'FAIL office ended the head'; end if;
+  ok := false; begin update public.staff set role = 'principal' where id = v_t; exception when others then ok := true; end;
+  if not ok then raise exception 'FAIL office made a principal'; end if;
+  reset role;
+  -- office record + head position: still does office work and may publish where there is no CoE
+  insert into public.staff_position (school_id, staff_id, title_id) select 11, v_off, id from public.position_title where school_id = 11 and access_type = 'head' and scope_level = 'campus' limit 1;
+  perform set_config('request.jwt.claims', json_build_object('sub', of, 'role', 'authenticated')::text, true); set local role authenticated;
+  if not app.is_office() or not app.is_head() or not app.is_exams() then raise exception 'FAIL office plus head lost office work'; end if;
+  reset role;
+  delete from public.staff_position where staff_id = v_off;
+  -- a school (Greenfield) cannot use positions
+  insert into auth.users (id, email, aud, role) values (gf, 'qa-pos-gf@example.com', 'authenticated', 'authenticated');
+  insert into public.staff (school_id, full_name, email, role) values (8, 'QA GF Office', 'qa-pos-gf@example.com', 'office') returning id into v_gf;
+  insert into public.profile (id, role, full_name, school_id, staff_id) values (gf, 'staff', 'QA GF', 8, v_gf);
+  perform set_config('request.jwt.claims', json_build_object('sub', gf, 'role', 'authenticated')::text, true); set local role authenticated;
+  ok := false; begin insert into public.position_title (name, access_type, scope_level) values ('QA Exam Staff', 'exams_staff', 'campus'); exception when others then ok := true; end;
+  if not ok then raise exception 'FAIL a school created a title'; end if;
+  if cardinality(app.my_access_types()) <> 0 then raise exception 'FAIL school access types'; end if;
   reset role;
   -- an ended position gives nothing
   update public.staff_position set starts_on = current_date - 10, ends_on = current_date - 1 where staff_id = v_t and title_id = v_dir;

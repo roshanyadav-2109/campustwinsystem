@@ -2,11 +2,12 @@
 import { revalidatePath } from "next/cache";
 import { createClient } from "@/lib/supabase/server";
 import { getSession } from "@/lib/session";
+import { managesPeople } from "@/lib/roles";
 
 type R = { ok: true; message?: string } | { ok: false; error: string };
 const PATH = "/dashboard/settings/positions";
 const clean = (e: { message: string }, f: string) => (e.message.length < 160 && !e.message.includes("violates") ? e.message : f);
-async function admin() { const s = await getSession(); return s?.staffRole === "office" || s?.staffRole === "principal"; }
+async function admin() { return managesPeople(await getSession()); }
 const ACCESS_TYPES = ["governing", "head", "deputy_head", "registrar", "finance_head", "student_affairs", "exams_head", "exams_deputy", "exams_staff",
   "confidential", "evaluator", "moderator", "exam_centre", "revaluation", "dean", "dept_head", "programme_coord", "faculty", "advisor", "office_staff", "service"];
 const LEVELS = ["university", "campus", "faculty", "department", "programme"];

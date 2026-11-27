@@ -24,6 +24,9 @@ export type Session = {
   baseStaffRole: StaffRole | null;
   // campus-wide access types from current positions (colleges and universities)
   accessTypes: string[];
+  // the head (principal record or head position, not a deputy), and a deputy head with nothing more
+  isHead: boolean;
+  deputyOnly: boolean;
   // effective role for labels (from staff.role)
   effectiveRole: StaffRole | "student" | "guardian";
   isAdminScope: boolean; // principal or office
@@ -149,13 +152,15 @@ export const getSession = cache(async (): Promise<Session | null> => {
   const todayIST = new Date(Date.now() + 5.5 * 3600 * 1000).toISOString().slice(0, 10);
   const positions = (data.staff as { staff_position?: { school_id: number; starts_on: string; ends_on: string | null; title: { access_type: string; scope_level: string } | null }[] } | null)?.staff_position ?? [];
   const accessTypes = [...new Set(positions
-    .filter((p) => p.school_id === data.school_id && p.title && ["campus", "university"].includes(p.title.scope_level) && p.starts_on <= todayIST && (!p.ends_on || p.ends_on >= todayIST))
+    .filter((p) => p.school_id === ((data as { active_campus_id: number | null }).active_campus_id ?? data.school_id) && p.title && ["campus", "university"].includes(p.title.scope_level) && p.starts_on <= todayIST && (!p.ends_on || p.ends_on >= todayIST))
     .map((p) => p.title!.access_type))];
   const staffRole: StaffRole | null = baseStaffRole === "principal" ? baseStaffRole
     : accessTypes.some((t) => t === "head" || t === "deputy_head") ? "principal"
     : baseStaffRole === "office" ? baseStaffRole
     : accessTypes.includes("registrar") ? "office" : baseStaffRole;
   const upgraded = staffRole !== baseStaffRole;
+  const isHead = baseStaffRole === "principal" || accessTypes.includes("head");
+  const deputyOnly = accessTypes.includes("deputy_head") && !isHead && baseStaffRole !== "office" && !accessTypes.includes("registrar");
   const effectiveRole: Session["effectiveRole"] =
     data.role === "staff" ? (staffRole ?? "office") : data.role;
 
@@ -249,6 +254,8 @@ export const getSession = cache(async (): Promise<Session | null> => {
     staffRole,
     baseStaffRole,
     accessTypes,
+    isHead,
+    deputyOnly,
     effectiveRole,
     isAdminScope: staffRole === "principal" || staffRole === "office",
     isClassTeacher,

@@ -1,3 +1,4 @@
+import { EmptyState } from "@/components/ui/empty";
 import { SignInDomains } from "@/components/manage/access/signin-domains";
 import { getSession } from "@/lib/session";
 import { guardTab } from "@/lib/access";
@@ -65,6 +66,7 @@ async function ManageAccessPageBody() {
 export default async function ManageAccessPage() {
   const denied = await guardTab("/dashboard/settings/access");
   if (denied) return denied;
+  if ((await getSession())?.deputyOnly) return <EmptyState art="no-results" title="You don't have access to this page" hint="Logins and access are managed by the office and the head." />;
   return (
     <div>
       <PageHeader title="Logins and access" description="Who can sign in, and as what." />

@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { guardTab } from "@/lib/access";
 import { getSession } from "@/lib/session";
+import { isExams } from "@/lib/roles";
 import { PageHeader } from "@/components/ui/page-header";
 import { EmptyState } from "@/components/ui/empty";
 import { createClient } from "@/lib/supabase/server";
@@ -66,8 +67,14 @@ export default async function ResultsPage({ searchParams }: { searchParams: SP }
         <Link key={s.id} href={link({ section: s.id })} className={`rounded-sm border px-2.5 py-1 text-[13px] ${s.id === section.id ? "border-ink-900 bg-ink-900 text-white" : "border-hair bg-white text-ink-700"}`}>{s.label}</Link>))}
       </div>
       {error ? <EmptyState art="error" title="Could not prepare results" hint={error.message} /> : (
+        <>
+        {mayPublish !== true && (session.staffRole === "office" || isExams(session)) && (
+          <p className="text-[13px] text-ink-700">{(() => { const c = ((coe ?? []) as unknown as { title: string; name: string }[])[0];
+            return c ? `Results are published by ${c.name}, ${c.title}.` : "Results are published by the office or the head."; })()}</p>
+        )}
         <ResultsDesk key={`${semId}-${section.id}`} semesterId={semId} sectionId={section.id} rows={(prev ?? []) as unknown as PreviewRow[]}
           published={Object.fromEntries(published)} canPublish={mayPublish === true} verifyBase={verifyBase} signers={signers} />
+        </>
       )}
     </div>
   );
