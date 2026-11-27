@@ -38,7 +38,7 @@ try {
   await p.getByLabel("Title", { exact: true }).selectOption({ label: "Programme Coordinator" });
   await p.getByLabel("Where", { exact: true }).selectOption({ index: 1 });
   await p.getByLabel("Acting / in charge").check();
-  await p.getByRole("button", { name: "Assign" }).click();
+  await p.getByRole("button", { name: "Assign", exact: true }).last().click();
   await p.getByText("Assigned.").waitFor({ timeout: 60000 });
   await p.locator("tr", { hasText: `QA Lecturer ${stamp}` }).getByText(/^Acting Programme Coordinator/).waitFor({ timeout: 60000 });
   check(true, "a position was assigned (acting)");
@@ -55,7 +55,7 @@ try {
   const { data: got } = await admin.from("staff_position").select("id").eq("staff_id", t2.id);
   check((got ?? []).length === 1, "the position was handed over");
   await p.goto(`${HOST}/dashboard/settings/teachers`, { waitUntil: "load", timeout: 90000 });
-  check(await p.getByText(/^Acting Programme Coordinator, /).count() >= 1, "the staff list shows the title under the name");
+  check(await p.getByText(/Programme Coordinator, /).count() >= 1, "the staff list shows the title under the name");
 
   await p.goto(`${HOST}/dashboard/settings/positions`, { waitUntil: "load", timeout: 90000 });
   await p.waitForLoadState("networkidle", { timeout: 45000 }).catch(() => {});

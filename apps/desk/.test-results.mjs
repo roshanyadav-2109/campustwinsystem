@@ -53,7 +53,7 @@ try {
   await op.waitForLoadState("networkidle", { timeout: 45000 }).catch(() => {});
   check(await op.getByRole("cell", { name: en.student.full_name, exact: true }).count() === 1, "the section's students are previewed");
   await op.getByRole("button", { name: "Publish results" }).click();
-  await op.getByText(/Results published for \d+ students\./).waitFor({ timeout: 60000 });
+  await op.getByText(/Results published for \d+ students\./).waitFor({ timeout: 60000 }).catch(async () => { console.log("DEBUG", await op.locator("[role=alert],[role=status]").allInnerTexts(), (await op.locator("main").innerText()).slice(0, 400)); throw new Error("no publish confirmation"); });
   const { data: sr } = await admin.from("semester_result").select("sgpa, cgpa, verify_token").eq("semester_id", sem.id).eq("student_id", reg.student_id).single();
   check(sr && sr.sgpa != null && Number(sr.sgpa) === Number(sr.cgpa), `published with SGPA ${sr?.sgpa} (= CGPA after one semester)`);
   // the table refreshes after publishing (slow on the live site); the download button waits for it
