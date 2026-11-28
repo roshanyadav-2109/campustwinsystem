@@ -101,7 +101,7 @@ export async function recordVerified(admin: { rpc: (fn: never, args: never) => P
 
 export async function postForm(url: string, body: Record<string, string>): Promise<{ ok: boolean; status: number; text: string }> {
   try {
-    const r = await fetch(url, { method: "POST", headers: { "Content-Type": "application/x-www-form-urlencoded", Accept: "application/json" }, body: new URLSearchParams(body).toString() });
+    const r = await fetch(url, { method: "POST", headers: { "Content-Type": "application/x-www-form-urlencoded", Accept: "application/json", "User-Agent": "Mozilla/5.0 (compatible; CampusTwin/1.0; +https://campustwin.org)" }, body: new URLSearchParams(body).toString() });
     return { ok: r.ok, status: r.status, text: await r.text() };
   } catch { return { ok: false, status: 0, text: "" }; }
 }
