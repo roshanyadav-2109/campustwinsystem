@@ -60,3 +60,52 @@ export async function resolvePayment(orderId: number, note: string): Promise<Res
   revalidatePath(PATH);
   return { ok: true, message: "Marked as resolved." };
 }
+
+// Razorpay: the key id is public (the payer's browser needs it); the key secret and the webhook secret go to Vault.
+export async function saveRazorpayKeys(gatewayId: number, input: { keyId: string; keySecret: string; webhookSecret: string }): Promise<Result> {
+  const s = await office();
+  if (!s) return { ok: false, error: "Only the office or the finance head can change payment settings." };
+  const keyId = input.keyId.trim(), keySecret = input.keySecret.trim(), webhookSecret = input.webhookSecret.trim();
+  if (!/^rzp_(test|live)_[A-Za-z0-9]{8,32}$/.test(keyId)) return { ok: false, error: "The Key ID starts with rzp_live_ (or rzp_test_ in test mode). Copy it from Razorpay, Account & Settings, API keys." };
+  if (keySecret.length < 10 || keySecret.length > 100) return { ok: false, error: "Paste the Key Secret shown when the key was made in Razorpay." };
+  if (webhookSecret.length < 6 || webhookSecret.length > 100) return { ok: false, error: "Enter the webhook secret you typed when adding the webhook in Razorpay." };
+  const supabase = await createClient();
+  const { data: g } = await supabase.from("payment_gateway" as never).select("id, provider, mode").eq("id", gatewayId).maybeSingle();
+  const gw = g as unknown as { provider: string; mode: string } | null;
+  if (!gw || gw.provider !== "razorpay") return { ok: false, error: "Unknown gateway." };
+  if ((gw.mode === "test") !== keyId.startsWith("rzp_test_")) return { ok: false, error: gw.mode === "test" ? "This gateway is in test mode: use a key starting rzp_test_." : "This gateway is live: use a key starting rzp_live_." };
+  const { error: e1 } = await supabase.rpc("set_payment_gateway_secret" as never, { p_gateway: gatewayId, p_secret: JSON.stringify({ key_secret: keySecret, webhook_secret: webhookSecret }) } as never);
+  if (e1) return { ok: false, error: "Could not save the keys." };
+  const { error: e2 } = await supabase.rpc("set_payment_gateway_config" as never, { p_gateway: gatewayId, p_config: { key_id: keyId } } as never);
+  if (e2) return { ok: false, error: "Could not save the Key ID." };
+  revalidatePath(PATH);
+  return { ok: true, message: "Keys saved securely; the secrets will not be shown again. Now test the connection." };
+}
+
+// Ask Razorpay whether the saved keys work (reads one order; changes nothing).
+export async function testGatewayConnection(gatewayId: number): Promise<Result> {
+  const s = await office();
+  if (!s) return { ok: false, error: "Only the office or the finance head can change payment settings." };
+  const { createAdminClient } = await import("@/lib/supabase/admin");
+  const { data } = await createAdminClient().rpc("payment_gateway_keys" as never, { p_gateway: gatewayId, p_school: s.schoolId } as never);
+  const row = ((data ?? []) as unknown as { provider: string; mode: string; config: Record<string, unknown>; secret: string | null }[])[0];
+  if (!row) return { ok: false, error: "Unknown gateway." };
+  if (row.provider !== "razorpay") return { ok: false, error: "A connection test is available for Razorpay." };
+  const { razorpayKeys, razorpayApi } = await import("@/core/payments/razorpay");
+  const keys = razorpayKeys(row);
+  if (!keys) return { ok: false, error: "Save the keys first." };
+  const r = await razorpayApi(keys, "/orders?count=1");
+  if (!r.ok) return { ok: false, error: r.status === 401 ? "Razorpay did not accept these keys. Check the Key ID and Key Secret." : `Razorpay could not be reached (${r.error}). Try again shortly.` };
+  return { ok: true, message: `Connected to Razorpay${row.mode === "test" ? " (test mode)" : ""}. Switch it on for parents when ready.` };
+}
+
+export type PaymentProfileInput = Record<string, string | boolean>;
+export async function savePaymentProfile(p: PaymentProfileInput, pan: string, bankAccount: string): Promise<Result> {
+  if (!(await office())) return { ok: false, error: "Only the office or the finance head can change payment settings." };
+  const supabase = await createClient();
+  const { error } = await supabase.rpc("save_payment_profile" as never, { p, p_pan: pan || null, p_bank_account: bankAccount || null } as never);
+  if (error) return { ok: false, error: error.code === "P0001" || error.message.length < 120 ? error.message.replace(/^.*violates check constraint.*$/, "Check the GSTIN and IFSC format.") : "Could not save." };
+  revalidatePath(PATH);
+  revalidatePath("/policies", "layout");
+  return { ok: true, message: "Saved. Your policy pages now show these details." };
+}

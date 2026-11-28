@@ -1,6 +1,8 @@
 import { isFinance } from "@/lib/roles";
 import { guardTab } from "@/lib/access";
 import { getSession } from "@/lib/session";
+import { headers } from "next/headers";
+import { GatewayApplication, type PaymentProfile } from "@/components/settings/gateway-application";
 import { PageHeader } from "@/components/ui/page-header";
 import { Card, CardBody, CardHeader } from "@/components/ui/card";
 import { createClient } from "@/lib/supabase/server";
@@ -23,8 +25,11 @@ export default async function PaymentSettingsPage() {
     supabase.from("payment_order" as never).select("id, created_at, amount, status, mode, provider, failure_reason, refund_due, refunded_amount, method, student:student_id(full_name), fee_payment:fee_payment_id(receipt_no)")
       .or("status.eq.review,refund_due.gt.0").order("created_at").limit(500),
   ]);
-  const gateways: GatewayRow[] = ((gwRes.data ?? []) as unknown as (Omit<GatewayRow, "hasKeys" | "merchantId"> & { secret_id: string | null; config: { merchant_id?: string } })[])
-    .map((g) => ({ id: g.id, provider: g.provider, label: g.label, mode: g.mode, active: g.active, hasKeys: !!g.secret_id, merchantId: g.config?.merchant_id ?? "", updated_at: g.updated_at }));
+  const gateways: GatewayRow[] = ((gwRes.data ?? []) as unknown as (Omit<GatewayRow, "hasKeys" | "merchantId"> & { secret_id: string | null; config: { merchant_id?: string; key_id?: string } })[])
+    .map((g) => ({ id: g.id, provider: g.provider, label: g.label, mode: g.mode, active: g.active, hasKeys: !!g.secret_id, merchantId: g.config?.merchant_id ?? "", keyId: g.config?.key_id ?? "", updated_at: g.updated_at }));
+  const host = (await headers()).get("host") ?? "";
+  const site = `https://${host}`;
+  const { data: prof } = isFinance(session) ? await supabase.from("payment_profile" as never).select("legal_name, entity_type, registration_no, gstin, pan_last4, contact_name, contact_phone, contact_email, address, expected_monthly, bank_holder, bank_ifsc, bank_last4, admission_refundable, refund_days, hostel_rule, transport_rule, extra_terms, grievance_name").maybeSingle() : { data: null };
   const orders = (ordRes.data ?? []) as unknown as OrderRow[];
   const attention = (attRes.data ?? []) as unknown as OrderRow[];
   const money = (v: number) => `Rs ${Number(v).toLocaleString("en-IN", { minimumFractionDigits: 2 })}`;
@@ -32,7 +37,8 @@ export default async function PaymentSettingsPage() {
   return (
     <div className="space-y-5">
       <PageHeader title="Online payment" description="Parents pay fees online into your own merchant account. Add your gateway and its keys; the receipt, the bill and Finance update by themselves." />
-      {isFinance(session) && <PaymentGateways gateways={gateways} />}
+      {isFinance(session) && <PaymentGateways gateways={gateways} webhookBase={site} />}
+      {isFinance(session) && <GatewayApplication profile={(prof ?? null) as unknown as PaymentProfile | null} site={site} school={{ name: session?.school.name ?? "", higherEd: !!session?.school.higherEd }} />}
       {attention.length > 0 && (
         <Card>
           <CardHeader title="Needs your attention" action={<span className="text-[12px] text-down">{attention.length}</span>} />

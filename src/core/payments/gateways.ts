@@ -59,7 +59,8 @@ const testGateway: GatewayConnector = {
   },
 };
 
-export const CONNECTORS: Record<string, GatewayConnector> = { test: testGateway };
+import { razorpay } from "@/core/payments/razorpay";
+export const CONNECTORS: Record<string, GatewayConnector> = { test: testGateway, razorpay };
 
 export { GATEWAY_CHOICES } from "@/core/payments/choices";
 export const hasConnector = (id: string) => id in CONNECTORS;

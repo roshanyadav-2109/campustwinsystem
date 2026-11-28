@@ -15,4 +15,4 @@ export const GATEWAY_CHOICES: { id: string; label: string }[] = [
   { id: "icici", label: "ICICI Eazypay" },
   { id: "sbi", label: "SBI ePay" },
 ];
-export const CONNECTED = new Set(["test"]);   // gateways with a connector built
+export const CONNECTED = new Set(["test", "razorpay"]);   // gateways with a connector built

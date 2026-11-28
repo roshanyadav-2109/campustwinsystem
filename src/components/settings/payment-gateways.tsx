@@ -5,9 +5,9 @@ import { Card, CardBody, CardHeader } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Field, Input, Select, Textarea } from "@/components/ui/field";
 import { GATEWAY_CHOICES, CONNECTED } from "@/core/payments/choices";
-import { addGateway, saveGatewayKeys, setActiveGateway, resolvePayment } from "@/app/dashboard/settings/payments/actions";
+import { addGateway, saveGatewayKeys, setActiveGateway, resolvePayment, saveRazorpayKeys, testGatewayConnection } from "@/app/dashboard/settings/payments/actions";
 
-export type GatewayRow = { id: number; provider: string; label: string | null; mode: "live" | "test"; active: boolean; hasKeys: boolean; merchantId: string; updated_at: string };
+export type GatewayRow = { id: number; provider: string; label: string | null; mode: "live" | "test"; active: boolean; hasKeys: boolean; merchantId: string; keyId?: string; updated_at: string };
 const name = (id: string) => GATEWAY_CHOICES.find((g) => g.id === id)?.label ?? id;
 
 function Msg({ m }: { m: { ok: boolean; text: string } | null }) {
@@ -15,7 +15,7 @@ function Msg({ m }: { m: { ok: boolean; text: string } | null }) {
   return <p role={m.ok ? "status" : "alert"} className={`text-[13px] font-medium ${m.ok ? "text-up" : "text-down"}`}>{m.text}</p>;
 }
 
-function GatewayCard({ g }: { g: GatewayRow }) {
+function GatewayCard({ g, webhookBase }: { g: GatewayRow; webhookBase: string }) {
   const uid = useId();
   const [keys, setKeys] = useState("");
   const [msg, setMsg] = useState<{ ok: boolean; text: string } | null>(null);
@@ -33,7 +33,8 @@ function GatewayCard({ g }: { g: GatewayRow }) {
           : <Button size="sm" disabled={pending} onClick={() => start(async () => { const r = await setActiveGateway(g.id); setMsg(r.ok ? { ok: true, text: r.message ?? "" } : { ok: false, text: r.error }); router.refresh(); })}>Use for parents</Button>}
       </div>
       {!ready && <p className="mt-1 text-[12px] text-ink-500">CampusTwin connects {name(g.provider)} for you. Save your merchant keys here; we will tell you when it is ready.</p>}
-      {g.provider !== "test" && (
+      {g.provider === "razorpay" && <RazorpayKeys g={g} webhookBase={webhookBase} onMsg={setMsg} />}
+      {g.provider !== "test" && g.provider !== "razorpay" && (
         <div className="mt-2 space-y-2">
           <Field label={g.hasKeys ? "Keys (saved; enter new ones to replace them)" : "Keys from your gateway"} htmlFor={`${uid}-k`} hint="As JSON, for example {&quot;key_id&quot;: &quot;...&quot;, &quot;key_secret&quot;: &quot;...&quot;}. Stored securely and never shown again.">
             <Textarea id={`${uid}-k`} rows={2} value={keys} autoComplete="off" spellCheck={false} onChange={(e) => setKeys(e.target.value)} />
@@ -46,7 +47,7 @@ function GatewayCard({ g }: { g: GatewayRow }) {
   );
 }
 
-export function PaymentGateways({ gateways }: { gateways: GatewayRow[] }) {
+export function PaymentGateways({ gateways, webhookBase }: { gateways: GatewayRow[]; webhookBase: string }) {
   const uid = useId();
   const [provider, setProvider] = useState(gateways.length ? "razorpay" : "test");
   const [mode, setMode] = useState<"live" | "test">("live");
@@ -60,7 +61,7 @@ export function PaymentGateways({ gateways }: { gateways: GatewayRow[] }) {
       <CardHeader title="Your gateways" action={<span className="text-[12px] text-ink-500">One is used for parents at a time</span>} />
       <CardBody className="space-y-3">
         {gateways.length === 0 && <p className="text-[13px] text-ink-700">No gateway yet. Start with the test gateway to try online payment end to end without real money.</p>}
-        {gateways.map((g) => <GatewayCard key={g.id} g={g} />)}
+        {gateways.map((g) => <GatewayCard key={g.id} g={g} webhookBase={webhookBase} />)}
         <div className="grid gap-3 border-t border-hair pt-3 sm:grid-cols-4">
           <Field label="Add a gateway" htmlFor={`${uid}-p`}>
             <Select id={`${uid}-p`} value={provider} onChange={(e) => setProvider(e.target.value)}>
@@ -97,6 +98,35 @@ export function ResolvePayment({ orderId }: { orderId: number }) {
       <Input className="h-8 w-80 text-[13px]" aria-label="What was done" placeholder="For example: refunded by bank transfer on 2 Dec" value={note} onChange={(e) => setNote(e.target.value)} />
       <Button size="sm" disabled={pending || !note.trim()} onClick={() => start(async () => { const r = await resolvePayment(orderId, note); setMsg(r.ok ? { ok: true, text: r.message ?? "" } : { ok: false, text: r.error }); router.refresh(); })}>Save</Button>
       <Msg m={msg} />
+    </div>
+  );
+}
+
+// Razorpay: Key ID (public), Key Secret and webhook secret (stored in the vault, never shown again).
+function RazorpayKeys({ g, webhookBase, onMsg }: { g: GatewayRow; webhookBase: string; onMsg: (m: { ok: boolean; text: string } | null) => void }) {
+  const uid = useId();
+  const [f, setF] = useState({ keyId: g.keyId ?? "", keySecret: "", webhookSecret: "" });
+  const [pending, start] = useTransition();
+  const router = useRouter();
+  const hook = `${webhookBase}/api/payments/webhook/razorpay`;
+  return (
+    <div className="mt-2 space-y-3">
+      <div className="grid gap-3 sm:grid-cols-3">
+        <Field label="Key ID" htmlFor={`${uid}-id`} hint={g.mode === "test" ? "Starts with rzp_test_" : "Starts with rzp_live_"}><Input id={`${uid}-id`} autoComplete="off" spellCheck={false} value={f.keyId} onChange={(e) => setF({ ...f, keyId: e.target.value })} /></Field>
+        <Field label={g.hasKeys ? "Key Secret (saved; enter to replace)" : "Key Secret"} htmlFor={`${uid}-ks`}><Input id={`${uid}-ks`} type="password" autoComplete="new-password" spellCheck={false} value={f.keySecret} onChange={(e) => setF({ ...f, keySecret: e.target.value })} /></Field>
+        <Field label={g.hasKeys ? "Webhook secret (saved; enter to replace)" : "Webhook secret"} htmlFor={`${uid}-ws`}><Input id={`${uid}-ws`} type="password" autoComplete="new-password" spellCheck={false} value={f.webhookSecret} onChange={(e) => setF({ ...f, webhookSecret: e.target.value })} /></Field>
+      </div>
+      <div className="flex flex-wrap gap-2">
+        <Button size="sm" variant="subtle" disabled={pending || !f.keyId.trim() || !f.keySecret.trim() || !f.webhookSecret.trim()} onClick={() => start(async () => { const r = await saveRazorpayKeys(g.id, f); onMsg(r.ok ? { ok: true, text: r.message ?? "" } : { ok: false, text: r.error }); if (r.ok) setF({ ...f, keySecret: "", webhookSecret: "" }); router.refresh(); })}>Save keys</Button>
+        {g.hasKeys && <Button size="sm" variant="ghost" disabled={pending} onClick={() => start(async () => { const r = await testGatewayConnection(g.id); onMsg(r.ok ? { ok: true, text: r.message ?? "" } : { ok: false, text: r.error }); })}>Test connection</Button>}
+      </div>
+      <div className="rounded-sm bg-[#fafafa] p-2 text-[12px] text-ink-700">
+        <p className="font-medium text-ink-900">In Razorpay, Account &amp; Settings, Webhooks, add a webhook:</p>
+        <p className="mt-1">Webhook URL: <code className="select-all break-all">{hook}</code></p>
+        <p>Secret: any strong text you choose; type the same here as the webhook secret.</p>
+        <p>Active events: <code>payment.captured</code>, <code>order.paid</code>, <code>refund.processed</code></p>
+        <p className="mt-1">Keys: Account &amp; Settings, API keys, Generate key. The Key Secret is shown only once in Razorpay; paste it here straight away.</p>
+      </div>
     </div>
   );
 }
