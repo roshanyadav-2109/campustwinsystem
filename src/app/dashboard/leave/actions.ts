@@ -70,3 +70,31 @@ export async function decideLeave(id: number, status: "approved" | "rejected", n
   revalidatePath("/dashboard/leave");
   return { ok: true };
 }
+
+// Leave with a kind (leave; in colleges also medical or on duty) and proof uploaded to the student's own folder.
+const PROOF: Record<string, string> = { "application/pdf": "pdf", "image/jpeg": "jpg", "image/png": "png" };
+export async function signLeaveProof(studentId: number, contentType: string, size: number): Promise<{ ok: true; key: string; uploadUrl: string } | { ok: false; error: string }> {
+  const ext = PROOF[contentType];
+  if (!ext) return { ok: false, error: "Upload a PDF, JPG or PNG." };
+  if (size > 10 * 1024 * 1024) return { ok: false, error: "The file is over 10 MB." };
+  const supabase = await createClient();
+  const { data: school } = await supabase.rpc("leave_upload_ok" as never, { p_student: studentId } as never);
+  if (!school) return { ok: false, error: "Not allowed." };
+  const { presignPrivatePut, tenantPrefixForSchool } = await import("@/lib/r2");
+  const key = `${await tenantPrefixForSchool(Number(school))}/students/${studentId}/leave/${crypto.randomUUID()}.${ext}`;
+  return { ok: true, key, uploadUrl: await presignPrivatePut(key) };
+}
+export async function applyStudentLeave(input: { studentId: number; fromDate: string; toDate: string; reason: string; kind: "leave" | "medical" | "on_duty"; fileKey: string | null }) {
+  const supabase = await createClient();
+  const { error } = await supabase.rpc("apply_student_leave" as never, { p_student: input.studentId, p_from: input.fromDate, p_to: input.toDate, p_reason: input.reason, p_kind: input.kind, p_file_key: input.fileKey } as never);
+  if (error) return { ok: false as const, error: error.message.length < 160 ? error.message : "Could not send the request." };
+  revalidatePath("/dashboard/leave");
+  return { ok: true as const };
+}
+export async function leaveProofLink(leaveId: number): Promise<{ ok: true; url: string } | { ok: false; error: string }> {
+  const supabase = await createClient();
+  const { data } = await supabase.rpc("leave_file_key" as never, { p_leave: leaveId } as never);
+  if (!data) return { ok: false, error: "Not available." };
+  const { presignGet } = await import("@/lib/r2");
+  return { ok: true, url: await presignGet(String(data)) };
+}

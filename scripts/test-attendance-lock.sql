@@ -25,13 +25,13 @@ begin
 
   perform set_config('request.jwt.claims', as_off, true); set local role authenticated;
   -- daily lock: 5 days back is locked, 1 day back is open
-  ok := false; begin perform public.mark_lecture(v_sec, v_subj, d - 5, 3::smallint, array[k]); exception when others then ok := sqlerrm like 'Attendance locks%'; end;
+  ok := false; begin perform public.mark_lecture(v_sec, v_subj, d - 5, 3::smallint, array[k], null, null, 'QA change'); exception when others then ok := sqlerrm like 'Attendance locks%'; end;
   if not ok then raise exception 'FAIL daily lock'; end if;
   ok := false; begin insert into public.attendance_record (student_id, section_id, academic_year_id, on_date, period, subject_id, status, school_id)
     values (k, v_sec, v_sem.academic_year_id, d - 6, 3, v_subj, 'present', 11); exception when others then ok := true; end;
   if not ok then raise exception 'FAIL direct lecture write allowed'; end if;
-  perform public.mark_lecture(v_sec, v_subj, d - 1, 3::smallint, '{}');
-  perform public.mark_lecture(v_sec, v_subj, d - 1, 3::smallint, array[k]);
+  perform public.mark_lecture(v_sec, v_subj, d - 1, 3::smallint, '{}', null, null, 'QA change');
+  perform public.mark_lecture(v_sec, v_subj, d - 1, 3::smallint, array[k], null, null, 'QA change');
   -- unlock: chain is head only, so the office cannot approve its own request
   v_req := public.request_relaxation('unlock', null, v_subj, v_sec, d - 5, null, 'Was on exam duty');
   ok := false; begin perform public.decide_relaxation(v_req, true); exception when others then ok := true; end;
@@ -42,16 +42,16 @@ begin
   if public.decide_relaxation(v_req, true, 'ok') <> 'approved' then raise exception 'FAIL unlock'; end if;
   reset role;
   perform set_config('request.jwt.claims', as_off, true); set local role authenticated;
-  perform public.mark_lecture(v_sec, v_subj, d - 5, 3::smallint, array[k]);
-  perform public.mark_lecture(v_sec, v_subj, d - 2, 3::smallint, array[k]);
+  perform public.mark_lecture(v_sec, v_subj, d - 5, 3::smallint, array[k], null, null, 'QA change');
+  perform public.mark_lecture(v_sec, v_subj, d - 2, 3::smallint, array[k], null, null, 'QA change');
   -- cut-off mode: up to the cut-off is frozen, after it open
   reset role;
   update public.school set attendance_lock_mode = 'cutoff' where id = 11;
   update public.semester set attendance_cutoff = d - 3 where id = v_sem.id;
   perform set_config('request.jwt.claims', as_off, true); set local role authenticated;
-  ok := false; begin perform public.mark_lecture(v_sec, v_subj, d - 4, 4::smallint, '{}'); exception when others then ok := sqlerrm like '%frozen for exams%'; end;
+  ok := false; begin perform public.mark_lecture(v_sec, v_subj, d - 4, 4::smallint, '{}', null, null, 'QA change'); exception when others then ok := sqlerrm like '%frozen for exams%'; end;
   if not ok then raise exception 'FAIL cut-off freeze'; end if;
-  perform public.mark_lecture(v_sec, v_subj, d - 1, 4::smallint, '{}');
+  perform public.mark_lecture(v_sec, v_subj, d - 1, 4::smallint, '{}', null, null, 'QA change');
   -- shortage counts only up to the cut-off: absent on d-5, the only lecture before it (unlock still open)
   reset role;
   if public.attendance_shortage(k, v_sem.id) is null then raise exception 'FAIL shortage up to cut-off'; end if;

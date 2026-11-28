@@ -16,7 +16,11 @@ function Msg({ m }: { m: { ok: boolean; text: string } | null }) {
   return <span role={m.ok ? "status" : "alert"} className={`text-[13px] font-medium ${m.ok ? "text-up" : "text-down"}`}>{m.text}</span>;
 }
 
-export function LectureMarker({ sectionId, subjects, roster, lockNote, electiveSubject }: { sectionId: number; subjects: { id: number; name: string }[]; roster: { id: number; name: string; roll: number | null; section?: string }[]; lockNote: string | null; electiveSubject?: number }) {
+export type SubjectParts = { id: number; name: string; parts?: string[] };
+export type Batch = { label: string; ids: number[] };
+const PART: Record<string, string> = { theory: "Theory", practical: "Practical", tutorial: "Tutorial" };
+export function LectureMarker({ sectionId, subjects, roster, lockNote, electiveSubject, batches = [], allowed }: { sectionId: number; subjects: SubjectParts[]; roster: { id: number; name: string; roll: number | null; section?: string }[]; lockNote: string | null; electiveSubject?: number;
+  batches?: Batch[]; allowed?: { subject_id: number; component: string | null; batch: string | null }[] }) {
   const uid = useId();
   const [subjectId, setSubjectId] = useState(subjects[0]?.id ?? 0);
   const [date, setDate] = useState(todayIST());
@@ -24,33 +28,54 @@ export function LectureMarker({ sectionId, subjects, roster, lockNote, electiveS
   const [absent, setAbsent] = useState<Set<number>>(new Set());
   const [msg, setMsg] = useState<{ ok: boolean; text: string } | null>(null);
   const [locked, setLocked] = useState(false);
+  const [needReason, setNeedReason] = useState(false);
+  const [reason, setReason] = useState("");
+  const subj = subjects.find((x) => x.id === subjectId);
+  const parts = subj?.parts ?? ["theory"];
+  // the parts and batches this teacher takes for the subject (all, for the office or the class teacher)
+  const mine = allowed?.filter((a) => a.subject_id === subjectId);
+  const partChoices = parts.filter((p) => !mine || mine.length === 0 || mine.some((a) => a.component === null || a.component === p));
+  const [part, setPart] = useState<string>(partChoices[0] ?? "theory");
+  const partNow = partChoices.includes(part) ? part : partChoices[0] ?? "theory";
+  const batchChoices = partNow === "theory" ? [] : batches.filter((b) => !mine || mine.length === 0 || mine.some((a) => (a.component === null || a.component === partNow) && (a.batch === null || a.batch === b.label)));
+  const wholeAllowed = !mine || mine.length === 0 || mine.some((a) => (a.component === null || a.component === partNow) && a.batch === null);
+  const [batch, setBatch] = useState("");
+  const batchNow = batchChoices.some((b) => b.label === batch) ? batch : wholeAllowed ? "" : batchChoices[0]?.label ?? "";
+  const shown = batchNow ? roster.filter((r) => batches.find((b) => b.label === batchNow)?.ids.includes(r.id)) : roster;
   const [pending, start] = useTransition();
   const router = useRouter();
-  const toggle = (id: number) => setAbsent((s) => { const n = new Set(s); if (n.has(id)) n.delete(id); else n.add(id); return n; });
+  const toggle = (id: number) => setAbsent((x) => { const n = new Set(x); if (n.has(id)) n.delete(id); else n.add(id); return n; });
   return (
     <Card>
       <CardHeader title="Mark a lecture" action={<Msg m={msg} />} />
       <CardBody className="space-y-3">
         <div className="flex flex-wrap items-end gap-2">
-          <Field label="Course" htmlFor={`${uid}-s`}><Select id={`${uid}-s`} value={subjectId} onChange={(e) => setSubjectId(Number(e.target.value))}>{subjects.map((s) => <option key={s.id} value={s.id}>{s.name}</option>)}</Select></Field>
+          <Field label="Course" htmlFor={`${uid}-s`}><Select id={`${uid}-s`} value={subjectId} onChange={(e) => setSubjectId(Number(e.target.value))}>{subjects.map((x) => <option key={x.id} value={x.id}>{x.name}</option>)}</Select></Field>
+          {partChoices.length > 1 || partNow !== "theory" ? <Field label="Part" htmlFor={`${uid}-pt`}><Select id={`${uid}-pt`} value={partNow} onChange={(e) => { setPart(e.target.value); setAbsent(new Set()); }}>{partChoices.map((x) => <option key={x} value={x}>{PART[x]}</option>)}</Select></Field> : null}
+          {batchChoices.length > 0 && <Field label="Batch" htmlFor={`${uid}-b`}><Select id={`${uid}-b`} value={batchNow} onChange={(e) => { setBatch(e.target.value); setAbsent(new Set()); }}>
+            {wholeAllowed && <option value="">Whole section</option>}{batchChoices.map((b) => <option key={b.label} value={b.label}>Batch {b.label}</option>)}</Select></Field>}
           <Field label="Date" htmlFor={`${uid}-d`}><Input id={`${uid}-d`} type="date" max={todayIST()} value={date} onChange={(e) => setDate(e.target.value)} /></Field>
           <Field label="Period" htmlFor={`${uid}-p`}><Select id={`${uid}-p`} value={period} onChange={(e) => setPeriod(e.target.value)}>{Array.from({ length: 10 }, (_, i) => <option key={i} value={i + 1}>{i + 1}</option>)}</Select></Field>
           <span className="pb-2 text-[12px] text-ink-500">Everyone is present unless tapped absent.</span>
         </div>
         {lockNote && <p className="text-[12px] text-ink-500">{lockNote}</p>}
         <div className="grid grid-cols-2 gap-1.5 sm:grid-cols-4 xl:grid-cols-6">
-          {roster.map((r) => (
+          {shown.map((r) => (
             <button key={r.id} aria-pressed={absent.has(r.id)} aria-label={`${r.name}: absent`} onClick={() => toggle(r.id)}
               className={`rounded-sm border px-2 py-1.5 text-left text-[12px] ${absent.has(r.id) ? "border-down bg-down text-white" : "border-hair bg-white text-ink-900"}`}>
               <span className="tabular">{r.roll ?? "-"}</span> {r.name}{r.section ? <span className="ml-1 text-[10px] opacity-70">{r.section}</span> : null}</button>
           ))}
         </div>
-        <Button disabled={pending || !subjectId} onClick={() => start(async () => {
-          const res = electiveSubject ? await markCourseLecture({ subjectId: electiveSubject, date, period: Number(period), absent: [...absent] })
-            : await markLecture({ sectionId, subjectId, date, period: Number(period), absent: [...absent] });
+        {needReason && <Field label="Reason for changing this lecture" htmlFor={`${uid}-r`} hint="This lecture was already marked; the change and its reason are recorded.">
+          <Input id={`${uid}-r`} value={reason} placeholder="For example: was in the library on the HoD's work; marked absent by mistake" onChange={(e) => setReason(e.target.value)} /></Field>}
+        <Button disabled={pending || !subjectId || (needReason && !reason.trim())} onClick={() => start(async () => {
+          const comp = (parts.length === 1 && parts[0] === "theory") ? null : (partNow as "theory" | "practical" | "tutorial");
+          const res = electiveSubject ? await markCourseLecture({ subjectId: electiveSubject, date, period: Number(period), absent: [...absent], component: comp, reason })
+            : await markLecture({ sectionId, subjectId, date, period: Number(period), absent: [...absent], component: comp, batch: batchNow || null, reason });
           setMsg(res.ok ? { ok: true, text: res.message ?? "Saved." } : { ok: false, text: res.error });
           setLocked(!res.ok && /lock|frozen/i.test(res.error));
-          if (res.ok) { setAbsent(new Set()); router.refresh(); }
+          if (!res.ok && /reason/i.test(res.error)) setNeedReason(true);
+          if (res.ok) { setAbsent(new Set()); setNeedReason(false); setReason(""); router.refresh(); }
         })}>{pending ? "Saving…" : `Save lecture (${absent.size} absent)`}</Button>
         {locked && <AskButton key={`${subjectId}-${date}`} label="Ask to unlock this day" ariaLabel="Reason to unlock" send={(reason) => askRelaxation({ kind: "unlock", sectionId, subjectId, date, reason })} />}
       </CardBody>

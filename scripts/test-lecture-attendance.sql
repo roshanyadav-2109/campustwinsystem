@@ -12,17 +12,17 @@ begin
   select cs.subject_id into v_subj from public.class_subject cs join public.section s on s.class_id = cs.class_id where s.id = v_sec limit 1;
   perform set_config('request.jwt.claims', json_build_object('sub', of, 'role', 'authenticated')::text, true);
   set local role authenticated;
-  perform public.mark_lecture(v_sec, v_subj, d - 3, 1::smallint, array[k]);
-  perform public.mark_lecture(v_sec, v_subj, d - 2, 1::smallint, array[k]);
-  perform public.mark_lecture(v_sec, v_subj, d - 1, 1::smallint, '{}');
-  perform public.mark_lecture(v_sec, v_subj, d, 2::smallint, '{}');
+  perform public.mark_lecture(v_sec, v_subj, d - 3, 1::smallint, array[k], null, null, 'QA change');
+  perform public.mark_lecture(v_sec, v_subj, d - 2, 1::smallint, array[k], null, null, 'QA change');
+  perform public.mark_lecture(v_sec, v_subj, d - 1, 1::smallint, '{}', null, null, 'QA change');
+  perform public.mark_lecture(v_sec, v_subj, d, 2::smallint, '{}', null, null, 'QA change');
   -- marking the same lecture again replaces it
-  perform public.mark_lecture(v_sec, v_subj, d, 2::smallint, '{}');
+  perform public.mark_lecture(v_sec, v_subj, d, 2::smallint, '{}', null, null, 'QA change');
   select * into r from public.course_attendance(v_sec) where student_id = k and subject_id = v_subj;
   if r.held <> 4 or r.attended <> 2 or not r.short then raise exception 'FAIL attendance: %', r; end if;
   insert into public.attendance_condonation (semester_id, student_id, subject_id, reason) values (v_sem, k, v_subj, 'Medical certificate');
   if not (select condoned from public.course_attendance(v_sec) where student_id = k and subject_id = v_subj) then raise exception 'FAIL condonation'; end if;
-  ok := false; begin perform public.mark_lecture(v_sec, v_subj, d + 1, 1::smallint, '{}'); exception when others then ok := true; end;
+  ok := false; begin perform public.mark_lecture(v_sec, v_subj, d + 1, 1::smallint, '{}', null, null, 'QA change'); exception when others then ok := true; end;
   if not ok then raise exception 'FAIL future lecture'; end if;
   -- the daily register is untouched
   if exists (select 1 from public.attendance_record where section_id = v_sec and on_date between d - 3 and d and period is null and marked_by = v_staff) then raise exception 'FAIL daily rows written'; end if;

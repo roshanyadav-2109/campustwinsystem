@@ -6,7 +6,7 @@ import { PageHeader } from "@/components/ui/page-header";
 import { EmptyState } from "@/components/ui/empty";
 import { Card, CardBody, CardHeader } from "@/components/ui/card";
 import { StatusPill, type Status } from "@/components/ui/status";
-import { LeaveForm, LeaveDecision } from "@/components/leave/leave-ui";
+import { LeaveForm, LeaveDecision, StudentLeaveForm, ProofLink } from "@/components/leave/leave-ui";
 import { AbsenceList } from "@/components/leave/absence-ui";
 import { getMyChildren } from "@/lib/data/analytics";
 import { getAbsenceNotices } from "@/lib/data/absence";
@@ -22,14 +22,17 @@ export default async function LeavePage() {
   const { t, locale } = await getT();
   const isOwner = session.role === "student" || session.role === "guardian";
   const isGuardian = session.role === "guardian";
+  const higherEd = !!session.school.higherEd;
+  const KIND: Record<string, string> = { medical: "Medical leave", on_duty: "On duty" };
 
-  const [{ data: rows }, notices, children] = await Promise.all([
-    supabase.from("leave_application")
-      .select("id, from_date, to_date, reason, status, student:student_id(full_name)")
+  const [{ data: rowsRaw }, notices, children] = await Promise.all([
+    supabase.from("leave_application" as never)
+      .select("id, from_date, to_date, reason, status, kind, file_key, student:student_id(full_name)")
       .order("created_at", { ascending: false }),
     getAbsenceNotices(),
     isGuardian ? getMyChildren() : Promise.resolve([]),
   ]);
+  const rows = (rowsRaw ?? null) as unknown as { id: number; from_date: string; to_date: string; reason: string; status: string; kind: string; file_key: string | null; student: { full_name: string } | null }[] | null;
 
   return (
     <div>
@@ -44,7 +47,7 @@ export default async function LeavePage() {
           </Card>
 
           {/* Leave applications (guardian applies; class teacher decides) */}
-          {!(session.role === "student") && (
+          {(!(session.role === "student") || higherEd) && (
             <Card>
               <CardHeader title={t("leave.title")} />
               <CardBody className="space-y-3 pt-1">
@@ -57,7 +60,9 @@ export default async function LeavePage() {
                           <div>
                             <div className="text-[14px] font-semibold text-ink-900">{name}</div>
                             <div className="mt-0.5 text-[13px] text-ink-500 tabular">{fmtDate(locale, l.from_date)} – {fmtDate(locale, l.to_date)}</div>
+                            {KIND[(l as unknown as { kind: string }).kind] && <div className="mt-0.5 text-[12px] font-medium text-ink-700">{KIND[(l as unknown as { kind: string }).kind]}</div>}
                             <p className="mt-1 text-[14px] text-ink-700">{l.reason}</p>
+                            {(l as unknown as { file_key: string | null }).file_key && <ProofLink leaveId={l.id} />}
                           </div>
                           <StatusPill status={statusStatus[l.status]}>{t(`leave.${l.status}`)}</StatusPill>
                         </div>
@@ -74,7 +79,9 @@ export default async function LeavePage() {
             </Card>
           )}
         </div>
-        {isGuardian && children.length > 0 && <LeaveForm students={children} />}
+        {higherEd && (isGuardian ? children.length > 0 : session.role === "student" && !!session.studentId) && (
+          <StudentLeaveForm students={isGuardian ? children.map((c) => ({ id: c.id, full_name: c.full_name })) : [{ id: session.studentId!, full_name: session.fullName || "Me" }]} />)}
+        {!higherEd && isGuardian && children.length > 0 && <LeaveForm students={children} />}
       </div>
     </div>
   );
