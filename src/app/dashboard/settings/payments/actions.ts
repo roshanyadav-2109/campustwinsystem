@@ -109,7 +109,7 @@ export async function testGatewayConnection(gatewayId: number): Promise<Result> 
     if (!g?.test) return { ok: false, error: "A connection test is not available for this gateway." };
     if (!keys) return { ok: false, error: "Save the keys first." };
     const t = await g.test(keys, row.mode as "live" | "test");
-    return t.ok ? { ok: true, message: `Connected to ${g.label}${row.mode === "test" ? " (test mode)" : ""}. Switch it on for parents when ready.` } : { ok: false, error: t.error };
+    return t.ok ? { ok: true, message: t.note ?? `Connected to ${g.label}${row.mode === "test" ? " (test mode)" : ""}. Switch it on for parents when ready.` } : { ok: false, error: t.error };
   }
   const { razorpayKeys, razorpayApi } = await import("@/core/payments/razorpay");
   const keys = razorpayKeys(row);

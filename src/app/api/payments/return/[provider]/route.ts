@@ -17,8 +17,11 @@ async function back(request: NextRequest, provider: string) {
   const order = ((data ?? []) as unknown as GatewayOrder[])[0];
   const keys = order ? keysOf(order, g.fields) : null;
   if (!order || order.provider !== provider || !keys) return res;
+  // what the gateway posted with the payer (used only by gateways that sign it with the institution's secret)
+  const posted = request.method === "POST" ? new URLSearchParams(await request.text().catch(() => "")) : u.searchParams;
   try {
-    const v = await g.verify(order, keys);
+    let v = await g.verify(order, keys);
+    if (v.status === "unknown" && g.verifyPosted) v = g.verifyPosted(order, keys, posted);
     // not known yet: the payer may well have paid, so they are told it is being confirmed rather than to pay again
     await recordVerified(admin as never, order, v.status === "unknown" ? { status: "pending" } : v);
   } catch {

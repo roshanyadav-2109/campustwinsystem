@@ -27,10 +27,12 @@ export interface HostedGateway {
   start(order: GatewayOrder, keys: Keys, ctx: { callbackUrl: string; origin: string }): Promise<{ ok: true; step: Step; providerOrderId?: string } | { ok: false; error: string }>;
   /** Ask the gateway what happened to this order (its own status API). */
   verify(order: GatewayOrder, keys: Keys): Promise<Verified>;
+  /** When verify() can't reach the gateway: judge what the gateway posted, by its secret-keyed hash (never trusted otherwise). */
+  verifyPosted?(order: GatewayOrder, keys: Keys, posted: URLSearchParams): Verified;
   /** From a notice, the order it is about (the notice itself is not trusted; verify() is). */
   noticeOrderId?(raw: string, contentType: string): string | null;
   /** Check that the keys work (changes nothing at the gateway). */
-  test?(keys: Keys, mode: "live" | "test"): Promise<{ ok: true } | { ok: false; error: string }>;
+  test?(keys: Keys, mode: "live" | "test"): Promise<{ ok: true; note?: string } | { ok: false; error: string }>;
 }
 
 export function keysOf(o: Pick<GatewayOrder, "config" | "secret">, fields: KeyField[]): Keys | null {
@@ -71,7 +73,8 @@ export function hostedConnector(g: HostedGateway): GatewayConnector {
       const order = await lookup(id);
       const keys = order ? keysOf(order, g.fields) : null;
       if (!order || !keys) return { kind: "ignored" };
-      const v = await g.verify(order, keys);
+      let v = await g.verify(order, keys);
+      if (v.status === "unknown" && g.verifyPosted && !request.headers.get("content-type")?.includes("json")) v = g.verifyPosted(order, keys, new URLSearchParams(raw));
       if (v.status === "paid") return { kind: "paid", publicId: id, paymentId: v.paymentId, amount: v.amount, method: v.method, fee: v.fee, paidAt: v.paidAt, providerOrderId: v.providerOrderId };
       if (v.status === "failed") return { kind: "failed", publicId: id, reason: v.reason };
       return { kind: "ignored" };
