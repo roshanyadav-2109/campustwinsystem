@@ -1,3 +1,4 @@
+import { MedicineDesk, FamilyMedicines, type DueDose, type MedicineRow, type DoseRow } from "@/components/front-desk/medicines";
 import Link from "@/components/ui/hover-link";
 import { guardTab } from "@/lib/access";
 import { getSession } from "@/lib/session";
@@ -20,14 +21,17 @@ export default async function FrontDeskPage({ searchParams }: { searchParams: SP
 
   if (session?.role === "guardian" || session?.role === "student") {
     const kids = session.role === "guardian" ? (await getMyChildren()).map((k) => ({ id: k.id, name: k.full_name })) : [];
-    const [passes, visits] = await Promise.all([
+    const [passes, visits, meds, doses] = await Promise.all([
       supabase.from("gate_pass" as never).select(passSel).order("leave_at", { ascending: false }).limit(50),
       supabase.from("health_visit" as never).select(healthSel).order("visited_at", { ascending: false }).limit(50),
+      supabase.from("student_medicine" as never).select("id, student_id, medicine, dose, times, from_date, to_date, instructions, doctor, status").eq("status", "active").order("from_date", { ascending: false }).limit(50),
+      supabase.from("medicine_dose" as never).select("id, medicine_id, due_on, due_at, status, note, given_at").order("given_at", { ascending: false }).limit(50),
     ]);
     return (
       <div className="space-y-4">
         <PageHeader title="Pick-up and health" description="Ask the school for an early pick-up, and see visits to the health room." />
         <FamilyFrontDesk kids={kids} passes={(passes.data ?? []) as unknown as PassRow[]} visits={(visits.data ?? []) as unknown as HealthRow[]} />
+        {session.role === "guardian" && <FamilyMedicines kids={kids} active={(meds.data ?? []) as unknown as MedicineRow[]} doses={(doses.data ?? []) as unknown as DoseRow[]} />}
       </div>
     );
   }
@@ -39,6 +43,12 @@ export default async function FrontDeskPage({ searchParams }: { searchParams: SP
   if (view === "passes") {
     const { data } = await supabase.from("gate_pass" as never).select(passSel).gte("leave_at", new Date(Date.now() - 7 * 86400000).toISOString()).order("leave_at", { ascending: false }).limit(500);
     body = <GatePassDesk passes={(data ?? []) as unknown as PassRow[]} />;
+  } else if (view === "medicines") {
+    const [{ data: due }, { data: active }] = await Promise.all([
+      supabase.rpc("medicine_due" as never),
+      supabase.from("student_medicine" as never).select("id, student_id, medicine, dose, times, from_date, to_date, instructions, doctor, status, student:student_id(full_name)").eq("status", "active").gte("to_date", new Date(Date.now() + 5.5 * 3600 * 1000).toISOString().slice(0, 10)).order("to_date").limit(300),
+    ]);
+    body = <MedicineDesk due={(due ?? []) as unknown as DueDose[]} active={(active ?? []) as unknown as MedicineRow[]} />;
   } else if (view === "health") {
     const { data } = await supabase.from("health_visit" as never).select(healthSel).gte("visited_at", new Date(Date.now() - 30 * 86400000).toISOString()).order("visited_at", { ascending: false }).limit(500);
     body = <HealthDesk visits={(data ?? []) as unknown as HealthRow[]} />;
@@ -51,8 +61,8 @@ export default async function FrontDeskPage({ searchParams }: { searchParams: SP
   }
   return (
     <div className="space-y-4">
-      <PageHeader title="Front desk" description="Visitors in and out, early pick-ups and the health room. Parents are told about pick-ups and health visits." />
-      <div className="flex gap-1.5">{tab("visitors", "Visitors")}{tab("passes", "Gate passes")}{tab("health", "Health room")}</div>
+      <PageHeader title="Front desk" description="Visitors in and out, early pick-ups and the health room. Parents are told about pick-ups, health visits and medicines given." />
+      <div className="flex gap-1.5">{tab("visitors", "Visitors")}{tab("passes", "Gate passes")}{tab("health", "Health room")}{tab("medicines", "Medicines")}</div>
       {body}
     </div>
   );
