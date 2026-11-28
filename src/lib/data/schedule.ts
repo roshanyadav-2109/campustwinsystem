@@ -40,7 +40,7 @@ export async function getPeriods(): Promise<{ missing: true } | { missing: false
   return { missing: false, periods };
 }
 
-const SLOT_COLS = "id, section_id, day_of_week, period_no, subject_id, staff_id, room";
+const SLOT_COLS = "id, section_id, day_of_week, period_no, subject_id, staff_id, room, group_id, extra:timetable_slot_extra(subject_id, staff_id)";
 
 export async function getSectionSlots(sectionId: number, yearId: number): Promise<SlotRow[]> {
   const db = await untyped();
@@ -52,10 +52,15 @@ export async function getSectionSlots(sectionId: number, yearId: number): Promis
 
 export async function getStaffSlots(staffId: number, yearId: number): Promise<SlotRow[]> {
   const db = await untyped();
-  const { data, error } = await db.from("timetable_slot").select(SLOT_COLS)
-    .eq("staff_id", staffId).eq("academic_year_id", yearId);
+  // lessons where the teacher is the main one, and split lessons where they take one of the groups
+  const [{ data, error }, { data: ex }] = await Promise.all([
+    db.from("timetable_slot").select(SLOT_COLS).eq("staff_id", staffId).eq("academic_year_id", yearId),
+    db.from("timetable_slot_extra").select("subject_id, slot:slot_id(id, section_id, day_of_week, period_no, subject_id, staff_id, room, group_id, academic_year_id)").eq("staff_id", staffId),
+  ]);
   if (error) throw new Error(error.message);
-  return (data ?? []) as SlotRow[];
+  const extra = ((ex ?? []) as unknown as { subject_id: number; slot: (SlotRow & { academic_year_id: number }) | null }[])
+    .filter((x) => x.slot && x.slot.academic_year_id === yearId).map((x) => ({ ...x.slot!, subject_id: x.subject_id, staff_id: staffId, extra: [] }));
+  return [...((data ?? []) as SlotRow[]), ...extra];
 }
 
 // Name look-ups for whatever ids appear in a set of slots.
@@ -81,9 +86,12 @@ export async function getNames(opts: { subjectIds?: (number | null)[]; staffIds?
 export async function sectionCells(slots: SlotRow[]): Promise<GridCells> {
   const names = await getNames({ subjectIds: slots.map((s) => s.subject_id), staffIds: slots.map((s) => s.staff_id) });
   const out: GridCells = {};
+  const more = await getNames({ subjectIds: slots.flatMap((s) => (s.extra ?? []).map((e) => e.subject_id)), staffIds: slots.flatMap((s) => (s.extra ?? []).map((e) => e.staff_id)) });
   for (const s of slots) {
-    const title = s.subject_id ? names.subject.get(s.subject_id) ?? "Subject" : "Free period";
-    const sub = s.staff_id ? names.staffName.get(s.staff_id) : undefined;
+    const ex = s.extra ?? [];
+    // a split lesson: every group's subject and teacher
+    const title = [s.subject_id ? names.subject.get(s.subject_id) ?? "Subject" : "Free period", ...ex.map((e) => more.subject.get(e.subject_id) ?? "")].filter(Boolean).join(" / ");
+    const sub = [s.staff_id ? names.staffName.get(s.staff_id) : undefined, ...ex.map((e) => (e.staff_id ? more.staffName.get(e.staff_id) : undefined))].filter(Boolean).join(", ") || undefined;
     out[cellKey(s.day_of_week, s.period_no)] = { title, sub, room: s.room, tint: s.subject_id ?? undefined };
   }
   return out;

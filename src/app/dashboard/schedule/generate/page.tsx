@@ -21,32 +21,40 @@ export default async function GeneratePage() {
   );
   const supabase = await createClient();
   const db = await untyped();
-  const [scope, teachers, loads, allot, unavail, rules] = await Promise.all([
-    getStaffScope(), getTeachingStaff(),
-    db.from("timetable_load").select("class_id, subject_id, periods, double_period, max_per_day").eq("academic_year_id", year.id),
-    supabase.from("teacher_allotment").select("section_id, subject_id, staff_id, is_class_teacher").eq("academic_year_id", year.id).limit(10000),
-    db.from("staff_unavailable").select("staff_id, day_of_week, period_no").limit(10000),
-    supabase.from("school").select("tt_days, tt_teacher_max_day, tt_class_teacher_first" as "id").eq("id", session.schoolId).maybeSingle(),
-  ]);
-  const slots: GenData["slots"] = [];
-  for (let from = 0; from < 30000; from += 1000) {
-    const { data } = await db.from("timetable_slot").select("section_id, day_of_week, period_no, subject_id, staff_id").eq("academic_year_id", year.id).range(from, from + 999);
-    const page = (data ?? []) as unknown as GenData["slots"];
-    slots.push(...page);
-    if (page.length < 1000) break;
+  // every row, in pages of 1000 in a fixed order (a skipped row would otherwise be lost on save)
+  async function all<T>(table: string, cols: string, filter: (q: ReturnType<ReturnType<typeof db.from>["select"]>) => ReturnType<ReturnType<typeof db.from>["select"]>, order: string): Promise<T[]> {
+    const out: T[] = [];
+    for (let from = 0; from < 50000; from += 1000) {
+      const { data } = await filter(db.from(table).select(cols)).order(order).range(from, from + 999);
+      const page = (data ?? []) as unknown as T[];
+      out.push(...page);
+      if (page.length < 1000) break;
+    }
+    return out;
   }
-  const r = rules.data as unknown as { tt_days: number[]; tt_teacher_max_day: number; tt_class_teacher_first: boolean } | null;
+  const y = year.id;
+  const [scope, teachers, loads, allot, unavail, slots, groups, items, rules] = await Promise.all([
+    getStaffScope(), getTeachingStaff(),
+    all<GenData["loads"][number]>("timetable_load", "class_id, subject_id, periods, double_period, max_per_day, room", (q) => q.eq("academic_year_id", y), "class_id"),
+    all<GenData["allotments"][number]>("teacher_allotment", "id, section_id, subject_id, staff_id, is_class_teacher", (q) => q.eq("academic_year_id", y), "id"),
+    all<GenData["unavailable"][number]>("staff_unavailable", "staff_id, day_of_week, period_no", (q) => q, "staff_id"),
+    all<GenData["slots"][number]>("timetable_slot", "id, section_id, day_of_week, period_no, subject_id, staff_id, room, group_id, extra:timetable_slot_extra(subject_id, staff_id)", (q) => q.eq("academic_year_id", y), "id"),
+    all<{ id: number; label: string; section_ids: number[]; periods: number; double_period: boolean; max_per_day: number | null; room: string | null }>("timetable_group", "id, label, section_ids, periods, double_period, max_per_day, room", (q) => q.eq("academic_year_id", y), "id"),
+    all<{ group_id: number; subject_id: number; staff_id: number | null }>("timetable_group_item", "group_id, subject_id, staff_id", (q) => q, "group_id"),
+    supabase.from("school").select("tt_days, tt_teacher_max_day, tt_class_teacher_first, tt_day_periods, tt_blocked" as "id").eq("id", session.schoolId).maybeSingle(),
+  ]);
+  const r = rules.data as unknown as { tt_days: number[]; tt_teacher_max_day: number; tt_class_teacher_first: boolean; tt_day_periods: Record<string, number>; tt_blocked: { day: number; period: number }[] } | null;
   const data: GenData = {
     yearId: year.id, yearName: year.name,
     periods: bell.periods.map((p) => ({ no: p.period_no, label: p.label, isBreak: p.is_break, start: p.start_time })),
     classes: scope.classes.map((c) => ({ id: c.id, name: c.name, subjects: (scope.subjectsByClass[c.id] ?? []).map((s) => ({ id: s.id, name: s.name, code: s.code })) })),
     sections: scope.sections.map((s) => ({ id: s.id, label: `${s.class_name}-${s.name}`, classId: s.class_id })),
     teachers,
-    loads: (loads.data ?? []) as unknown as GenData["loads"],
-    allotments: (allot.data ?? []) as unknown as GenData["allotments"],
-    unavailable: (unavail.data ?? []) as unknown as GenData["unavailable"],
-    slots,
-    rules: { days: r?.tt_days ?? [1, 2, 3, 4, 5, 6], teacherMaxDay: r?.tt_teacher_max_day ?? 6, classTeacherFirst: r?.tt_class_teacher_first ?? true },
+    loads, allotments: allot, unavailable: unavail, slots,
+    groups: groups.map((g) => ({ id: g.id, label: g.label, sectionIds: g.section_ids, periods: g.periods, double: g.double_period, maxPerDay: g.max_per_day, room: g.room,
+      items: items.filter((i) => i.group_id === g.id).map((i) => ({ subjectId: i.subject_id, staffId: i.staff_id })) })),
+    rules: { days: r?.tt_days ?? [1, 2, 3, 4, 5, 6], teacherMaxDay: r?.tt_teacher_max_day ?? 6, classTeacherFirst: r?.tt_class_teacher_first ?? true,
+      dayPeriods: Object.fromEntries(Object.entries(r?.tt_day_periods ?? {}).map(([k, v]) => [Number(k), Number(v)])), blocked: r?.tt_blocked ?? [] },
   };
   return (
     <div className="space-y-4">

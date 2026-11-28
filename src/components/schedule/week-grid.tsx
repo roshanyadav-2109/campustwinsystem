@@ -1,20 +1,30 @@
 "use client";
 import { useState } from "react";
+import { downloadPdf } from "@/lib/pdf";
+import { timetablePdf } from "@/components/schedule/print";
 import { cn } from "@/lib/utils";
 import { DAYS, cellKey, fmtRange, tintFor, toggleCls, type GridCell, type GridCells, type Period } from "@/components/schedule/shared";
 
 // Read-only week view. Wide screens: days across, periods down. Phones: one day
 // at a time, picked with the day buttons.
-export function WeekGrid({ periods, cells, today, note }: {
+export function WeekGrid({ periods, cells, today, note, printTitle }: {
   periods: Period[];
   cells: GridCells;
   today: number; // 1 = Mon .. 7 = Sun
   note?: string;
+  printTitle?: string;
 }) {
   const [day, setDay] = useState<number>(today >= 1 && today <= 6 ? today : 1);
+  const usedDays = [1, 2, 3, 4, 5, 6].filter((d) => d <= 5 || periods.some((p) => cells[cellKey(d, p.period_no)]));
+  const print = () => void downloadPdf(timetablePdf(printTitle ?? "Week", [], usedDays,
+    periods.map((p) => ({ no: p.period_no, label: p.label, isBreak: p.is_break, start: p.start_time })),
+    (d, p) => { const c = cells[cellKey(d, p)]; return c ? [c.title, c.sub, c.room].filter(Boolean).join(" / ") : ""; }));
 
   return (
     <div>
+      {printTitle && Object.keys(cells).length > 0 && (
+        <div className="mb-2 flex justify-end"><button onClick={print} className="h-8 rounded-sm border border-hair bg-white px-3 text-[13px] text-ink-900 hover:bg-panel">Print the week</button></div>
+      )}
       {note && (
         <p className="mb-3 rounded-sm border border-hair bg-[#fafafa] px-3 py-2 text-[13px] text-ink-700">{note}</p>
       )}

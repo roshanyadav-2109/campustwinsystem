@@ -9,7 +9,7 @@ const PATH = "/dashboard/schedule/generate";
 const clean = (e: { message: string } | null, f: string) => (e && e.message.length < 200 && !/violates|function|relation|column/.test(e.message) ? e.message : f);
 async function office() { const s = await getSession(); return !!s && s.staffRole === "office"; }
 
-export type LoadRow = { subjectId: number; periods: number; double: boolean; maxPerDay: number | null };
+export type LoadRow = { subjectId: number; periods: number; double: boolean; maxPerDay: number | null; room: string | null };
 
 // How many periods a week each subject has in a class.
 export async function saveLoads(yearId: number, classId: number, rows: LoadRow[]): Promise<R> {
@@ -21,7 +21,7 @@ export async function saveLoads(yearId: number, classId: number, rows: LoadRow[]
   const { error: e1 } = await db.from("timetable_load").delete().eq("academic_year_id", yearId).eq("class_id", classId);
   if (e1) return { ok: false, error: "Could not save." };
   if (keep.length) {
-    const { error } = await db.from("timetable_load").insert(keep.map((r) => ({ academic_year_id: yearId, class_id: classId, subject_id: r.subjectId, periods: r.periods, double_period: r.double, max_per_day: r.maxPerDay })) as never);
+    const { error } = await db.from("timetable_load").insert(keep.map((r) => ({ academic_year_id: yearId, class_id: classId, subject_id: r.subjectId, periods: r.periods, double_period: r.double, max_per_day: r.maxPerDay, room: r.room?.trim().slice(0, 40) || null })) as never);
     if (error) return { ok: false, error: clean(error, "Could not save.") };
   }
   revalidatePath(PATH);
@@ -33,16 +33,17 @@ export async function copyLoads(yearId: number, fromClass: number, toClasses: nu
   if (!(await office())) return { ok: false, error: "Only the office can change the timetable." };
   const supabase = await createClient();
   const db = await untyped();
-  const { data } = await db.from("timetable_load").select("subject_id, periods, double_period, max_per_day").eq("academic_year_id", yearId).eq("class_id", fromClass);
-  const src = (data ?? []) as unknown as { subject_id: number; periods: number; double_period: boolean; max_per_day: number | null }[];
+  const { data } = await db.from("timetable_load").select("subject_id, periods, double_period, max_per_day, room").eq("academic_year_id", yearId).eq("class_id", fromClass);
+  const src = (data ?? []) as unknown as { subject_id: number; periods: number; double_period: boolean; max_per_day: number | null; room: string | null }[];
   if (!src.length) return { ok: false, error: "That class has no periods set yet." };
   let n = 0;
   for (const c of toClasses.filter((x) => x !== fromClass)) {
     // only subjects the class actually has
     const { data: cs } = await supabase.from("class_subject").select("subject_id").eq("class_id", c);
     const has = new Set(((cs ?? []) as { subject_id: number }[]).map((x) => x.subject_id));
-    await db.from("timetable_load").delete().eq("academic_year_id", yearId).eq("class_id", c);
-    const rows = src.filter((r) => has.has(r.subject_id)).map((r) => ({ academic_year_id: yearId, class_id: c, subject_id: r.subject_id, periods: r.periods, double_period: r.double_period, max_per_day: r.max_per_day }));
+    const { error: de } = await db.from("timetable_load").delete().eq("academic_year_id", yearId).eq("class_id", c);
+    if (de) return { ok: false, error: "Could not copy." };
+    const rows = src.filter((r) => has.has(r.subject_id)).map((r) => ({ academic_year_id: yearId, class_id: c, subject_id: r.subject_id, periods: r.periods, double_period: r.double_period, max_per_day: r.max_per_day, room: r.room }));
     if (rows.length) { const { error } = await db.from("timetable_load").insert(rows as never); if (error) return { ok: false, error: clean(error, "Could not copy.") }; }
     n++;
   }
@@ -76,8 +77,47 @@ export async function saveRules(days: number[], maxPerDay: number, classTeacherF
   return { ok: true, message: "Saved." };
 }
 
-export async function saveGenerated(yearId: number, sectionIds: number[], rows: { section_id: number; day: number; period: number; subject_id: number; staff_id: number | null }[]): Promise<R> {
+export type GroupInput = { id: number | null; label: string; sectionIds: number[]; periods: number; double: boolean; maxPerDay: number | null; room: string | null; items: { subjectId: number; staffId: number | null }[] };
+
+// A lesson taught to several sections together (combined), or split into groups at once (languages, optionals).
+export async function saveGroup(yearId: number, g: GroupInput): Promise<R> {
   if (!(await office())) return { ok: false, error: "Only the office can change the timetable." };
+  if (!g.label.trim() || !g.sectionIds.length || !g.items.length) return { ok: false, error: "Give the group a name, its sections and at least one subject." };
+  if (!Number.isInteger(g.periods) || g.periods < 1 || g.periods > 20) return { ok: false, error: "Periods a week are 1 to 20." };
+  if (new Set(g.items.map((i) => i.subjectId)).size !== g.items.length) return { ok: false, error: "Each subject once in a group." };
+  const db = await untyped();
+  const row = { academic_year_id: yearId, label: g.label.trim().slice(0, 60), section_ids: g.sectionIds, periods: g.periods, double_period: g.double, max_per_day: g.maxPerDay, room: g.room?.trim().slice(0, 40) || null };
+  let id = g.id;
+  if (id) { const { error } = await db.from("timetable_group").update(row as never).eq("id", id); if (error) return { ok: false, error: clean(error, "Could not save the group.") }; }
+  else { const { data, error } = await db.from("timetable_group").insert(row as never).select("id").single(); if (error) return { ok: false, error: clean(error, "Could not save the group.") }; id = (data as { id: number }).id; }
+  await db.from("timetable_group_item").delete().eq("group_id", id);
+  const { error: ie } = await db.from("timetable_group_item").insert(g.items.map((i) => ({ group_id: id, subject_id: i.subjectId, staff_id: i.staffId })) as never);
+  if (ie) return { ok: false, error: clean(ie, "Could not save the subjects of the group.") };
+  revalidatePath(PATH);
+  return { ok: true, message: "Group saved." };
+}
+export async function deleteGroup(id: number): Promise<R> {
+  if (!(await office())) return { ok: false, error: "Only the office can change the timetable." };
+  const db = await untyped();
+  const { error } = await db.from("timetable_group").delete().eq("id", id);
+  if (error) return { ok: false, error: "Could not remove the group." };
+  revalidatePath(PATH);
+  return { ok: true, message: "Group removed." };
+}
+
+export async function saveShape(dayPeriods: Record<number, number>, blocked: { day: number; period: number }[]): Promise<R> {
+  if (!(await office())) return { ok: false, error: "Only the office can change the timetable." };
+  const supabase = await createClient();
+  const { error } = await supabase.rpc("set_timetable_shape" as never, { p_day_periods: dayPeriods, p_blocked: blocked } as never);
+  if (error) return { ok: false, error: clean(error, "Could not save.") };
+  revalidatePath(PATH);
+  return { ok: true, message: "Saved." };
+}
+
+export type SaveRow = { section_id: number; day: number; period: number; subject_id: number; staff_id: number | null; room: string | null; group_id: number | null; extras: { subject_id: number; staff_id: number | null }[] };
+export async function saveGenerated(yearId: number, sectionIds: number[], rows: SaveRow[]): Promise<R> {
+  if (!(await office())) return { ok: false, error: "Only the office can change the timetable." };
+  if (!sectionIds.length) return { ok: false, error: "Nothing to save." };
   const supabase = await createClient();
   const { data, error } = await supabase.rpc("save_generated_timetable" as never, { p_year: yearId, p_sections: sectionIds, p_rows: rows } as never);
   if (error) return { ok: false, error: clean(error, "Could not save the timetable.") };

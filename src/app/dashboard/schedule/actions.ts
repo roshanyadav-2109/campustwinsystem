@@ -66,6 +66,7 @@ export async function saveTimetable(input: {
       period_no: c.period,
       subject_id: c.subjectId,
       staff_id: c.staffId,
+      group_id: null,
       room: c.room?.trim() ? c.room.trim().slice(0, 40) : null,
     }));
     const { error } = await db.from("timetable_slot")

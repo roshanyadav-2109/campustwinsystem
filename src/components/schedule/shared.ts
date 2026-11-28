@@ -37,6 +37,8 @@ export type SlotRow = {
   subject_id: number | null;
   staff_id: number | null;
   room: string | null;
+  group_id?: number | null;
+  extra?: { subject_id: number; staff_id: number | null }[] | null;
 };
 export type Named = { id: number; name: string };
 

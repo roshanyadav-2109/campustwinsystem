@@ -69,7 +69,7 @@ export default async function SchedulePage({ searchParams }: { searchParams: SP 
           </div>
         )}
         {section ? (
-          <WeekGrid periods={periods} cells={cells} today={today}
+          <WeekGrid periods={periods} cells={cells} today={today} printTitle={section.label}
             note={Object.keys(cells).length ? undefined : "The lessons for this class haven't been entered yet."} />
         ) : (
           <EmptyState art="no-sections" title="No class found for this year" hint="Please contact the school office." />
@@ -127,7 +127,7 @@ export default async function SchedulePage({ searchParams }: { searchParams: SP 
         <div>
           {header}
           {picker}
-          <WeekGrid periods={periods} cells={cells} today={today}
+          <WeekGrid periods={periods} cells={cells} today={today} printTitle={teachers.find((t) => t.id === teacherId)?.name}
             note={Object.keys(cells).length ? undefined : "This teacher has no periods on the timetable yet."} />
         </div>
       );
@@ -153,7 +153,7 @@ export default async function SchedulePage({ searchParams }: { searchParams: SP 
       <div>
         {header}
         {picker}
-        <WeekGrid periods={periods} cells={cells} today={today}
+        <WeekGrid periods={periods} cells={cells} today={today} printTitle={section.name}
           note={Object.keys(cells).length ? undefined
             : isOffice ? `No lessons have been entered for ${section.name} yet. Press "Edit timetable" to fill them in.`
             : `No lessons have been entered for ${section.name} yet.`} />
@@ -181,7 +181,7 @@ export default async function SchedulePage({ searchParams }: { searchParams: SP 
           <Link prefetch={false} href="/dashboard/schedule?view=class" className={pill(view === "class")}>My class ({myClass.label})</Link>
         </div>
       )}
-      <WeekGrid periods={periods} cells={cells} today={today}
+      <WeekGrid periods={periods} cells={cells} today={today} printTitle={view === "class" && myClass ? myClass.label : "My week"}
         note={Object.keys(cells).length ? undefined
           : view === "class" ? "The lessons for your class haven't been entered yet." : "You have no periods on the timetable yet."} />
     </div>
