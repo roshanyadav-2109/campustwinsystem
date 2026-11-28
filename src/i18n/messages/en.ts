@@ -40,6 +40,7 @@ const en = {
     seating: "Seating and invigilation",
     scripts: "Coded scripts",
     questionPapers: "Question papers",
+    lessons: "Lessons",
     workload: "Workload",
     revaluation: "Revaluation",
     supplementary: "Supplementary exams",
