@@ -1,3 +1,5 @@
+import { MyHolds, HoldsDesk, DigitalLibrary, type HoldRow, type LinkRow } from "@/components/library/holds";
+import { createClient as createLibClient } from "@/lib/supabase/server";
 import { getSession } from "@/lib/session";
 import { guardTab } from "@/lib/access";
 import { numParam, strParam } from "@/lib/utils";
@@ -27,16 +29,21 @@ const OFFICE_VIEWS = [
   { key: "issue", label: "Issue" },
   { key: "return", label: "Return" },
   { key: "overdue", label: "Overdue" },
+  { key: "holds", label: "Reservations" },
+  { key: "digital", label: "Digital library" },
   { key: "settings", label: "Settings" },
 ];
 const PRINCIPAL_VIEWS = [
   { key: "overview", label: "Overview" },
   { key: "catalogue", label: "Catalogue" },
   { key: "overdue", label: "Overdue" },
+  { key: "digital", label: "Digital library" },
 ];
 const MEMBER_VIEWS = [
   { key: "mine", label: "My books" },
   { key: "catalogue", label: "Catalogue" },
+  { key: "reserve", label: "Reserve" },
+  { key: "digital", label: "Digital library" },
 ];
 
 // Library. The office runs it (catalogue, issue, return, fines, rules), the
@@ -77,6 +84,9 @@ export default async function LibraryPage({ searchParams }: { searchParams: SP }
   else if (view === "return") body = await ReturnView({ sp, settings });
   else if (view === "overdue") body = await OverdueView({ settings });
   else if (view === "settings") body = <SettingsForm settings={settings} />;
+  else if (view === "digital") { const { data } = await (await createLibClient()).from("library_link" as never).select("id, kind, title, url, note").order("title"); body = <DigitalLibrary links={(data ?? []) as unknown as LinkRow[]} canEdit={isOffice} />; }
+  else if (view === "holds") { const { data } = await (await createLibClient()).from("library_hold" as never).select("id, status, created_at, ready_at, book:book_id(title, author), student:student_id(full_name)").in("status", ["waiting", "ready"]).order("created_at").limit(300); body = <HoldsDesk holds={(data ?? []) as unknown as HoldRow[]} />; }
+  else if (view === "reserve") { const { data } = await (await createLibClient()).from("library_hold" as never).select("id, status, created_at, ready_at, book:book_id(title, author)").order("created_at", { ascending: false }).limit(30); body = session.studentId ? <MyHolds holds={(data ?? []) as unknown as HoldRow[]} /> : <p className="text-[13px] text-ink-500">Reservations are for students.</p>; }
   else body = await MineView({ member: member as MemberRef, settings });
 
   return (

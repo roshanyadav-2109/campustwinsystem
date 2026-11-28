@@ -50,7 +50,7 @@ export const SHARED_ROUTES: RouteDef[] = [
   { href: "/dashboard/substitutions", icon: AllotmentIcon, labelKey: "nav.substitutions", roles: ["principal", "office"], group: "staff" },
   { href: "/dashboard/front-desk", icon: AnnounceIcon, labelKey: "nav.frontDesk", roles: ["principal", "office"], group: "campus" },
   { href: "/dashboard/front-desk", icon: AnnounceIcon, labelKey: "nav.pickupHealth", roles: ["guardian"], group: "students" },
-  { href: "/dashboard/hostel", icon: ManageIcon, labelKey: "nav.hostel", roles: ["principal", "office"], module: "hostel", group: "campus" },
+  { href: "/dashboard/hostel", icon: ManageIcon, labelKey: "nav.hostel", roles: ["principal", "office", "subject_teacher", "class_teacher", "student", "guardian"], module: "hostel", group: "campus" },
   { href: "/dashboard/inventory", icon: ManageIcon, labelKey: "nav.inventory", roles: ["principal", "office"], group: "campus" },
   { href: "/dashboard/gate-scan", icon: StudentsIcon, labelKey: "nav.gateScan", roles: ["principal", "office", "transport"], group: "campus" },
   { href: "/dashboard/allotments", icon: AllotmentIcon, labelKey: "nav.allotments", roles: ["principal", "office"], group: "staff" },
