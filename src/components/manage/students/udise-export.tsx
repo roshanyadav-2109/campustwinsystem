@@ -4,7 +4,7 @@ import { Card, CardBody, CardHeader } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Select } from "@/components/ui/field";
 import { downloadWorkbook } from "@/lib/xlsx";
-import { udiseRows, type UdiseRow } from "@/app/dashboard/students/manage/udise-actions";
+import { udiseRows, logUdiseExport, type UdiseRow } from "@/app/dashboard/students/manage/udise-actions";
 
 const yn = (v: boolean | null) => (v == null ? "" : v ? "Yes" : "No");
 const dmy = (v: string | null) => (v ? v.split("-").reverse().join("/") : "");
@@ -23,9 +23,9 @@ export function UdiseExport({ sections }: { sections: { id: number; label: strin
     setSummary({ total: r.rows.length, missing });
     if (!download) return;
     const headers = ["Admission No", "Student Name", "Name as per Aadhaar", "Gender", "Date of Birth", "Class", "Section", "Roll No", "Date of Admission", "Mother's Name", "Father's Name",
-      "Guardian's Name", "Mobile Number", "Email", "Address", "Pincode", "Mother Tongue", "Social Category", "Religion", "BPL", "CWSN", "CWSN Type",
+      "Guardian's Name", "Mobile Number", "Email", "Address", "Pincode", "Mother Tongue", "Social Category", "Religion", "BPL", "CWSN", "CWSN Note",
       "APAAR ID", "PEN", "Aadhaar (last 4)", "Blood Group", "Previous School", "Nationality",
-      "Minority Group", "AAY", "EWS / Disadvantaged", "Type of Impairment", "UDID", "Admitted under RTE", "Height (cm)", "Weight (kg)", "Medium of Instruction", "Stream",
+      "Minority Group", "AAY", "EWS / Disadvantaged", "CWSN Type of Impairment", "UDID", "Admitted under RTE", "Height (cm)", "Weight (kg)", "Medium of Instruction", "Stream",
       "Previous Year Result", "Previous Year %", "Days Attended Last Year", "Facilities Received"];
     const cap = (v: string | null) => (v ? v.charAt(0).toUpperCase() + v.slice(1).replace(/_/g, " ") : "");
     const data = r.rows.map((x: UdiseRow) => [x.admission_no, x.student_name, x.aadhaar_name ?? "", x.gender ?? "", dmy(x.dob), x.class_name, x.section_name, x.roll_no ?? "", dmy(x.admission_date),
@@ -34,6 +34,7 @@ export function UdiseExport({ sections }: { sections: { id: number; label: strin
       x.previous_school ?? "", x.nationality ?? "", cap(x.minority), yn(x.aay), yn(x.disadvantaged), x.disability_type ?? "", x.udid_no ?? "", yn(x.rte_admission),
       x.height_cm ?? "", x.weight_kg ?? "", x.medium ?? "", cap(x.stream), cap(x.prev_result), x.prev_percent ?? "", x.prev_attendance_days ?? "",
       (x.facilities ?? []).map((f) => cap(f)).join(", ")]);
+    void logUdiseExport(sectionId === "" ? "Whole school" : sections.find((s) => s.id === sectionId)?.label ?? "");
     downloadWorkbook(`UDISE+ students${sectionId === "" ? "" : ` ${sections.find((s) => s.id === sectionId)?.label ?? ""}`}`, [
       { name: "Students", headers, rows: data },
       { name: "Missing details", headers: ["Student", "Class", "Missing"], rows: missing.map((m) => [m.name, m.cls, m.what.join(", ")]) },

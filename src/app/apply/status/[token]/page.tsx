@@ -3,6 +3,7 @@ import { SUPABASE_URL, SUPABASE_ANON_KEY } from "@/lib/supabase/config";
 import { ApplicantStatus, type StatusRow } from "@/components/admissions/applicant-status";
 
 export const dynamic = "force-dynamic";
+export const metadata = { robots: { index: false, follow: false }, referrer: "no-referrer" as const };
 
 // The family's private page for one application: where it stands, the offer to accept, the fee to pay.
 export default async function ApplicationStatusPage({ params }: { params: Promise<{ token: string }> }) {

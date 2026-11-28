@@ -333,3 +333,13 @@ export async function offerLetterData(enquiryId: number) {
   return { enquiry: e as unknown as { child_name: string; guardian_name: string; date_of_birth: string | null; offer_no: string; offered_at: string; offer_expires_on: string; app_fee_amount: number | null; app_fee_paid_on: string | null; class: { name: string } | null; academic_year: { name: string } | null },
     school: sc as unknown as { name: string; address: string | null; phone: string | null; email: string | null; signatory_name: string | null; signatory_title: string | null } };
 }
+
+export async function acceptAtOffice(enquiryId: number): Promise<Result> {
+  const session = await officeSession();
+  if (!session) return { ok: false, error: OFFICE_ONLY };
+  const supabase = await createClient();
+  const { error } = await supabase.rpc("accept_offer_at_office" as never, { p_enquiry: enquiryId } as never);
+  if (error) return { ok: false, error: rpcMsg(error, "Could not record the acceptance.") };
+  revalidatePath(TAB);
+  return { ok: true };
+}

@@ -3,6 +3,7 @@ import { CertificateBulkUpload } from "@/components/manage/students/certificate-
 import { CertificateRegisterUpload } from "@/components/manage/students/certificate-register-upload";
 import { DetailsUpload } from "@/components/manage/students/details-upload";
 import { UdiseExport } from "@/components/manage/students/udise-export";
+import { PhotoBulkUpload } from "@/components/students/student-photo";
 import { guardTab } from "@/lib/access";
 import { PageHeader } from "@/components/ui/page-header";
 import { EmptyState } from "@/components/ui/empty";
@@ -53,6 +54,7 @@ async function ManageStudentsPageBody({ searchParams }: { searchParams: SP }) {
         <CertificateBulkUpload />
         <CertificateRegisterUpload />
         <UdiseExport sections={sections.map((x) => ({ id: x.id, label: x.label }))} />
+        <PhotoBulkUpload />
       </div>
     </div>
   );

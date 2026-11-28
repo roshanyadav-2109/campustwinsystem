@@ -10,6 +10,7 @@ import { fmtDay } from "@/components/fees/shared";
 import { CertificatesPanel, type CertRow } from "@/components/students/certificates-panel";
 import { IdCardForStudent } from "@/components/students/id-cards";
 import { untyped } from "@/lib/data/schedule";
+import { StudentPhoto } from "@/components/students/student-photo";
 
 // One student, everything in one place: admission, address, family,
 // medical and, for the office and principal, identity and category.
@@ -69,6 +70,7 @@ export default async function StudentPage({ params }: { params: Promise<{ id: st
         </p>
       )}
       <div className="grid items-start gap-5 xl:grid-cols-2">
+        {canEdit && <Card><CardHeader title="Photo" /><CardBody><StudentPhoto studentId={s.id} url={s.photoUrl} name={s.fullName} /></CardBody></Card>}
         <Card>
           <CardHeader title="Admission and personal" />
           <CardBody className="pt-1">

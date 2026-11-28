@@ -3,7 +3,7 @@ import { useEffect, useId, useState, useTransition } from "react";
 import Link from "@/components/ui/hover-link";
 import { Button } from "@/components/ui/button";
 import { Field, Input, Select, Textarea } from "@/components/ui/field";
-import { addFollowup, admitEnquiry, getAdmitOptions, updateEnquiry, makeOffer, waitlistApplication, withdrawOffer, offerLetterData } from "@/app/dashboard/admissions/actions";
+import { addFollowup, admitEnquiry, getAdmitOptions, updateEnquiry, makeOffer, waitlistApplication, withdrawOffer, offerLetterData, acceptAtOffice } from "@/app/dashboard/admissions/actions";
 import { downloadPdf } from "@/lib/pdf";
 import { offerLetterPdf } from "@/components/admissions/offer-letter";
 import {
@@ -197,7 +197,7 @@ function OfferPanel({ enquiry, onDone }: { enquiry: Enquiry; onDone: () => void 
   return (
     <div className="mt-3 rounded-md border border-hair bg-white px-4 py-3 text-[13px]">
       <h4 className="text-[14px] font-semibold text-ink-900">Offer and waiting list</h4>
-      {open ? <p className="mt-1 text-ink-700">Offer {enquiry.offerNo}{enquiry.status === "accepted" ? ", accepted by the family" : `, open until ${fmtDate(enquiry.offerExpiresOn)}`}.</p>
+      {open ? <p className="mt-1 text-ink-700">Offer {enquiry.offerNo}{enquiry.status === "accepted" ? `, accepted; complete the admission by ${fmtDate(enquiry.offerExpiresOn)}` : `, open until ${fmtDate(enquiry.offerExpiresOn)}`}.</p>
         : enquiry.status === "waitlisted" ? <p className="mt-1 text-ink-700">On the waiting list. A seat that becomes free is offered automatically, best score first.</p>
         : enquiry.status === "declined" ? <p className="mt-1 text-ink-700">Offer closed{enquiry.decisionNote ? `: ${enquiry.decisionNote}` : ""}.</p> : null}
       <div className="mt-2 flex flex-wrap items-end gap-2">
@@ -208,6 +208,7 @@ function OfferPanel({ enquiry, onDone }: { enquiry: Enquiry; onDone: () => void 
         </>}
         {open && <>
           <Button size="sm" variant="subtle" disabled={pending} onClick={() => start(async () => { const d = await offerLetterData(enquiry.id); if (!d) { setMsg({ ok: false, text: "No offer to print." }); return; } await downloadPdf(offerLetterPdf(d, link)); })}>Offer letter</Button>
+          {enquiry.status === "offered" && <Button size="sm" variant="subtle" disabled={pending} onClick={() => run(() => acceptAtOffice(enquiry.id), "Recorded: the family accepted at the office.")}>Accepted at the office</Button>}
           <Button size="sm" variant="ghost" disabled={pending} onClick={() => run(() => withdrawOffer(enquiry.id, ""), "Offer withdrawn; the seat goes to the waiting list.")}>Withdraw offer</Button>
         </>}
         {link && <Button size="sm" variant="ghost" onClick={() => { void navigator.clipboard?.writeText(link); setMsg({ ok: true, text: "The family's link is copied." }); }}>Copy family link</Button>}

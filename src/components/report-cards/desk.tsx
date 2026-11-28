@@ -70,6 +70,8 @@ export function ReportCardsDesk({ sectionId, term, termLocked, canUnlock, rows, 
     if (!r.ok) { setMsg({ ok: false, text: r.error }); return; }
     if (!r.cards.length) { setMsg({ ok: false, text: "No published report cards yet." }); return; }
     const pics = await studentPhotos(r.cards.map((c) => c.studentId));
+    const noPic = r.cards.filter((c) => !pics[c.studentId]).length;
+    if (noPic) setMsg({ ok: false, text: `${noPic} report card${noPic === 1 ? "" : "s"} printed without a photo. Add photos in Students, Manage records, Student photos.` });
     await downloadPdfBook(r.cards.map((c) => reportCardPdf(c.snapshot as CardSnapshot, verifyBase + c.token, pics[c.studentId] ?? null)), `Report cards ${term === 0 ? "year-end" : `term ${term}`}`);
   });
 

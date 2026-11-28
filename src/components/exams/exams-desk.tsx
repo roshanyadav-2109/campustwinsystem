@@ -88,6 +88,8 @@ export function ExamsDesk({ canEdit, sessions, sessionId, papers, types, classes
     setWithheld(r.rows.filter((x) => x.withheld).map((x) => ({ name: x.student_name, reason: x.reason ?? "" })));
     if (!ok.length) { setMsg({ ok: false, text: "Every admit card in this section is held back." }); return; }
     const pics = await studentPhotos(ok.map((x) => x.student_id));
+    const noPic = ok.filter((x) => !pics[x.student_id]).length;
+    if (noPic) setMsg({ ok: false, text: `${noPic} admit card${noPic === 1 ? "" : "s"} printed without a photo. Add photos in Students, Manage records, Student photos.` });
     await downloadPdfBook(ok.map((x) => admitCardPdf({ exam: s.name, school, student: x.student_name, admissionNo: x.admission_no, roll: x.roll_no, classLabel: x.class_label, instructions: s.instructions, papers: papersFor(x.subject_ids, x.student_id), verifyUrl: verifyBase + x.verify_token, photo: pics[x.student_id] ?? null })), `Admit cards ${sec.label} ${s.name}`);
     setMsg({ ok: true, text: `${ok.length} admit cards downloaded.` });
   });

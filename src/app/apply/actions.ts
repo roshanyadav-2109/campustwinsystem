@@ -76,6 +76,8 @@ export async function submitApplication(input: ApplyInput): Promise<ApplyResult>
       .from("admission_enquiry")
       .select("id", { count: "exact", head: true })
       .eq("phone", phone)
+      .eq("school_id", schoolId)
+      .ilike("child_name", childName)
       .gte("created_at", since);
     if (recent.error) return { ok: false, error: TRY_AGAIN };
     if ((recent.count ?? 0) > 0) {

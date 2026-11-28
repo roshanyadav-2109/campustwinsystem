@@ -17,6 +17,12 @@ begin
   insert into public.admission_enquiry (school_id, child_name, class_id, guardian_name, phone, source, status, academic_year_id, score)
   values (8, 'QA Child C', v_class, 'QA Parent', '9000000003', 'online', 'applied', v_year, 90) returning id into c;
   update public.school set application_fee = 500, offer_days = 5, auto_waitlist = true where id = 8;
+  -- without a seat count, nothing is offered automatically
+  delete from public.admission_seat where academic_year_id = v_year and class_id = v_class;
+  update public.admission_enquiry set status = 'waitlisted', waitlisted_at = now() where id = c;
+  if public.promote_waitlist(v_year, v_class) <> 0 then raise exception 'FAIL offers without a seat count'; end if;
+  update public.admission_enquiry set status = 'applied', waitlisted_at = null where id = c;
+  insert into public.admission_seat (school_id, academic_year_id, class_id, seats) values (8, v_year, v_class, public.admission_taken(v_year, v_class) + 1);
 
   perform set_config('request.jwt.claims', json_build_object('sub', of, 'role', 'authenticated')::text, true); set local role authenticated;
   v_no := public.make_offer(a);
@@ -41,6 +47,18 @@ begin
   if (select status from public.admission_enquiry where id = c) <> 'declined' or (select status from public.admission_enquiry where id = b) <> 'offered' then raise exception 'FAIL lapse'; end if;
   -- families were told (the messages are on record)
   if (select count(*) from public.notification where enquiry_id in (a, b, c)) < 4 then raise exception 'FAIL messages %', (select count(*) from public.notification where enquiry_id in (a, b, c)); end if;
+  -- moving an offered child back to the waiting list does not offer the seat straight back to them
+  perform set_config('request.jwt.claims', json_build_object('sub', of, 'role', 'authenticated')::text, true); set local role authenticated;
+  perform public.waitlist_application(b);
+  reset role;
+  if (select status from public.admission_enquiry where id = b) <> 'waitlisted' then raise exception 'FAIL re-waitlisted child was offered again'; end if;
+  -- the office records an acceptance made at the counter
+  perform set_config('request.jwt.claims', json_build_object('sub', of, 'role', 'authenticated')::text, true); set local role authenticated;
+  perform public.make_offer(b);
+  perform public.accept_offer_at_office(b);
+  reset role;
+  if (select status from public.admission_enquiry where id = b) <> 'accepted' then raise exception 'FAIL office acceptance'; end if;
+  update public.admission_enquiry set status = 'offered', offer_expires_on = (now() at time zone 'Asia/Kolkata')::date + 3 where id = b;
   -- B accepts
   set local role anon;
   perform public.respond_offer(tb, true);
@@ -61,6 +79,11 @@ begin
   if not (select fee_paid from public.applicant_status(tb)) then raise exception 'FAIL status page fee'; end if;
   ok := false; begin perform public.create_application_payment(tb); exception when others then ok := sqlerrm like '%already paid%'; end;
   if not ok then raise exception 'FAIL pay twice'; end if;
+  reset role;
+  -- a refund of the fee makes it unpaid again
+  perform public.refund_payment_order(r.order_public_id, 500, 'qa-refund', 'refund');
+  if (select app_fee_paid_on from public.admission_enquiry where id = b) is not null then raise exception 'FAIL refund kept the fee paid'; end if;
+  set local role anon;
   -- a made-up link shows nothing
   if exists (select 1 from public.applicant_status(repeat('a', 32))) then raise exception 'FAIL bad link'; end if;
   reset role;

@@ -29,3 +29,9 @@ export async function udiseRows(sectionId: number | null): Promise<{ ok: true; r
   }
   return { ok: true, rows };
 }
+
+// Who downloaded the UDISE+ list (it carries category, religion, disability and phone numbers).
+export async function logUdiseExport(scope: string): Promise<void> {
+  const supabase = await createClient();
+  await supabase.rpc("log_export" as never, { p_what: "udise", p_scope: scope } as never);
+}

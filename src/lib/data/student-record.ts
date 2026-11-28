@@ -20,7 +20,7 @@ export type StudentIdentity = {
   aadhaar_name: string | null; minority: string | null; disadvantaged: boolean; aay: boolean; disability_type: string | null; udid_no: string | null; rte_admission: boolean;
 };
 export type StudentRecord = {
-  id: number; fullName: string; admissionNo: string; dob: string | null; gender: string | null;
+  id: number; fullName: string; admissionNo: string; dob: string | null; gender: string | null; photoUrl: string | null;
   email: string | null; phone: string | null; status: string; leftOn: string | null; exitRemark: string | null;
   classLabel: string | null; rollNo: number | null;
   guardians: { name: string; relation: string | null; phone: string | null; email: string | null }[];
@@ -47,7 +47,7 @@ export async function getStudentRecord(studentId: number, yearId: number | null,
   const supabase = await createClient();
   const db = await untyped();
   const { data: s } = await supabase.from("student")
-    .select("id, full_name, admission_no, dob, gender, email, phone, status, left_on, exit_remark").eq("id", studentId).maybeSingle();
+    .select("id, full_name, admission_no, dob, gender, email, phone, status, left_on, exit_remark, photo_path").eq("id", studentId).maybeSingle();
   if (!s) return null;
 
   const [{ data: en }, { data: gs }, { data: prof }, ident] = await Promise.all([
@@ -77,7 +77,7 @@ export async function getStudentRecord(studentId: number, yearId: number | null,
   }
 
   return {
-    id: s.id, fullName: s.full_name, admissionNo: s.admission_no, dob: s.dob, gender: s.gender as string | null,
+    id: s.id, fullName: s.full_name, admissionNo: s.admission_no, dob: s.dob, gender: s.gender as string | null, photoUrl: (s as { photo_path?: string | null }).photo_path ?? null,
     email: s.email, phone: s.phone, status: s.status, leftOn: s.left_on, exitRemark: s.exit_remark,
     classLabel: sec?.section ? `${sec.section.class?.name ?? ""}-${sec.section.name}` : null, rollNo: sec?.roll_no ?? null,
     guardians: links.filter((l) => l.guardian).map((l) => ({ name: l.guardian!.full_name, relation: l.guardian!.relation, phone: l.guardian!.phone, email: l.guardian!.email })),
