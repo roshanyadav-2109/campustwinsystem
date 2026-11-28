@@ -13,12 +13,12 @@ async function rpc(name: string, args: Record<string, unknown>, paths: string[],
   return { ok: true, message: done(data) };
 }
 
-export async function addRoom(name: string, capacity: string, layout?: { rows: string; benches: string; perBench: string }): Promise<R> {
+export async function addRoom(name: string, capacity: string, layout?: { rows: string; benches: string; perBench: string }, special = false): Promise<R> {
   const byLayout = !!layout && /^\d{1,2}$/.test(layout.rows.trim()) && /^\d{1,2}$/.test(layout.benches.trim());
   if (!name.trim() || (!byLayout && !/^\d{1,4}$/.test(capacity.trim()))) return { ok: false, error: "Give the room a name and the number of seats (or rows and benches)." };
   const supabase = await createClient();
   const { error } = await supabase.from("exam_room" as never).insert({ name: name.trim().slice(0, 40), capacity: byLayout ? 1 : Number(capacity),
-    rows_n: byLayout ? Number(layout!.rows) : null, benches_n: byLayout ? Number(layout!.benches) : null, per_bench: byLayout ? Math.min(Math.max(Number(layout!.perBench) || 1, 1), 3) : 1 } as never);
+    rows_n: byLayout ? Number(layout!.rows) : null, benches_n: byLayout ? Number(layout!.benches) : null, per_bench: byLayout ? Math.min(Math.max(Number(layout!.perBench) || 1, 1), 3) : 1, special } as never);
   if (error) return { ok: false, error: error.message.includes("duplicate") ? "A room with this name exists." : clean(error, "Could not add the room.") };
   revalidatePath("/dashboard/seating");
   return { ok: true, message: "Room added." };
@@ -98,8 +98,13 @@ export const setOwnTeacherEvaluation = async (on: boolean) =>
 
 export async function saveBooklets(rows: { seat: number; booklet: string; extra: number | null; late: boolean }[]): Promise<R> {
   if (rows.some((r) => r.booklet.length > 30 || (r.extra != null && (r.extra < 0 || r.extra > 40)))) return { ok: false, error: "A booklet number has at most 30 characters; extra sheets 0 to 40." };
-  return rpc("save_booklets", { p_seats: rows.map((r) => r.seat), p_booklets: rows.map((r) => r.booklet), p_extra: rows.map((r) => r.extra), p_late: rows.map((r) => r.late) },
-    ["/dashboard/invigilation"], (d) => `Booklets saved for ${Number(d ?? 0)}.`, "Could not save.");
+  const seen = new Set<string>();
+  for (const r of rows) { const b = r.booklet.trim().toUpperCase(); if (!b) continue; if (seen.has(b)) return { ok: false, error: `Booklet ${r.booklet} is entered twice.` }; seen.add(b); }
+  const supabase = await createClient();
+  const { data, error } = await supabase.rpc("save_booklets" as never, { p_seats: rows.map((x) => x.seat), p_booklets: rows.map((x) => x.booklet), p_extra: rows.map((x) => x.extra), p_late: rows.map((x) => x.late) } as never);
+  if (error) return { ok: false, error: /uq_exam_seat_booklet/.test(error.message) ? "A booklet number is already used for another student in this exam." : clean(error, "Could not save.") };
+  revalidatePath("/dashboard/invigilation");
+  return { ok: true, message: `Booklets saved for ${Number(data ?? 0)}.` };
 }
 export const swapDuty = async (dutyId: number, staffId: number) => rpc("swap_duty", { p_duty: dutyId, p_staff: staffId }, ["/dashboard/seating"], () => "Duty changed.", "Could not change the duty.");
 
@@ -124,19 +129,23 @@ export async function removeAccommodation(id: number): Promise<R> {
   return { ok: true, message: "Removed." };
 }
 
-export async function saveRates(duty: string, script: string): Promise<R> {
-  if (![duty, script].every((v) => /^\d{1,6}(\.\d{1,2})?$/.test(v.trim() || "0"))) return { ok: false, error: "Rates are amounts in rupees." };
+export type Rates = { duty: string; script: string; chief: string; squad: string; relieving: string };
+export async function saveRates(rates: Rates, sessionId: number | null = null): Promise<R> {
+  if (!Object.values(rates).every((v) => /^\d{1,6}(\.\d{1,2})?$/.test(v.trim() || "0"))) return { ok: false, error: "Rates are amounts in rupees." };
   const supabase = await createClient();
-  const db = await untyped();
-  const { error } = await db.from("exam_rate").upsert([{ kind: "duty", amount: Number(duty || 0) }, { kind: "script", amount: Number(script || 0) }] as never, { onConflict: "school_id,kind" });
+  const entries = Object.entries(rates).map(([k, v]) => [k, v.trim()] as const).filter(([, v]) => sessionId == null || v !== "");
+  const { error } = await supabase.rpc("set_exam_rates" as never, { p_session: sessionId, p_rates: Object.fromEntries(entries.map(([k, v]) => [k, v || "0"])) } as never);
   if (error) return { ok: false, error: clean(error, "Only the Controller of Examinations can set rates.") };
   revalidatePath("/dashboard/seating");
-  return { ok: true, message: "Rates saved." };
+  return { ok: true, message: sessionId ? "Rates for this exam saved." : "Rates saved." };
 }
+export const setDutyRole = async (dutyId: number, role: string) => rpc("set_duty_role", { p_duty: dutyId, p_role: role }, ["/dashboard/seating"], () => "Role changed.", "Could not change the role.");
+export const markRemunerationPaid = async (sessionId: number, staff: number[], paidOn: string, ref: string) =>
+  rpc("mark_remuneration_paid", { p_session: sessionId, p_staff: staff, p_paid_on: paidOn || null, p_ref: ref || null }, ["/dashboard/seating"], (d) => `Marked paid for ${Number(d ?? 0)}.`, "Could not mark as paid.");
 export async function remuneration(sessionId: number) {
   const supabase = await createClient();
   const { data } = await supabase.rpc("exam_remuneration" as never, { p_session: sessionId } as never);
-  return (data ?? []) as unknown as { staff_id: number; staff_name: string; employee_code: string | null; duties: number; scripts: number; duty_amount: number; script_amount: number; total: number }[];
+  return (data ?? []) as unknown as { staff_id: number; staff_name: string; employee_code: string | null; duties: number; scripts: number; duty_amount: number; script_amount: number; total: number; paid_on: string | null; paid_ref: string | null }[];
 }
 
 // A photocopy of the answer script: the exam cell uploads the scan; the student downloads it.

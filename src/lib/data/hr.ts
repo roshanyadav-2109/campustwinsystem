@@ -142,7 +142,7 @@ export function leaveDaysWithin(l: { from_date: string; to_date: string; days: n
 // The leave types. `missing` = migration 0044 has not been applied yet.
 export async function getLeaveTypes(): Promise<{ missing: true } | { missing: false; types: LeaveType[] }> {
   const db = await untyped();
-  const { data, error } = await db.from("staff_leave_type").select("id, code, name, days_per_year, is_paid, active").order("id");
+  const { data, error } = await db.from("staff_leave_type").select("id, code, name, days_per_year, is_paid, active, chain").order("id");
   if (error) {
     if (isMissingTable(error) || /staff_leave_type/i.test(error.message ?? "")) return { missing: true };
     throw new Error(error.message);

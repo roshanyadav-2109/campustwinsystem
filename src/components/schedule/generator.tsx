@@ -5,7 +5,7 @@ import { Card, CardBody, CardHeader } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input, Select } from "@/components/ui/field";
 import { solveTimetable, type SolverInput, type SolverResult, type SolverCell, type SolverFixed } from "@/lib/timetable-solver";
-import { saveLoads, copyLoads, saveUnavailable, saveRules, saveShape, saveGroup, deleteGroup, saveGenerated, type SaveRow } from "@/app/dashboard/schedule/generate/actions";
+import { saveLoads, copyLoads, saveUnavailable, saveRules, saveShape, saveGroup, deleteGroup, saveGenerated, saveConsecutive, saveDraft, deleteDraft, type SaveRow } from "@/app/dashboard/schedule/generate/actions";
 import { DAYS, toggleCls } from "@/components/schedule/shared";
 import { downloadPdf, downloadPdfBook } from "@/lib/pdf";
 import { timetablePdf } from "@/components/schedule/print";
@@ -21,7 +21,8 @@ export type GenData = {
   unavailable: { staff_id: number; day_of_week: number; period_no: number }[];
   slots: { id: number; section_id: number; day_of_week: number; period_no: number; subject_id: number | null; staff_id: number | null; room: string | null; group_id: number | null; extra: { subject_id: number; staff_id: number | null }[] | null }[];
   groups: { id: number; label: string; sectionIds: number[]; periods: number; double: boolean; maxPerDay: number | null; room: string | null; items: { subjectId: number; staffId: number | null }[] }[];
-  rules: { days: number[]; teacherMaxDay: number; classTeacherFirst: boolean; dayPeriods: Record<number, number>; blocked: { day: number; period: number }[] };
+  rules: { days: number[]; teacherMaxDay: number; maxConsecutive: number; classTeacherFirst: boolean; dayPeriods: Record<number, number>; blocked: { day: number; period: number }[] };
+  drafts: { id: number; name: string; section_ids: number[]; rows: SaveRow[]; created_at: string }[];
 };
 type Tab = "loads" | "groups" | "teachers" | "rules" | "make";
 type Msg = { ok: boolean; text: string } | null;
@@ -207,6 +208,7 @@ function Rules({ data, canEdit }: { data: GenData; canEdit: boolean }) {
   const [days, setDays] = useState<number[]>(data.rules.days);
   const [max, setMax] = useState(String(data.rules.teacherMaxDay));
   const [ct, setCt] = useState(data.rules.classTeacherFirst);
+  const [cons, setCons] = useState(String(data.rules.maxConsecutive));
   const [dp, setDp] = useState<Record<number, string>>(() => Object.fromEntries(Object.entries(data.rules.dayPeriods).map(([k, v]) => [Number(k), String(v)])));
   const [blocked, setBlocked] = useState<Set<string>>(() => new Set(data.rules.blocked.map((b) => `${b.day}-${b.period}`)));
   const [msg, setMsg] = useState<Msg>(null);
@@ -221,6 +223,7 @@ function Rules({ data, canEdit }: { data: GenData; canEdit: boolean }) {
         <div className="flex flex-wrap items-center gap-3"><span className="text-ink-700">Teaching periods on a shorter day</span>{DAYS.filter((d) => days.includes(d.n)).map((d) => (
           <label key={d.n} className="flex items-center gap-1">{d.short}<Input aria-label={`${d.long}: teaching periods`} className="h-8 w-14" inputMode="numeric" placeholder={String(teaching.length)} disabled={!canEdit} value={dp[d.n] ?? ""} onChange={(e) => setDp({ ...dp, [d.n]: e.target.value })} /></label>))}</div>
         <label className="flex items-center gap-2">A teacher teaches at most<Input aria-label="Periods a teacher teaches at most a day" className="h-8 w-16" inputMode="numeric" disabled={!canEdit} value={max} onChange={(e) => setMax(e.target.value)} />periods a day</label>
+        <label className="flex items-center gap-2">and at most<Input aria-label="Periods in a row at most" className="h-8 w-16" inputMode="numeric" disabled={!canEdit} value={cons} onChange={(e) => setCons(e.target.value)} />periods in a row</label>
         <label className="flex items-center gap-2"><input type="checkbox" disabled={!canEdit} checked={ct} onChange={(e) => setCt(e.target.checked)} />The class teacher takes the first period where possible</label>
         <p className="text-ink-700">Periods with no lessons for anyone (assembly, clubs):</p>
         <Grid days={DAYS.filter((d) => days.includes(d.n))} periods={teaching} isOn={(d, p) => blocked.has(`${d}-${p}`)} onLabel="No" disabled={!canEdit} label={(d, p, on) => `${d} ${p}: ${on ? "no lessons" : "lessons"}`}
@@ -228,6 +231,8 @@ function Rules({ data, canEdit }: { data: GenData; canEdit: boolean }) {
         {canEdit && <Button size="sm" disabled={pending} onClick={() => start(async () => {
           const r1 = await saveRules(days, Number(max), ct);
           if (!r1.ok) { setMsg({ ok: false, text: r1.error }); return; }
+          const r0 = await saveConsecutive(Number(cons) || 4);
+          if (!r0.ok) { setMsg({ ok: false, text: r0.error }); return; }
           const shape = Object.fromEntries(Object.entries(dp).filter(([, v]) => v.trim() !== "").map(([k, v]) => [Number(k), Number(v)]));
           if (Object.values(shape).some((v) => !Number.isInteger(v) || v < 1 || v > teaching.length)) { setMsg({ ok: false, text: `A day has 1 to ${teaching.length} teaching periods.` }); return; }
           const r2 = await saveShape(shape, [...blocked].map((k) => { const [d, p] = k.split("-").map(Number); return { day: d, period: p }; }));
@@ -250,6 +255,7 @@ function Make({ data, canEdit }: { data: GenData; canEdit: boolean }) {
   const [pick, setPick] = useState<{ sec: number; d: number; p: number } | null>(null);
   const [mode, setMode] = useState<"swap" | "lock">("swap");
   const [confirm, setConfirm] = useState(false);
+  const [draftName, setDraftName] = useState("");
   const [msg, setMsg] = useState<Msg>(null);
   const [busy, setBusy] = useState(false);
   const worker = useRef<Worker | null>(null);
@@ -288,7 +294,7 @@ function Make({ data, canEdit }: { data: GenData; canEdit: boolean }) {
       fixed: [...kept.filter((k) => !keyed.has(`${k.sectionId}|${k.day}|${k.period}`)), ...fixedExtra],
       busy: data.unavailable.map((u) => ({ staffId: u.staff_id, day: u.day_of_week, period: u.period_no })),
       elsewhere: data.slots.filter((x) => !genIds.has(x.section_id)).flatMap((x) => { const st = slotStaff(x); return (st.length ? st : [null]).map((t) => ({ staffId: t, day: x.day_of_week, period: x.period_no, room: x.room })); }),
-      teacherMaxDay: data.rules.teacherMaxDay, classTeacherFirst: data.rules.classTeacherFirst, timeMs: 4000, seed: Math.floor(Math.random() * 1e9),
+      teacherMaxDay: data.rules.teacherMaxDay, maxConsecutive: data.rules.maxConsecutive, classTeacherFirst: data.rules.classTeacherFirst, timeMs: 4000, seed: Math.floor(Math.random() * 1e9),
     };
   };
   const make = () => {
@@ -365,6 +371,11 @@ function Make({ data, canEdit }: { data: GenData; canEdit: boolean }) {
           <Button disabled={busy || !gen.length} onClick={make}>{busy ? "Making the timetable…" : result ? "Make another" : `Make the timetable for ${gen.length} section${gen.length === 1 ? "" : "s"}`}</Button>
           {busy && <Button variant="ghost" onClick={cancel}>Stop</Button>}
         </div>
+        {data.drafts.length > 0 && <div className="flex flex-wrap items-center gap-2 text-[12px]"><span className="text-ink-700">Drafts:</span>{data.drafts.map((d) => (
+          <span key={d.id} className="flex items-center gap-1 rounded-sm border border-hair px-1.5 py-0.5">{d.name}
+            <button className="text-[#0F6CBD] hover:underline" onClick={() => { setResult({ cells: d.rows.map((x) => ({ sectionId: x.section_id, day: x.day, period: x.period, subjectId: x.subject_id, staffId: x.staff_id, groupId: x.group_id, room: x.room, extras: x.extras.map((e) => ({ subjectId: e.subject_id, staffId: e.staff_id })) })),
+              unplaced: [], attempts: 0, placed: d.rows.length, wanted: d.rows.length, sectionIds: d.section_ids, kept: [] }); setView(d.section_ids[0] ?? null); }}>open</button>
+            {canEdit && <button className="text-ink-500 hover:underline" onClick={() => start(async () => { await deleteDraft(d.id); router.refresh(); })}>remove</button>}</span>))}</div>}
         {result && <div className="space-y-3">
           <p className={result.unplaced.length ? "font-semibold text-down" : "font-semibold text-up"}>{result.placed} of {result.wanted} lessons placed{result.unplaced.length ? "" : ", every lesson fits"}.</p>
           {result.unplaced.length > 0 && <ul className="list-disc pl-5 text-ink-700">{result.unplaced.slice(0, 30).map((u, i) => <li key={i}>{secLabel.get(u.sectionId)}: {u.groupId ? groupLabel.get(u.groupId) : subjFull.get(u.subjectId)}, {u.count} period{u.count === 1 ? "" : "s"} not placed. {u.reason}</li>)}</ul>}
@@ -386,6 +397,10 @@ function Make({ data, canEdit }: { data: GenData; canEdit: boolean }) {
                 return <td key={per.no} className={`h-11 w-24 cursor-pointer border px-1 align-top ${isPick ? "border-[#0F6CBD] bg-[#EBF3FC]" : "border-hair"} ${c?.kept ? "bg-[#F5F9FE]" : "bg-white"}`}
                   onClick={() => click(view, d.n, per.no)} aria-label={`${d.long} ${per.label || per.no}: ${label(c) || "free"}`}>
                   {c ? <><div className="font-medium">{label(c)}{isLocked ? " (locked)" : ""}</div><div className="truncate text-ink-500">{teachers(c).map((t) => tName.get(t) ?? "").join(", ") || "no teacher"}</div>{c.room && <div className="truncate text-ink-400">{c.room}</div>}</> : null}</td>; })}</tr>); })}</tbody></table></div>}
+          {canEdit && <div className="flex flex-wrap items-center gap-2">
+            <Input className="h-8 w-48" aria-label="Draft name" placeholder="Draft name" value={draftName} onChange={(e) => setDraftName(e.target.value)} />
+            <Button size="sm" variant="subtle" disabled={pending || !draftName.trim()} onClick={() => start(async () => { const r = await saveDraft(data.yearId, draftName, result.sectionIds, rows()); setMsg(r.ok ? { ok: true, text: r.message } : { ok: false, text: r.error }); if (r.ok) { setDraftName(""); router.refresh(); } })}>Keep as a draft</Button>
+          </div>}
           {canEdit && (confirm ? <div className="flex flex-wrap items-center gap-2 rounded-sm border border-down bg-white px-3 py-2">
             <span>Replace {replacing} lesson{replacing === 1 ? "" : "s"} in {gen.length} section{gen.length === 1 ? "" : "s"}{result.unplaced.length ? `; ${result.unplaced.reduce((a, u) => a + u.count, 0)} periods are not placed` : ""}?</span>
             <Button disabled={pending} onClick={() => start(async () => { const r = await saveGenerated(data.yearId, result.sectionIds, rows()); setMsg(r.ok ? { ok: true, text: r.message } : { ok: false, text: r.error }); setConfirm(false); if (r.ok) router.refresh(); })}>Yes, save</Button>

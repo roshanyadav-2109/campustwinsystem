@@ -1,13 +1,15 @@
+import { createClient } from "@/lib/supabase/server";
 import { IdCardsForSection } from "@/components/students/id-cards";
 import { CertificateBulkUpload } from "@/components/manage/students/certificate-bulk-upload";
 import { CertificateRegisterUpload } from "@/components/manage/students/certificate-register-upload";
 import { DetailsUpload } from "@/components/manage/students/details-upload";
 import { UdiseExport } from "@/components/manage/students/udise-export";
 import { PhotoBulkUpload } from "@/components/students/student-photo";
+import { IncomingTransfers } from "@/components/students/incoming-transfers";
 import { guardTab } from "@/lib/access";
 import { PageHeader } from "@/components/ui/page-header";
 import { EmptyState } from "@/components/ui/empty";
-import { getCurrentYear } from "@/lib/session";
+import { getCurrentYear, getSession } from "@/lib/session";
 import { getStaffScope } from "@/lib/data/scope";
 import { numParam, strParam } from "@/lib/utils";
 import { StudentAdmin } from "@/components/manage/students/student-admin";
@@ -20,7 +22,7 @@ type SP = Promise<Record<string, string | string[] | undefined>>;
 // students, with search, class filter and paging in the address bar.
 async function ManageStudentsPageBody({ searchParams }: { searchParams: SP }) {
   const sp = await searchParams;
-  const [year, scope] = await Promise.all([getCurrentYear(), getStaffScope()]);
+  const [year, scope, session] = await Promise.all([getCurrentYear(), getStaffScope(), getSession()]);
   if (!year) {
     return <EmptyState art="nothing-yet" title="No school year is set up yet" hint="Once the current school year is added, students can be managed here." />;
   }
@@ -55,6 +57,7 @@ async function ManageStudentsPageBody({ searchParams }: { searchParams: SP }) {
         <CertificateRegisterUpload />
         <UdiseExport sections={sections.map((x) => ({ id: x.id, label: x.label }))} />
         <PhotoBulkUpload />
+        {session?.school.higherEd && session.isAdminScope && <IncomingTransfers fee={((await (await createClient()).from("school").select("transfer_fee" as "id").eq("id", session.schoolId).maybeSingle()).data as unknown as { transfer_fee: number | null } | null)?.transfer_fee ?? null} />}
       </div>
     </div>
   );

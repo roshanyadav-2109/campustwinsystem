@@ -5,8 +5,8 @@ import { Button } from "@/components/ui/button";
 import { Field, Input, Select } from "@/components/ui/field";
 import { saveLeaveType, setLeaveTypeActive } from "@/app/dashboard/hr/actions";
 
-export type LeaveTypeRow = { id: number; code: string; name: string; daysPerYear: number; isPaid: boolean; active: boolean };
-const blank = { code: "", name: "", days: "0", paid: "yes" };
+export type LeaveTypeRow = { id: number; code: string; name: string; daysPerYear: number; isPaid: boolean; active: boolean; chain?: string };
+const blank = { code: "", name: "", days: "0", paid: "yes", chain: "hod_dean" };
 
 // The office decides which kinds of leave staff can take and how many days a
 // year each allows. Switching one off keeps it on past requests.
@@ -19,13 +19,13 @@ export function LeaveTypesEditor({ types, canEdit }: { types: LeaveTypeRow[]; ca
 
   function edit(t: LeaveTypeRow) {
     setEditing(t.id); setMsg(null);
-    setF({ code: t.code, name: t.name, days: String(t.daysPerYear), paid: t.isPaid ? "yes" : "no" });
+    setF({ code: t.code, name: t.name, days: String(t.daysPerYear), paid: t.isPaid ? "yes" : "no", chain: t.chain ?? "hod_dean" });
   }
   function reset() { setEditing(null); setF(blank); }
   function save() {
     setMsg(null);
     start(async () => {
-      const res = await saveLeaveType({ id: editing, code: f.code, name: f.name, daysPerYear: Number(f.days), isPaid: f.paid === "yes" });
+      const res = await saveLeaveType({ id: editing, code: f.code, name: f.name, daysPerYear: Number(f.days), isPaid: f.paid === "yes", chain: f.chain });
       if (!res.ok) { setMsg({ text: res.error, ok: false }); return; }
       setMsg({ text: editing ? "Saved." : "Leave type added.", ok: true });
       reset();
@@ -78,6 +78,11 @@ export function LeaveTypesEditor({ types, canEdit }: { types: LeaveTypeRow[]; ca
                 </Select>
               </Field>
             </div>
+            <Field label="Who recommends it (colleges)" htmlFor={`${id}-ch`}>
+              <Select id={`${id}-ch`} value={f.chain} onChange={(e) => setF({ ...f, chain: e.target.value })}>
+                <option value="hod_dean">Head of Department, then Dean</option><option value="hod">Head of Department only</option><option value="office">Straight to the office</option>
+              </Select>
+            </Field>
             {f.paid === "yes" && (
               <Field label="Days a year" htmlFor={`${id}-d`} hint="Half days are allowed, like 7.5.">
                 <Input id={`${id}-d`} type="number" min={0} max={366} step={0.5} value={f.days} onChange={(e) => setF({ ...f, days: e.target.value })} />

@@ -18,7 +18,7 @@ begin
     join public.section sec on sec.id = e.section_id join public.class_subject cs on cs.class_id = sec.class_id and cs.subject_id = sb.id
    where rg.semester_id = v_sem.id limit 1;
   update public.exam_room set active = false where school_id = 11;
-  insert into public.exam_rate (school_id, kind, amount) values (11, 'duty', 300), (11, 'script', 25) on conflict (school_id, kind) do update set amount = excluded.amount;
+  delete from public.exam_rate where school_id = 11 and session_id is null; insert into public.exam_rate (school_id, kind, amount) values (11, 'duty', 300), (11, 'script', 25);
 
   perform set_config('request.jwt.claims', json_build_object('sub', u, 'role', 'authenticated')::text, true); set local role authenticated;
   -- a room of 10 rows x 4 benches, two to a bench: 80 seats

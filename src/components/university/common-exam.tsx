@@ -3,7 +3,7 @@ import { useState, useTransition } from "react";
 import { Card, CardBody, CardHeader } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Select } from "@/components/ui/field";
-import { campusExams, copyExam } from "@/app/dashboard/university/actions";
+import { campusExams, copyExam, resyncExam } from "@/app/dashboard/university/actions";
 
 // A common exam: one campus's timetable copied to the others (each campus checks and publishes its copy).
 export function CommonExam({ campuses }: { campuses: { id: number; name: string }[] }) {
@@ -25,7 +25,10 @@ export function CommonExam({ campuses }: { campuses: { id: number; name: string 
         </div>
         <div className="flex flex-wrap gap-1"><span className="mr-1 text-ink-700">To</span>{campuses.filter((c) => c.id !== from).map((c) => (
           <label key={c.id} className="flex items-center gap-1 rounded-sm border border-hair px-1.5 py-0.5 text-[12px]"><input type="checkbox" checked={to.includes(c.id)} onChange={(e) => setTo(e.target.checked ? [...to, c.id] : to.filter((x) => x !== c.id))} />{c.name}</label>))}</div>
-        <Button size="sm" disabled={pending || !exam || !to.length} onClick={() => start(async () => { const r = await copyExam(exam, to); setMsg(r.ok ? { ok: true, text: r.message } : { ok: false, text: r.error }); })}>Copy the timetable</Button>
+        <div className="flex flex-wrap gap-2">
+          <Button size="sm" disabled={pending || !exam || !to.length} onClick={() => start(async () => { const r = await copyExam(exam, to); setMsg(r.ok ? { ok: true, text: r.message } : { ok: false, text: r.error }); })}>Copy the timetable</Button>
+          <Button size="sm" variant="subtle" disabled={pending || !exam} onClick={() => start(async () => { const r = await resyncExam(exam); setMsg(r.ok ? { ok: true, text: r.message } : { ok: false, text: r.error }); })}>Send date changes to the copies</Button>
+        </div>
         {msg && <p role={msg.ok ? "status" : "alert"} className={`font-medium ${msg.ok ? "text-up" : "text-down"}`}>{msg.text}</p>}
       </CardBody>
     </Card>

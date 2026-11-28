@@ -24,7 +24,7 @@ export default async function UniversityPage() {
   const [{ data: exams }, { data: transfers }, { data: uniStats }, { data: treq }, { data: uniChart }] = await Promise.all([
     supabase.rpc("university_exam_overview" as never),
     supabase.from("student_transfer" as never).select("id, done_at, carried, not_carried, from_school, to_school, student_name, admission_no, cgpa_before, cgpa_after").order("done_at", { ascending: false }).limit(20), supabase.rpc("university_statistics" as never),
-    supabase.from("transfer_request" as never).select("id, status, reason, order_no, created_at, decided_at, from_school, to_school, student_id, detail").order("created_at", { ascending: false }).limit(50),
+    supabase.from("transfer_request" as never).select("id, status, reason, order_no, created_at, decided_at, from_school, to_school, student_id, detail, receiving_ok, receiving_note").order("created_at", { ascending: false }).limit(50),
     supabase.rpc("university_org_chart" as never)]);
   // names of students at other campuses come through central administration's own view
   const reqRows = (treq ?? []) as unknown as Omit<TransferRequestRow, "student">[];

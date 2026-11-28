@@ -333,7 +333,7 @@ export async function finalisePayroll(month: string): Promise<Result> {
 // Leave types (office)
 // ---------------------------------------------------------------------------
 
-export type LeaveTypeInput = { id: number | null; code: string; name: string; daysPerYear: number; isPaid: boolean };
+export type LeaveTypeInput = { id: number | null; code: string; name: string; daysPerYear: number; isPaid: boolean; chain?: string };
 
 export async function saveLeaveType(input: LeaveTypeInput): Promise<Result> {
   const session = await getSession();
@@ -344,7 +344,7 @@ export async function saveLeaveType(input: LeaveTypeInput): Promise<Result> {
   if (!name) return fail("Give the leave type a name, like Casual leave.");
   if (!code) return fail("Give it a short code, like CL.");
   if (!Number.isFinite(days) || days < 0 || days > 366) return fail("Days per year should be a number from 0 to 366.");
-  const row = { name, code, days_per_year: Math.round(days * 2) / 2, is_paid: input?.isPaid !== false };
+  const row = { name, code, days_per_year: Math.round(days * 2) / 2, is_paid: input?.isPaid !== false, ...(input?.chain && ["hod_dean", "hod", "office"].includes(input.chain) ? { chain: input.chain } : {}) };
   const db = await untyped();
   const { data: clash } = await db.from("staff_leave_type").select("id").eq("code", code);
   if ((clash ?? []).some((c: { id: number }) => c.id !== input?.id)) return fail(`The code ${code} is already used by another leave type.`);

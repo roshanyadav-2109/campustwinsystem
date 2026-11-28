@@ -41,9 +41,10 @@ export default async function GeneratePage() {
     all<GenData["slots"][number]>("timetable_slot", "id, section_id, day_of_week, period_no, subject_id, staff_id, room, group_id, extra:timetable_slot_extra(subject_id, staff_id)", (q) => q.eq("academic_year_id", y), "id"),
     all<{ id: number; label: string; section_ids: number[]; periods: number; double_period: boolean; max_per_day: number | null; room: string | null }>("timetable_group", "id, label, section_ids, periods, double_period, max_per_day, room", (q) => q.eq("academic_year_id", y), "id"),
     all<{ group_id: number; subject_id: number; staff_id: number | null }>("timetable_group_item", "group_id, subject_id, staff_id", (q) => q, "group_id"),
-    supabase.from("school").select("tt_days, tt_teacher_max_day, tt_class_teacher_first, tt_day_periods, tt_blocked" as "id").eq("id", session.schoolId).maybeSingle(),
+    supabase.from("school").select("tt_days, tt_teacher_max_day, tt_class_teacher_first, tt_day_periods, tt_blocked, tt_max_consecutive" as "id").eq("id", session.schoolId).maybeSingle(),
   ]);
-  const r = rules.data as unknown as { tt_days: number[]; tt_teacher_max_day: number; tt_class_teacher_first: boolean; tt_day_periods: Record<string, number>; tt_blocked: { day: number; period: number }[] } | null;
+  const r = rules.data as unknown as { tt_days: number[]; tt_teacher_max_day: number; tt_class_teacher_first: boolean; tt_day_periods: Record<string, number>; tt_blocked: { day: number; period: number }[]; tt_max_consecutive: number } | null;
+  const { data: drafts } = await db.from("timetable_draft").select("id, name, section_ids, rows, created_at").eq("academic_year_id", y).order("created_at", { ascending: false }).limit(20);
   const data: GenData = {
     yearId: year.id, yearName: year.name,
     periods: bell.periods.map((p) => ({ no: p.period_no, label: p.label, isBreak: p.is_break, start: p.start_time })),
@@ -53,8 +54,9 @@ export default async function GeneratePage() {
     loads, allotments: allot, unavailable: unavail, slots,
     groups: groups.map((g) => ({ id: g.id, label: g.label, sectionIds: g.section_ids, periods: g.periods, double: g.double_period, maxPerDay: g.max_per_day, room: g.room,
       items: items.filter((i) => i.group_id === g.id).map((i) => ({ subjectId: i.subject_id, staffId: i.staff_id })) })),
+    drafts: (drafts ?? []) as unknown as GenData["drafts"],
     rules: { days: r?.tt_days ?? [1, 2, 3, 4, 5, 6], teacherMaxDay: r?.tt_teacher_max_day ?? 6, classTeacherFirst: r?.tt_class_teacher_first ?? true,
-      dayPeriods: Object.fromEntries(Object.entries(r?.tt_day_periods ?? {}).map(([k, v]) => [Number(k), Number(v)])), blocked: r?.tt_blocked ?? [] },
+      maxConsecutive: r?.tt_max_consecutive ?? 4, dayPeriods: Object.fromEntries(Object.entries(r?.tt_day_periods ?? {}).map(([k, v]) => [Number(k), Number(v)])), blocked: r?.tt_blocked ?? [] },
   };
   return (
     <div className="space-y-4">

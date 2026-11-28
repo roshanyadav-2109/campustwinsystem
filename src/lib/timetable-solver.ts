@@ -25,6 +25,7 @@ export type SolverInput = {
   busy: { staffId: number; day: number; period: number }[];        // teachers' unavailable periods
   elsewhere?: { staffId: number | null; day: number; period: number; room?: string | null }[];   // lessons in classes not being made
   teacherMaxDay: number;
+  maxConsecutive?: number;               // a teacher teaches at most this many periods in a row
   classTeacherFirst: boolean;
   timeMs?: number;
   seed?: number;
@@ -98,17 +99,20 @@ export function solveTimetable(inp: SolverInput): SolverResult {
     const rand = rng(Math.floor(rand0() * 1e9));
     const secCell = new Map<string, { u: Unit | null; fixed: boolean }>();
     const staffAt = new Set<string>();
+    const teachAt = new Set<string>();     // periods a teacher actually teaches (not merely unavailable)
     const roomAt = new Set<string>();
     const staffDay = new Map<string, number>();
     const subjDay = new Map<string, number>();
     for (const b of inp.busy) staffAt.add(k(b.staffId, b.day, b.period));
     for (const e of inp.elsewhere ?? []) {
+      if (e.staffId != null) teachAt.add(k(e.staffId, e.day, e.period));
       if (e.staffId != null && !staffAt.has(k(e.staffId, e.day, e.period))) { staffAt.add(k(e.staffId, e.day, e.period)); staffDay.set(`${e.staffId}|${e.day}`, (staffDay.get(`${e.staffId}|${e.day}`) ?? 0) + 1); }
       const r = roomKey(e.room); if (r) roomAt.add(k(r, e.day, e.period));
     }
     const subjKey = (sec: number, u: Unit | { key: string }, d: number) => `${sec}|${u.key}|${d}`;
     for (const f of inp.fixed) {
       secCell.set(k(f.sectionId, f.day, f.period), { u: null, fixed: true });
+      for (const t of f.staffIds) teachAt.add(k(t, f.day, f.period));
       for (const t of f.staffIds) if (!staffAt.has(k(t, f.day, f.period))) { staffAt.add(k(t, f.day, f.period)); staffDay.set(`${t}|${f.day}`, (staffDay.get(`${t}|${f.day}`) ?? 0) + 1); }
       const r = roomKey(f.room); if (r) roomAt.add(k(r, f.day, f.period));
       const key = f.groupId ? `g${f.groupId}` : `s${f.subjectId}`;
@@ -129,6 +133,14 @@ export function solveTimetable(inp: SolverInput): SolverResult {
         if (r && roomAt.has(k(r, d, q))) return false;
       }
       for (const t of u.staffIds) if ((staffDay.get(`${t}|${d}`) ?? 0) + u.len > inp.teacherMaxDay) return false;
+      // not more periods in a row than the limit
+      if (inp.maxConsecutive) for (const t of u.staffIds) {
+        const i0 = pIndex.get(ps[0])!, i1 = pIndex.get(ps[ps.length - 1])!;
+        let run = ps.length;
+        for (let i = i0 - 1; i >= 0 && periods[i] === periods[i + 1] - 1 && teachAt.has(k(t, d, periods[i])); i--) run++;
+        for (let i = i1 + 1; i < periods.length && periods[i] === periods[i - 1] + 1 && teachAt.has(k(t, d, periods[i])); i++) run++;
+        if (run > Math.max(inp.maxConsecutive, 2)) return false;
+      }
       for (const s of u.sectionIds) if ((subjDay.get(subjKey(s, u, d)) ?? 0) + u.len > u.maxPerDay + relax) return false;
       return true;
     };
@@ -151,6 +163,7 @@ export function solveTimetable(inp: SolverInput): SolverResult {
     const mark = (u: Unit, d: number, q: number, on: boolean) => {
       const r = roomKey(u.room);
       for (const s of u.sectionIds) { if (on) secCell.set(k(s, d, q), { u, fixed: false }); else secCell.delete(k(s, d, q)); }
+      for (const t of u.staffIds) { if (on) teachAt.add(k(t, d, q)); else teachAt.delete(k(t, d, q)); }
       for (const t of u.staffIds) { if (on) staffAt.add(k(t, d, q)); else staffAt.delete(k(t, d, q)); staffDay.set(`${t}|${d}`, (staffDay.get(`${t}|${d}`) ?? 0) + (on ? 1 : -1)); }
       if (r) { if (on) roomAt.add(k(r, d, q)); else roomAt.delete(k(r, d, q)); }
       for (const s of u.sectionIds) subjDay.set(subjKey(s, u, d), (subjDay.get(subjKey(s, u, d)) ?? 0) + (on ? 1 : -1));

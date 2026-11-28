@@ -7,7 +7,7 @@ import { Input, Select } from "@/components/ui/field";
 import { downloadPdf } from "@/lib/pdf";
 import { transferMapping, decideTransferRequest, type MappingRow } from "@/app/dashboard/university/actions";
 
-export type TransferRequestRow = { detail?: { programme: string | null; register_no: string | null; courses: { from: string; credits: number; grade: string; to: string | null }[] } | null; id: number; status: string; reason: string | null; order_no: string | null; created_at: string; decided_at: string | null; from_school: number; to_school: number;
+export type TransferRequestRow = { receiving_ok?: boolean | null; receiving_note?: string | null; detail?: { programme: string | null; register_no: string | null; courses: { from: string; credits: number; grade: string; to: string | null }[] } | null; id: number; status: string; reason: string | null; order_no: string | null; created_at: string; decided_at: string | null; from_school: number; to_school: number;
   student_id: number; student: { full_name: string; admission_no: string } | null };
 
 // Requests from campuses; central administration maps the courses, chooses the section and approves, with a transfer order.
@@ -38,6 +38,7 @@ export function TransferRequests({ rows, campuses, university }: { rows: Transfe
           <div key={r.id} className="border-t border-hair pt-2">
             <div className="flex flex-wrap items-center gap-2"><b>{r.student?.full_name ?? "Student"}</b><span className="text-ink-500">{r.student?.admission_no}</span>
               {name(r.from_school)} to {name(r.to_school)}{r.reason ? `: ${r.reason}` : ""}
+              {r.status === "requested" && <span className={r.receiving_ok ? "text-up" : r.receiving_ok === false ? "text-down" : "text-ink-500"}>({r.receiving_ok ? "receiving campus agreed" : r.receiving_ok === false ? "receiving campus declined" : "waiting for the receiving campus"}{r.receiving_note ? `: ${r.receiving_note}` : ""})</span>}
               {r.status === "requested" ? <Button size="sm" variant="subtle" disabled={pending} onClick={() => start(async () => {
                 const d = await transferMapping(r.student_id, r.to_school); setData(d); setOpen(r.id); setSec(d.sections[0]?.id ?? 0);
                 setMap(Object.fromEntries(d.rows.map((x) => [x.from_course_id, x.suggested ?? ""]))); })}>Review</Button>

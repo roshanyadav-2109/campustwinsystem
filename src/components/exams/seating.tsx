@@ -5,21 +5,25 @@ import { Card, CardBody, CardHeader } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/field";
 import { downloadPdfBook } from "@/lib/pdf";
-import { addRoom, setRoomActive, generateSeating, assignDuties, seatingChart, swapDuty, saveAccommodation, removeAccommodation, saveRates, remuneration } from "@/app/dashboard/exam-cell/actions";
+import { addRoom, setRoomActive, generateSeating, assignDuties, seatingChart, swapDuty, saveAccommodation, removeAccommodation, saveRates, remuneration, setDutyRole, markRemunerationPaid } from "@/app/dashboard/exam-cell/actions";
 import { downloadPdf } from "@/lib/pdf";
 import { Select } from "@/components/ui/field";
 
-export type RoomRow = { id: number; name: string; capacity: number; active: boolean };
+export type RoomRow = { id: number; name: string; capacity: number; active: boolean ; special?: boolean };
 const t5 = (t: string) => t.slice(0, 5);
 
 export type Accommodation = { id: number; session_id: number | null; scribe: boolean; scribe_name: string | null; extra_minutes: number; note: string | null; student: { full_name: string; admission_no: string } };
-export function SeatingDesk({ rooms, sessionId, sessionName, seated, duties, school, teachers = [], accommodations = [], rates = { duty: 0, script: 0 }, canSetRates = false }: { rooms: RoomRow[]; sessionId: number; sessionName: string; seated: number; school: string;
-  duties: { id: number; exam_date: string; starts_at: string; room: { name: string }; staff: { id: number; full_name: string } }[]; teachers?: { id: number; name: string }[];
-  accommodations?: Accommodation[]; rates?: { duty: number; script: number }; canSetRates?: boolean }) {
+export function SeatingDesk({ rooms, sessionId, sessionName, seated, duties, school, teachers = [], accommodations = [], rates = {}, examRates = null, canSetRates = false, onLeave = [] }: { rooms: RoomRow[]; sessionId: number; sessionName: string; seated: number; school: string;
+  duties: { id: number; exam_date: string; starts_at: string; role?: string; room: { name: string }; staff: { id: number; full_name: string } }[]; teachers?: { id: number; name: string }[];
+  accommodations?: Accommodation[]; rates?: Record<string, number>; examRates?: Record<string, number> | null; canSetRates?: boolean; onLeave?: { duty_id: number; staff_name: string; exam_date: string }[] }) {
   const [name, setName] = useState(""); const [cap, setCap] = useState("40"); const [per, setPer] = useState("1");
   const [rowsN, setRowsN] = useState(""); const [benches, setBenches] = useState(""); const [perBench, setPerBench] = useState("2");
   const [acc, setAcc] = useState({ adm: "", scribe: false, scribeName: "", extra: "0", note: "", all: true });
-  const [rate, setRate] = useState({ duty: String(rates.duty || ""), script: String(rates.script || "") });
+  const rateForm = (x: Record<string, number> | null) => ({ duty: String(x?.duty ?? ""), script: String(x?.script ?? ""), chief: String(x?.chief ?? ""), squad: String(x?.squad ?? ""), relieving: String(x?.relieving ?? "") });
+  const [rateExam, setRateExam] = useState(!!examRates);
+  const [rate, setRate] = useState(rateForm(examRates ?? rates));
+  const [special, setSpecial] = useState(false);
+  const [paid, setPaid] = useState({ on: "", ref: "" });
   const [msg, setMsg] = useState<{ ok: boolean; text: string } | null>(null);
   const [pending, start] = useTransition();
   const router = useRouter();
@@ -42,7 +46,7 @@ export function SeatingDesk({ rooms, sessionId, sessionName, seated, duties, sch
         <CardHeader title={`Rooms (${rooms.filter((r) => r.active).length} in use, ${total} seats)`} />
         <CardBody className="space-y-2 text-[13px]">
           <div className="flex flex-wrap gap-1.5">{rooms.map((r) => (
-            <button key={r.id} onClick={() => run(() => setRoomActive(r.id, !r.active))} className={`rounded-sm border px-2.5 py-1 ${r.active ? "border-hair bg-white" : "border-dashed border-hair text-ink-500"}`} title={r.active ? "Click to take out of use" : "Click to use"}>{r.name} · {r.capacity}</button>))}</div>
+            <button key={r.id} onClick={() => run(() => setRoomActive(r.id, !r.active))} className={`rounded-sm border px-2.5 py-1 ${r.active ? "border-hair bg-white" : "border-dashed border-hair text-ink-500"}`} title={r.active ? "Click to take out of use" : "Click to use"}>{r.name} · {r.capacity}{r.special ? " · scribes" : ""}</button>))}</div>
           <div className="flex flex-wrap items-end gap-2">
             <Input className="h-8 w-40 text-[13px]" aria-label="Room name" placeholder="Room, for example Hall A" value={name} onChange={(e) => setName(e.target.value)} />
             <Input className="h-8 w-20 text-[13px]" aria-label="Seats" value={cap} onChange={(e) => setCap(e.target.value)} />
@@ -50,7 +54,8 @@ export function SeatingDesk({ rooms, sessionId, sessionName, seated, duties, sch
             <Input className="h-8 w-16 text-[13px]" aria-label="Rows" placeholder="rows" value={rowsN} onChange={(e) => setRowsN(e.target.value)} />
             <Input className="h-8 w-20 text-[13px]" aria-label="Benches in a row" placeholder="benches" value={benches} onChange={(e) => setBenches(e.target.value)} />
             <Select className="h-8 w-28 text-[13px]" aria-label="Students to a bench" value={perBench} onChange={(e) => setPerBench(e.target.value)}><option value="1">1 to a bench</option><option value="2">2 to a bench</option><option value="3">3 to a bench</option></Select>
-            <Button size="sm" variant="subtle" disabled={pending} onClick={() => run(() => addRoom(name, cap, { rows: rowsN, benches, perBench }))}>Add room</Button>
+            <label className="flex items-center gap-1 text-[12px]"><input type="checkbox" checked={special} onChange={(e) => setSpecial(e.target.checked)} />For scribes and extra time</label>
+            <Button size="sm" variant="subtle" disabled={pending} onClick={() => run(() => addRoom(name, cap, { rows: rowsN, benches, perBench }, special))}>Add room</Button>
           </div>
         </CardBody>
       </Card>
@@ -63,10 +68,13 @@ export function SeatingDesk({ rooms, sessionId, sessionName, seated, duties, sch
               <Button size="sm" variant="subtle" disabled={pending || !seated} onClick={() => run(() => assignDuties(sessionId, Number(per) || 1))}>Assign duties</Button>
               <Button size="sm" variant="subtle" disabled={pending || !seated} onClick={charts}>Room charts</Button>
             </div>} />
+          {onLeave.length > 0 && <p className="px-4 pt-2 text-[13px] font-medium text-down">On leave but on duty: {onLeave.map((x) => `${x.staff_name} (${x.exam_date})`).join(", ")}. Change the invigilator below.</p>}
           <CardBody className="p-0">{duties.length === 0 ? <p className="px-4 py-3 text-[13px] text-ink-500">No duties yet. Plan the seating, then assign duties.</p> : (
             <table className="w-full text-[13px]"><thead className="bg-[#fafafa] text-left text-ink-500"><tr><th className="px-4 py-2 font-medium">Date</th><th className="px-4 py-2 font-medium">Time</th><th className="px-4 py-2 font-medium">Room</th><th className="px-4 py-2 font-medium">Invigilator</th></tr></thead>
               <tbody>{duties.map((d) => <tr key={d.id} className="border-t border-hair"><td className="px-4 py-1.5">{d.exam_date}</td><td className="px-4 py-1.5 tabular">{t5(d.starts_at)}</td><td className="px-4 py-1.5">{d.room.name}</td>
-                <td className="px-4 py-1.5">{teachers.length ? <Select className="h-8 w-56 text-[12px]" aria-label={`Invigilator for ${d.room.name} ${d.exam_date}`} value={d.staff.id} disabled={pending} onChange={(e) => run(() => swapDuty(d.id, Number(e.target.value)))}>
+                <td className="px-4 py-1.5"><Select className="mr-1 h-8 w-32 text-[12px]" aria-label={`Role on ${d.room.name} ${d.exam_date}`} value={d.role ?? "invigilator"} disabled={pending} onChange={(e) => run(() => setDutyRole(d.id, e.target.value))}>
+                  <option value="invigilator">Invigilator</option><option value="chief">Chief superintendent</option><option value="squad">Squad</option><option value="relieving">Relieving</option></Select>
+                  {teachers.length ? <Select className="h-8 w-56 text-[12px]" aria-label={`Invigilator for ${d.room.name} ${d.exam_date}`} value={d.staff.id} disabled={pending} onChange={(e) => run(() => swapDuty(d.id, Number(e.target.value)))}>
                   {[{ id: d.staff.id, name: d.staff.full_name }, ...teachers.filter((t) => t.id !== d.staff.id)].map((t) => <option key={t.id} value={t.id}>{t.name}</option>)}</Select> : d.staff.full_name}</td></tr>)}</tbody></table>)}
           </CardBody>
         </Card>
@@ -92,20 +100,25 @@ export function SeatingDesk({ rooms, sessionId, sessionName, seated, duties, sch
       {sessionId ? <Card>
         <CardHeader title="Remuneration" />
         <CardBody className="flex flex-wrap items-end gap-2 text-[13px]">
-          <label>Per duty (Rs)<Input className="mt-1 h-8 w-24" aria-label="Rate per duty" inputMode="decimal" disabled={!canSetRates} value={rate.duty} onChange={(e) => setRate({ ...rate, duty: e.target.value })} /></label>
-          <label>Per script valued (Rs)<Input className="mt-1 h-8 w-24" aria-label="Rate per script" inputMode="decimal" disabled={!canSetRates} value={rate.script} onChange={(e) => setRate({ ...rate, script: e.target.value })} /></label>
-          {canSetRates && <Button size="sm" variant="subtle" disabled={pending} onClick={() => run(() => saveRates(rate.duty, rate.script))}>Save rates</Button>}
+          {([["duty", "Invigilation"], ["chief", "Chief superintendent"], ["squad", "Squad"], ["relieving", "Relieving"], ["script", "Per script valued"]] as const).map(([k, l]) => (
+            <label key={k}>{l} (Rs)<Input className="mt-1 h-8 w-24" aria-label={`Rate: ${l}`} inputMode="decimal" disabled={!canSetRates} value={rate[k]} onChange={(e) => setRate({ ...rate, [k]: e.target.value })} /></label>))}
+          {canSetRates && <label className="flex items-center gap-1 text-[12px]"><input type="checkbox" checked={rateExam} onChange={(e) => { setRateExam(e.target.checked); setRate(rateForm(e.target.checked ? examRates ?? {} : rates)); }} />For this exam only (blank: the usual rate)</label>}
+          {canSetRates && <Button size="sm" variant="subtle" disabled={pending} onClick={() => run(() => saveRates(rate, rateExam ? sessionId : null))}>Save rates</Button>}
           <Button size="sm" disabled={pending} onClick={() => start(async () => {
             const rows = await remuneration(sessionId);
             if (!rows.length) { setMsg({ ok: false, text: "No duties or valued scripts yet." }); return; }
             const money = (v: number) => Number(v).toLocaleString("en-IN", { minimumFractionDigits: 2 });
             await downloadPdf({ filename: `Remuneration ${sessionName}`, title: "Remuneration statement", meta: [sessionName], school,
-              blocks: [{ kind: "table", headers: ["Staff", "Code", "Duties", "Scripts", "Duties (Rs)", "Scripts (Rs)", "Total (Rs)", "Signature"], right: [2, 3, 4, 5, 6],
-                rows: [...rows.map((r) => [r.staff_name, r.employee_code ?? "", String(r.duties), String(r.scripts), money(r.duty_amount), money(r.script_amount), money(r.total), ""]),
-                  ["Total", "", String(rows.reduce((a, r) => a + r.duties, 0)), String(rows.reduce((a, r) => a + r.scripts, 0)), money(rows.reduce((a, r) => a + Number(r.duty_amount), 0)), money(rows.reduce((a, r) => a + Number(r.script_amount), 0)), money(rows.reduce((a, r) => a + Number(r.total), 0)), ""]] },
+              blocks: [{ kind: "table", headers: ["Staff", "Code", "Duties", "Scripts", "Duties (Rs)", "Scripts (Rs)", "Total (Rs)", "Paid", "Signature"], right: [2, 3, 4, 5, 6],
+                rows: [...rows.map((r) => [r.staff_name, r.employee_code ?? "", String(r.duties), String(r.scripts), money(r.duty_amount), money(r.script_amount), money(r.total), r.paid_on ? `${r.paid_on.split("-").reverse().join("/")}${r.paid_ref ? ` ${r.paid_ref}` : ""}` : "", ""]),
+                  ["Total", "", String(rows.reduce((a, r) => a + r.duties, 0)), String(rows.reduce((a, r) => a + r.scripts, 0)), money(rows.reduce((a, r) => a + Number(r.duty_amount), 0)), money(rows.reduce((a, r) => a + Number(r.script_amount), 0)), money(rows.reduce((a, r) => a + Number(r.total), 0)), "", ""]] },
                 { kind: "signatures", labels: ["Prepared by", "Controller of Examinations", "Accounts"] }] });
             setMsg({ ok: true, text: `Statement for ${rows.length} staff downloaded.` });
           })}>Remuneration statement</Button>
+          {canSetRates && <span className="flex flex-wrap items-end gap-1 border-l border-hair pl-2">
+            <Input type="date" className="h-8" aria-label="Paid on" value={paid.on} onChange={(e) => setPaid({ ...paid, on: e.target.value })} />
+            <Input className="h-8 w-36" aria-label="Payment reference" placeholder="Voucher / reference" value={paid.ref} onChange={(e) => setPaid({ ...paid, ref: e.target.value })} />
+            <Button size="sm" variant="subtle" disabled={pending} onClick={() => start(async () => { const rows = await remuneration(sessionId); const r = await markRemunerationPaid(sessionId, rows.filter((x) => !x.paid_on).map((x) => x.staff_id), paid.on, paid.ref); setMsg(r.ok ? { ok: true, text: r.message ?? "" } : { ok: false, text: r.error }); })}>Mark everyone paid</Button></span>}
         </CardBody>
       </Card> : null}
     </div>

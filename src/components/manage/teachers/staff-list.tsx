@@ -24,6 +24,7 @@ export type StaffRow = {
   qualification?: string | null;
   appointment?: string | null;
   joinedOn?: string | null;
+  leftOn?: string | null;
 };
 
 export const ROLE_LABEL: Record<StaffRole, string> = {
@@ -184,9 +185,10 @@ function StaffForm({
   const [qualification, setQualification] = useState(initial?.qualification ?? "");
   const [appointment, setAppointment] = useState(initial?.appointment ?? "");
   const [joinedOn, setJoinedOn] = useState(initial?.joinedOn ?? "");
+  const [leftOn, setLeftOn] = useState(initial?.leftOn ?? "");
 
   return (
-    <form onSubmit={(e) => { e.preventDefault(); onSave({ fullName, role, employeeCode, email, phone, gender, qualification, appointment, joinedOn }); }}>
+    <form onSubmit={(e) => { e.preventDefault(); onSave({ fullName, role, employeeCode, email, phone, gender, qualification, appointment, joinedOn, leftOn }); }}>
       <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-5">
         <Field label="Full name">
           <Input value={fullName} onChange={(e) => setFullName(e.target.value)} maxLength={120} required />
@@ -218,6 +220,9 @@ function StaffForm({
         </Field>
         <Field label="Joined on">
           <Input type="date" value={joinedOn} onChange={(e) => setJoinedOn(e.target.value)} />
+        </Field>
+        <Field label="Left on (if relieved)">
+          <Input type="date" value={leftOn} onChange={(e) => setLeftOn(e.target.value)} />
         </Field>
       </div>
       <div className="mt-3 flex items-center gap-2">

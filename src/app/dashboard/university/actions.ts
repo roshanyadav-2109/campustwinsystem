@@ -97,3 +97,11 @@ export async function copyExam(sessionId: number, to: number[]): Promise<R> {
   if (!done.length) return { ok: false, error: failed.join("; ") };
   return { ok: true, message: `Copied as a draft to ${done.length} campus${done.length === 1 ? "" : "es"}: ${done.join("; ")}.${failed.length ? ` Not copied: ${failed.join("; ")}.` : ""} Each campus checks and publishes it.` };
 }
+
+export async function resyncExam(sessionId: number): Promise<R> {
+  const supabase = await createClient();
+  const { data, error } = await supabase.rpc("resync_exam_copies" as never, { p_session: sessionId } as never);
+  if (error) return { ok: false, error: clean(error, "Could not send the changes.") };
+  const d = (data ?? {}) as { updated?: number; skipped?: number };
+  return { ok: true, message: `${d.updated ?? 0} papers at other campuses updated to the new dates and times.${d.skipped ? ` ${d.skipped} left as they were: seating is planned or the paper is over.` : ""}` };
+}

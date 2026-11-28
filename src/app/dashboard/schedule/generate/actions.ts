@@ -121,7 +121,35 @@ export async function saveGenerated(yearId: number, sectionIds: number[], rows: 
   const supabase = await createClient();
   const { data, error } = await supabase.rpc("save_generated_timetable" as never, { p_year: yearId, p_sections: sectionIds, p_rows: rows } as never);
   if (error) return { ok: false, error: clean(error, "Could not save the timetable.") };
+  // teachers and families of these sections are told
+  const { error: te } = await supabase.rpc("tell_timetable_saved" as never, { p_sections: sectionIds } as never);
   revalidatePath("/dashboard/schedule");
   revalidatePath(PATH);
-  return { ok: true, message: `Saved ${Number(data ?? 0)} lessons for ${sectionIds.length} section${sectionIds.length === 1 ? "" : "s"}.` };
+  return { ok: true, message: `Saved ${Number(data ?? 0)} lessons for ${sectionIds.length} section${sectionIds.length === 1 ? "" : "s"}${te ? ". The notice to teachers and families could not be sent." : "; teachers and families are told."}` };
+}
+
+export async function saveConsecutive(max: number): Promise<R> {
+  if (!(await office())) return { ok: false, error: "Only the office can change the timetable." };
+  const supabase = await createClient();
+  const { error } = await supabase.rpc("set_timetable_consecutive" as never, { p_max: max } as never);
+  if (error) return { ok: false, error: clean(error, "Could not save.") };
+  revalidatePath(PATH);
+  return { ok: true, message: "Saved." };
+}
+// Drafts: a made timetable kept by name, to compare and save later.
+export async function saveDraft(yearId: number, name: string, sectionIds: number[], rows: SaveRow[]): Promise<R> {
+  if (!(await office())) return { ok: false, error: "Only the office can change the timetable." };
+  if (!name.trim()) return { ok: false, error: "Give the draft a name." };
+  const db = await untyped();
+  const { error } = await db.from("timetable_draft").insert({ academic_year_id: yearId, name: name.trim().slice(0, 60), section_ids: sectionIds, rows } as never);
+  if (error) return { ok: false, error: clean(error, "Could not keep the draft.") };
+  revalidatePath(PATH);
+  return { ok: true, message: "Draft kept." };
+}
+export async function deleteDraft(id: number): Promise<R> {
+  if (!(await office())) return { ok: false, error: "Only the office can change the timetable." };
+  const db = await untyped();
+  await db.from("timetable_draft").delete().eq("id", id);
+  revalidatePath(PATH);
+  return { ok: true, message: "Draft removed." };
 }

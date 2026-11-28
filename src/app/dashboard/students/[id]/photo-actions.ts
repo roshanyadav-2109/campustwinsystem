@@ -95,3 +95,22 @@ export async function askTransfer(studentId: number, to: number, reason: string)
   if (error) return { ok: false, error: error.message.length < 160 ? error.message : "Could not send the request." };
   return { ok: true, message: "Sent to central administration. The transfer order follows its approval." };
 }
+
+export async function incomingTransfers() {
+  const supabase = await createClient();
+  const { data } = await supabase.rpc("incoming_transfers" as never);
+  return (data ?? []) as unknown as { id: number; student_name: string; from_campus: string; programme: string | null; reason: string | null; receiving_ok: boolean | null; created_at: string }[];
+}
+export async function answerTransfer(id: number, ok: boolean, note: string): Promise<{ ok: true; message: string } | { ok: false; error: string }> {
+  const supabase = await createClient();
+  const { error } = await supabase.rpc("receive_transfer" as never, { p_id: id, p_ok: ok, p_note: note || null } as never);
+  if (error) return { ok: false, error: error.message.length < 160 ? error.message : "Could not save." };
+  return { ok: true, message: ok ? "Agreed. Central administration completes the transfer." : "Declined; central administration is told." };
+}
+export async function setTransferFee(fee: string): Promise<{ ok: true; message: string } | { ok: false; error: string }> {
+  if (fee.trim() && !/^\d{1,6}(\.\d{1,2})?$/.test(fee.trim())) return { ok: false, error: "Enter the fee in rupees." };
+  const supabase = await createClient();
+  const { error } = await supabase.rpc("set_transfer_fee" as never, { p_fee: fee.trim() ? Number(fee) : null } as never);
+  if (error) return { ok: false, error: error.message.length < 160 ? error.message : "Only the office can set this." };
+  return { ok: true, message: "Saved." };
+}

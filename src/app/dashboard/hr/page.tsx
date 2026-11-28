@@ -98,7 +98,7 @@ export default async function HrPage({ searchParams }: { searchParams: SP }) {
       {view === "requests" && <Requests staffId={staffId} yearId={year.id} types={types} status={strParam(sp.status)} />}
       {view === "salary" && <SalarySetup canEdit={isOffice} />}
       {view === "payroll" && <Payroll canEdit={isOffice} month={strParam(sp.month)} />}
-      {view === "types" && <LeaveTypesEditor canEdit={isOffice} types={types.map((t) => ({ id: t.id, code: t.code, name: t.name, daysPerYear: t.days_per_year, isPaid: t.is_paid, active: t.active }))} />}
+      {view === "types" && <LeaveTypesEditor canEdit={isOffice} types={types.map((t) => ({ id: t.id, code: t.code, name: t.name, daysPerYear: t.days_per_year, isPaid: t.is_paid, active: t.active, chain: (t as unknown as { chain?: string }).chain }))} />}
     </div>
   );
 }

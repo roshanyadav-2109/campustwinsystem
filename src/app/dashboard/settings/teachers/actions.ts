@@ -44,6 +44,7 @@ export type StaffInput = {
   qualification?: string;
   appointment?: string;
   joinedOn?: string;
+  leftOn?: string;
 };
 const GENDERS = ["male", "female", "other"], QUALS = ["phd", "mphil", "net", "set", "pg", "ug", "diploma", "other"], APPTS = ["permanent", "contract", "guest", "visiting", "adhoc"];
 
@@ -64,6 +65,7 @@ function cleanStaff(input: StaffInput) {
       ...(input.qualification !== undefined ? { qualification: QUALS.includes(input.qualification) ? input.qualification : null } : {}),
       ...(input.appointment !== undefined ? { appointment: APPTS.includes(input.appointment) ? input.appointment : null } : {}),
       ...(input.joinedOn !== undefined ? { joined_on: /^\d{4}-\d{2}-\d{2}$/.test(input.joinedOn) ? input.joinedOn : null } : {}),
+      ...(input.leftOn !== undefined ? { left_on: /^\d{4}-\d{2}-\d{2}$/.test(input.leftOn) ? input.leftOn : null } : {}),
     },
   } as const;
 }
