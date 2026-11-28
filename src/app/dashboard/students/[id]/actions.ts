@@ -16,6 +16,11 @@ const clean = (v: unknown, max: number) => (typeof v === "string" ? v.replace(/\
 const isDate = (v: string | null) => !v || (/^\d{4}-\d{2}-\d{2}$/.test(v) && !Number.isNaN(Date.parse(`${v}T00:00:00Z`)));
 const BLOOD = ["A+", "A-", "B+", "B-", "AB+", "AB-", "O+", "O-"];
 const CATEGORY = ["general", "sc", "st", "obc", "ews"];
+const MINORITY = ["none", "muslim", "christian", "sikh", "buddhist", "parsi", "jain"];
+const STREAM = ["science", "commerce", "humanities", "vocational"];
+const PREV = ["promoted", "passed", "failed", "detained", "new"];
+const FACILITIES = ["free_textbooks", "free_uniform", "free_transport", "free_escort", "free_hostel", "free_bicycle", "free_laptop", "scholarship", "mid_day_meal"];
+const num = (v: unknown) => (v === null || v === undefined || v === "" ? null : Number(v));
 
 export async function saveStudentProfile(studentId: number, input: Partial<StudentProfile>): Promise<Result> {
   const session = await getSession();
@@ -29,7 +34,17 @@ export async function saveStudentProfile(studentId: number, input: Partial<Stude
     address_line: clean(input.address_line, 240), city: clean(input.city, 80), state: clean(input.state, 60),
     pincode: clean(input.pincode, 6), allergies: clean(input.allergies, 300), medical_notes: clean(input.medical_notes, 500),
     emergency_name: clean(input.emergency_name, 80), emergency_phone: clean(input.emergency_phone, 20),
+    mother_name: clean(input.mother_name, 100), father_name: clean(input.father_name, 100),
+    height_cm: num(input.height_cm), weight_kg: num(input.weight_kg), medium: clean(input.medium, 40), stream: clean(input.stream, 12),
+    prev_result: clean(input.prev_result, 10), prev_percent: num(input.prev_percent), prev_attendance_days: num(input.prev_attendance_days),
+    facilities: (input.facilities ?? []).filter((x) => FACILITIES.includes(x)),
   };
+  if (row.height_cm != null && !(row.height_cm >= 40 && row.height_cm <= 250)) return fail("Height is in centimetres, between 40 and 250.");
+  if (row.weight_kg != null && !(row.weight_kg >= 5 && row.weight_kg <= 200)) return fail("Weight is in kilograms, between 5 and 200.");
+  if (row.stream && !STREAM.includes(row.stream)) return fail("Choose a stream from the list.");
+  if (row.prev_result && !PREV.includes(row.prev_result)) return fail("Choose last year's result from the list.");
+  if (row.prev_percent != null && !(row.prev_percent >= 0 && row.prev_percent <= 100)) return fail("Last year's percentage is between 0 and 100.");
+  if (row.prev_attendance_days != null && !(Number.isInteger(row.prev_attendance_days) && row.prev_attendance_days >= 0 && row.prev_attendance_days <= 366)) return fail("Days attended last year is a whole number up to 366.");
   if (!isDate(row.admission_date)) return fail("Enter the admission date as a date.");
   if (row.blood_group && !BLOOD.includes(row.blood_group)) return fail("Choose a blood group from the list.");
   if (row.pincode && !/^[1-9][0-9]{5}$/.test(row.pincode)) return fail("A PIN code has six digits and does not start with 0.");
@@ -56,11 +71,17 @@ export async function saveStudentIdentity(studentId: number, input: Partial<Stud
   if (pen && pen.length !== 11) return fail("A PEN has 11 digits.");
   const category = clean(input.category, 10);
   if (category && !CATEGORY.includes(category)) return fail("Choose a category from the list.");
+  const minority = clean(input.minority, 12);
+  if (minority && !MINORITY.includes(minority)) return fail("Choose a minority group from the list.");
+  const udid = (clean(input.udid_no, 20) ?? "").replace(/\s/g, "") || null;
+  if (udid && !/^[A-Za-z0-9]{10,20}$/.test(udid)) return fail("A UDID number has 10 to 20 letters and digits.");
   const db = await untyped();
   const { data, error } = await db.from("student_identity").upsert({
     student_id: studentId, apaar_id: apaar, pen, aadhaar_last4, category,
     religion: clean(input.religion, 40), special_needs: !!input.special_needs,
     special_needs_note: input.special_needs ? clean(input.special_needs_note, 200) : null, bpl: !!input.bpl,
+    aadhaar_name: clean(input.aadhaar_name, 100), minority, disadvantaged: !!input.disadvantaged, aay: !!input.aay,
+    disability_type: input.special_needs ? clean(input.disability_type, 60) : null, udid_no: input.special_needs ? udid : null, rte_admission: !!input.rte_admission,
   }, { onConflict: "student_id" }).select("student_id");
   if (error) return fail(error.code === "23505" ? "Another student in this school already has this APAAR ID or PEN." : TRY_AGAIN);
   if (!data?.length) return fail("You cannot change this student's identity details.");

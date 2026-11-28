@@ -5,6 +5,7 @@ import { Button } from "@/components/ui/button";
 import { Input, Select } from "@/components/ui/field";
 import { downloadPdf, downloadPdfBook } from "@/lib/pdf";
 import { reportCardPdf, type CardSnapshot } from "@/components/report-cards/pdf";
+import { studentPhotos } from "@/app/dashboard/photos-action";
 import { lockTerm, unlockTerm, publishCards, publishedCards, saveEntries, type EntryRow } from "@/app/dashboard/report-cards/actions";
 
 export type AreaOpt = { id: number; name: string; grades: string[] };
@@ -68,7 +69,8 @@ export function ReportCardsDesk({ sectionId, term, termLocked, canUnlock, rows, 
     const r = await publishedCards(sectionId, term);
     if (!r.ok) { setMsg({ ok: false, text: r.error }); return; }
     if (!r.cards.length) { setMsg({ ok: false, text: "No published report cards yet." }); return; }
-    await downloadPdfBook(r.cards.map((c) => reportCardPdf(c.snapshot as CardSnapshot, verifyBase + c.token)), `Report cards ${term === 0 ? "year-end" : `term ${term}`}`);
+    const pics = await studentPhotos(r.cards.map((c) => c.studentId));
+    await downloadPdfBook(r.cards.map((c) => reportCardPdf(c.snapshot as CardSnapshot, verifyBase + c.token, pics[c.studentId] ?? null)), `Report cards ${term === 0 ? "year-end" : `term ${term}`}`);
   });
 
   return (
@@ -190,7 +192,7 @@ export function ReportCardsDesk({ sectionId, term, termLocked, canUnlock, rows, 
   );
 }
 
-export function FamilyCards({ cards }: { cards: { id: number; snapshot: Record<string, unknown>; token: string; publishedAt: string }[] }) {
+export function FamilyCards({ cards }: { cards: { id: number; studentId: number; snapshot: Record<string, unknown>; token: string; publishedAt: string }[] }) {
   const [pending, start] = useTransition();
   const [open, setOpen] = useState<number | null>(null);
   const base = `https://verify.${process.env.NEXT_PUBLIC_BASE_DOMAIN || "campustwin.org"}/verify/`;
@@ -208,7 +210,7 @@ export function FamilyCards({ cards }: { cards: { id: number; snapshot: Record<s
                   {" · "}published {c.publishedAt}</p>
               </div>
               <Button size="sm" variant="ghost" onClick={() => setOpen(open === c.id ? null : c.id)}>{open === c.id ? "Hide" : "View"}</Button>
-              <Button size="sm" variant="subtle" disabled={pending} onClick={() => start(async () => { await downloadPdf(reportCardPdf(s, base + c.token)); })}>Download PDF</Button>
+              <Button size="sm" variant="subtle" disabled={pending} onClick={() => start(async () => { const pic = (await studentPhotos([c.studentId]))[c.studentId] ?? null; await downloadPdf(reportCardPdf(s, base + c.token, pic)); })}>Download PDF</Button>
             </div>
             {open === c.id && (
               <div className="overflow-x-auto border-t border-hair px-4 py-3">

@@ -8,6 +8,7 @@ import { downloadPdf, downloadPdfBook } from "@/lib/pdf";
 import { admitCardPdf } from "@/components/exams/admit-pdf";
 import { saveSession, publishSession, deleteSession, savePaper, deletePaper, admitCards, suppAdmitCards } from "@/app/dashboard/exam-timetable/actions";
 import { sessionSeats } from "@/app/dashboard/exam-cell/actions";
+import { studentPhotos } from "@/app/dashboard/photos-action";
 
 export type SessionView = { id: number; name: string; term: number; assessment_type_id: number; instructions: string | null; withhold_fee_dues: boolean; published_at: string | null; kind?: string };
 export type PaperView = { id: number; session_id: number; class_id: number | null; subject_id: number; exam_date: string; starts_at: string; ends_at: string; max_marks: number; note: string | null; component?: string; optional_group?: string | null; subject: { name: string } | null };
@@ -86,7 +87,8 @@ export function ExamsDesk({ canEdit, sessions, sessionId, papers, types, classes
     const ok = r.rows.filter((x) => !x.withheld);
     setWithheld(r.rows.filter((x) => x.withheld).map((x) => ({ name: x.student_name, reason: x.reason ?? "" })));
     if (!ok.length) { setMsg({ ok: false, text: "Every admit card in this section is held back." }); return; }
-    await downloadPdfBook(ok.map((x) => admitCardPdf({ exam: s.name, school, student: x.student_name, admissionNo: x.admission_no, roll: x.roll_no, classLabel: x.class_label, instructions: s.instructions, papers: papersFor(x.subject_ids, x.student_id), verifyUrl: verifyBase + x.verify_token })), `Admit cards ${sec.label} ${s.name}`);
+    const pics = await studentPhotos(ok.map((x) => x.student_id));
+    await downloadPdfBook(ok.map((x) => admitCardPdf({ exam: s.name, school, student: x.student_name, admissionNo: x.admission_no, roll: x.roll_no, classLabel: x.class_label, instructions: s.instructions, papers: papersFor(x.subject_ids, x.student_id), verifyUrl: verifyBase + x.verify_token, photo: pics[x.student_id] ?? null })), `Admit cards ${sec.label} ${s.name}`);
     setMsg({ ok: true, text: `${ok.length} admit cards downloaded.` });
   });
 
@@ -99,11 +101,12 @@ export function ExamsDesk({ canEdit, sessions, sessionId, papers, types, classes
     const ok = r.rows.filter((x) => !x.withheld);
     setWithheld(r.rows.filter((x) => x.withheld).map((x) => ({ name: x.student_name, reason: x.reason ?? "" })));
     if (!ok.length) { setMsg({ ok: false, text: "Every hall ticket is held back." }); return; }
+    const pics = await studentPhotos(ok.map((x) => x.student_id));
     const seatsAll = await sessionSeats(s.id);
     await downloadPdfBook(ok.map((x) => admitCardPdf({ exam: s.name, school, student: x.student_name, admissionNo: x.admission_no, roll: x.roll_no, classLabel: x.class_label, instructions: s.instructions,
       papers: course.filter((p) => (x.subject_ids ?? []).includes(p.subject_id)).map((p) => { const st = seatsAll.find((y) => y.student_id === x.student_id && y.exam_date === p.exam_date && y.starts_at.slice(0, 5) === p.starts_at.slice(0, 5));
         return { date: p.exam_date, start: p.starts_at, end: p.ends_at, subject: p.subject?.name ?? "", note: [p.note, st ? `${st.room}, seat ${st.seat_no}` : null].filter(Boolean).join(" · ") || null }; }),
-      verifyUrl: verifyBase + x.verify_token })), `Hall tickets ${s.name}`);
+      photo: pics[x.student_id] ?? null, verifyUrl: verifyBase + x.verify_token })), `Hall tickets ${s.name}`);
     setMsg({ ok: true, text: `${ok.length} hall tickets downloaded.` });
   });
 
@@ -228,7 +231,8 @@ export function FamilyExams({ sessions, papers, children, school, verifyBase }: 
                 const row = r.rows[0];
                 if (!row) { setMsg({ ok: false, text: "No admit card is available yet." }); return; }
                 if (row.withheld) { setMsg({ ok: false, text: `The admit card is held back: ${row.reason}. Please contact the school office.` }); return; }
-                await downloadPdf(admitCardPdf({ exam: s.name, school, student: row.student_name, admissionNo: row.admission_no, roll: row.roll_no, classLabel: row.class_label, instructions: s.instructions,
+                const pic = (await studentPhotos([k.id]))[k.id] ?? null;
+                await downloadPdf(admitCardPdf({ exam: s.name, school, student: row.student_name, admissionNo: row.admission_no, roll: row.roll_no, classLabel: row.class_label, instructions: s.instructions, photo: pic,
                   papers: mine.filter((p) => !row.subject_ids || row.subject_ids.includes(p.subject_id)).map((p) => ({ date: p.exam_date, start: p.starts_at, end: p.ends_at, subject: p.subject?.name ?? "", note: p.note })), verifyUrl: verifyBase + row.verify_token }));
               })}>Download admit card</Button>} />
             <CardBody className="p-0">

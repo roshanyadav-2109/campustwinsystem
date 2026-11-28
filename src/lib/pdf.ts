@@ -40,6 +40,8 @@ export type PdfDoc = {
   blocks: PdfBlock[];
   /** Override the letterhead institution name (defaults to the current tenant). */
   school?: string;
+  /** The student's photo (a web address), printed at the top right of the first page. */
+  photo?: string | null;
 };
 
 const INK: [number, number, number] = [17, 24, 39];
@@ -71,9 +73,20 @@ async function openPdf(orientation: PdfDoc["orientation"]): Promise<Lib> {
   return { doc: new jsPDF({ orientation: orientation ?? "portrait", unit: "mm", format: "a4", compress: true }), autoTable, qr };
 }
 
+// Photos are fetched once, in the browser, and embedded; a photo that cannot load leaves an empty box.
+async function photoData(url: string | null | undefined): Promise<string | null> {
+  if (!url) return null;
+  try {
+    const res = await fetch(url, { mode: "cors" });
+    if (!res.ok) return null;
+    const blob = await res.blob();
+    return await new Promise((resolve) => { const r = new FileReader(); r.onload = () => resolve(String(r.result)); r.onerror = () => resolve(null); r.readAsDataURL(blob); });
+  } catch { return null; }
+}
+
 export async function downloadPdf(spec: PdfDoc) {
   const lib = await openPdf(spec.orientation);
-  drawDoc(lib, spec, 1);
+  drawDoc(lib, spec, 1, await photoData(spec.photo));
   const name = safeFile(spec.filename);
   lib.doc.save(name.toLowerCase().endsWith(".pdf") ? name : `${name}.pdf`);
 }
@@ -83,16 +96,19 @@ export async function downloadPdf(spec: PdfDoc) {
 export async function downloadPdfBook(specs: PdfDoc[], filename: string) {
   if (!specs.length) return;
   const lib = await openPdf(specs[0].orientation);
+  // six at a time, so a whole class does not open hundreds of downloads at once
+  const photos: (string | null)[] = [];
+  for (let i = 0; i < specs.length; i += 6) photos.push(...await Promise.all(specs.slice(i, i + 6).map((s) => photoData(s.photo))));
   specs.forEach((spec, i) => {
     if (i > 0) lib.doc.addPage();
-    drawDoc(lib, spec, lib.doc.getNumberOfPages());
+    drawDoc(lib, spec, lib.doc.getNumberOfPages(), photos[i]);
   });
   const name = safeFile(filename);
   lib.doc.save(name.toLowerCase().endsWith(".pdf") ? name : `${name}.pdf`);
 }
 
 // Draws one document starting on page `first` (already the current page).
-function drawDoc({ doc, autoTable, qr }: Lib, spec: PdfDoc, first: number) {
+function drawDoc({ doc, autoTable, qr }: Lib, spec: PdfDoc, first: number, photo: string | null = null) {
   const pageW = doc.internal.pageSize.getWidth();
   const pageH = doc.internal.pageSize.getHeight();
   const M = 14;
@@ -101,6 +117,13 @@ function drawDoc({ doc, autoTable, qr }: Lib, spec: PdfDoc, first: number) {
 
   // ---- First-page letterhead ----
   let y = M + 2;
+  // the student's photo, top right (passport size, 25 x 30 mm)
+  if (spec.photo !== undefined) {
+    const pw = 25, ph = 30, px = pageW - M - pw, py = M - 4;
+    doc.setDrawColor(...LINE); doc.setLineWidth(0.3); doc.rect(px, py, pw, ph);
+    if (photo) { try { doc.addImage(photo, photo.startsWith("data:image/png") ? "PNG" : "JPEG", px, py, pw, ph); } catch { /* keep the box */ } }
+    else { doc.setFont("helvetica", "normal"); doc.setFontSize(7); doc.setTextColor(...MUTED); doc.text("Photo", px + pw / 2, py + ph / 2, { align: "center" }); }
+  }
   doc.setTextColor(...INK);
   doc.setFont("helvetica", "bold"); doc.setFontSize(15);
   doc.text(schoolName, M, y);
@@ -110,6 +133,7 @@ function drawDoc({ doc, autoTable, qr }: Lib, spec: PdfDoc, first: number) {
   y += 5.5;
   doc.setFont("helvetica", "normal"); doc.setFontSize(9.5); doc.setTextColor(...MUTED);
   for (const line of spec.meta.filter(Boolean)) { doc.text(clean(line), M, y); y += 4.5; }
+  if (spec.photo !== undefined) y = Math.max(y, M + 28);
   doc.setDrawColor(...LINE); doc.setLineWidth(0.3);
   doc.line(M, y, pageW - M, y);
   y += 5;

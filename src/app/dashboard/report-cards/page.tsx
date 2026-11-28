@@ -32,7 +32,7 @@ export default async function ReportCardsPage({ searchParams }: { searchParams: 
         <PageHeader title="Report cards" description="Report cards the school has published. Download and keep a copy." />
         {cards.length === 0
           ? <EmptyState art="no-marks" title="No report cards yet" hint="When the school publishes a report card, it appears here and you get a notification." />
-          : <FamilyCards cards={cards.map((c) => ({ id: c.id, snapshot: c.snapshot, token: c.verify_token, publishedAt: c.published_at.slice(0, 10).split("-").reverse().join("/") }))} />}
+          : <FamilyCards cards={cards.map((c) => ({ id: c.id, studentId: c.student_id, snapshot: c.snapshot, token: c.verify_token, publishedAt: c.published_at.slice(0, 10).split("-").reverse().join("/") }))} />}
       </div>
     );
   }

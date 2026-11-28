@@ -8,6 +8,15 @@ import type { StudentIdentity, StudentProfile } from "@/lib/data/student-record"
 
 const BLOOD = ["A+", "A-", "B+", "B-", "AB+", "AB-", "O+", "O-"];
 const CATEGORY: [string, string][] = [["general", "General"], ["sc", "SC"], ["st", "ST"], ["obc", "OBC"], ["ews", "EWS"]];
+const MINORITY: [string, string][] = [["none", "Not a minority"], ["muslim", "Muslim"], ["christian", "Christian"], ["sikh", "Sikh"], ["buddhist", "Buddhist"], ["parsi", "Parsi"], ["jain", "Jain"]];
+// The 21 disabilities of the RPwD Act, as UDISE+ lists them
+const DISABILITY = ["Blindness", "Low vision", "Hearing impairment", "Speech and language", "Locomotor disability", "Mental illness", "Specific learning disability",
+  "Cerebral palsy", "Autism spectrum disorder", "Multiple disabilities", "Leprosy cured", "Dwarfism", "Intellectual disability", "Muscular dystrophy",
+  "Chronic neurological conditions", "Multiple sclerosis", "Thalassemia", "Haemophilia", "Sickle cell disease", "Acid attack victim", "Parkinson's disease"];
+const STREAM: [string, string][] = [["science", "Science"], ["commerce", "Commerce"], ["humanities", "Humanities (Arts)"], ["vocational", "Vocational"]];
+const PREV: [string, string][] = [["promoted", "Promoted"], ["passed", "Passed (board exam)"], ["failed", "Failed"], ["detained", "Detained"], ["new", "New admission"]];
+const FACILITIES: [string, string][] = [["free_textbooks", "Free textbooks"], ["free_uniform", "Free uniform"], ["free_transport", "Free transport"], ["free_escort", "Free escort"],
+  ["free_hostel", "Free hostel"], ["free_bicycle", "Free bicycle"], ["free_laptop", "Free laptop or tablet"], ["scholarship", "Scholarship"], ["mid_day_meal", "Mid-day meal"]];
 
 // Edit the everyday profile: admission, address, medical and emergency details.
 export function EditProfileButton({ studentId, profile }: { studentId: number; profile: StudentProfile }) {
@@ -17,7 +26,7 @@ export function EditProfileButton({ studentId, profile }: { studentId: number; p
   const [error, setError] = useState<string | null>(null);
   const [pending, start] = useTransition();
   const set = (k: keyof StudentProfile) => (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>) => setF({ ...f, [k]: e.target.value || null });
-  const v = (k: keyof StudentProfile) => f[k] ?? "";
+  const v = (k: keyof StudentProfile) => { const x = f[k]; return Array.isArray(x) ? "" : x ?? ""; };
   const input = (k: keyof StudentProfile, label: string, props: React.InputHTMLAttributes<HTMLInputElement> = {}) => (
     <Field label={label} htmlFor={`${uid}-${k}`}><Input id={`${uid}-${k}`} value={v(k)} onChange={set(k)} {...props} /></Field>
   );
@@ -46,6 +55,28 @@ export function EditProfileButton({ studentId, profile }: { studentId: number; p
                 </Select>
               </Field>
               {input("house", "House", { maxLength: 40 })}
+              {input("mother_name", "Mother's name", { maxLength: 100 })}
+              {input("father_name", "Father's name", { maxLength: 100 })}
+            </fieldset>
+            <fieldset className="grid gap-3 sm:grid-cols-2">
+              <legend className="mb-2 text-[13px] font-semibold text-ink-900">Schooling (for UDISE+)</legend>
+              {input("medium", "Medium of instruction", { maxLength: 40, placeholder: "English" })}
+              <Field label="Stream (classes 11 and 12)" htmlFor={`${uid}-st`}>
+                <Select id={`${uid}-st`} value={v("stream")} onChange={set("stream")}><option value="">Not applicable</option>{STREAM.map(([k, l]) => <option key={k} value={k}>{l}</option>)}</Select>
+              </Field>
+              {input("height_cm", "Height (cm)", { inputMode: "decimal", maxLength: 5 })}
+              {input("weight_kg", "Weight (kg)", { inputMode: "decimal", maxLength: 5 })}
+              <Field label="Last year's result" htmlFor={`${uid}-pr`} hint="Left empty, it is taken from this school's own records">
+                <Select id={`${uid}-pr`} value={v("prev_result")} onChange={set("prev_result")}><option value="">From the records</option>{PREV.map(([k, l]) => <option key={k} value={k}>{l}</option>)}</Select>
+              </Field>
+              {input("prev_percent", "Last year's percentage", { inputMode: "decimal", maxLength: 6 })}
+              {input("prev_attendance_days", "Days attended last year", { inputMode: "numeric", maxLength: 3 })}
+              <div className="sm:col-span-2">
+                <p className="mb-1 text-[13px] text-ink-700">Facilities received</p>
+                <div className="grid grid-cols-2 gap-1 sm:grid-cols-3">{FACILITIES.map(([k, l]) => (
+                  <label key={k} className="flex items-center gap-2 text-[13px]"><input type="checkbox" checked={(f.facilities ?? []).includes(k)}
+                    onChange={(e) => setF({ ...f, facilities: e.target.checked ? [...(f.facilities ?? []), k] : (f.facilities ?? []).filter((x) => x !== k) })} />{l}</label>))}</div>
+              </div>
             </fieldset>
             <fieldset className="grid gap-3 sm:grid-cols-2">
               <legend className="mb-2 text-[13px] font-semibold text-ink-900">Address</legend>
@@ -102,12 +133,29 @@ export function EditIdentityButton({ studentId, identity }: { studentId: number;
                 <option value="">Not recorded</option>{CATEGORY.map(([k, l]) => <option key={k} value={k}>{l}</option>)}
               </Select>
             </Field>
+            <Field label="Name as on Aadhaar" htmlFor={`${uid}-an`}><Input id={`${uid}-an`} maxLength={100} value={f.aadhaar_name ?? ""} onChange={(e) => setF({ ...f, aadhaar_name: e.target.value })} /></Field>
             <Field label="Religion" htmlFor={`${uid}-rel`}><Input id={`${uid}-rel`} maxLength={40} value={f.religion ?? ""} onChange={(e) => setF({ ...f, religion: e.target.value })} /></Field>
+            <Field label="Minority group" htmlFor={`${uid}-mi`}>
+              <Select id={`${uid}-mi`} value={f.minority ?? ""} onChange={(e) => setF({ ...f, minority: e.target.value || null })}>
+                <option value="">Not recorded</option>{MINORITY.map(([k, l]) => <option key={k} value={k}>{l}</option>)}
+              </Select>
+            </Field>
             <div className="space-y-2 pt-6">
               <label className="flex items-center gap-2 text-[14px]"><input type="checkbox" checked={f.bpl} onChange={(e) => setF({ ...f, bpl: e.target.checked })} /> Below poverty line</label>
+              <label className="flex items-center gap-2 text-[14px]"><input type="checkbox" checked={f.aay} onChange={(e) => setF({ ...f, aay: e.target.checked })} /> Antyodaya (AAY) card</label>
+              <label className="flex items-center gap-2 text-[14px]"><input type="checkbox" checked={f.disadvantaged} onChange={(e) => setF({ ...f, disadvantaged: e.target.checked })} /> EWS or disadvantaged group</label>
+              <label className="flex items-center gap-2 text-[14px]"><input type="checkbox" checked={f.rte_admission} onChange={(e) => setF({ ...f, rte_admission: e.target.checked })} /> Admitted under RTE 12(1)(c)</label>
               <label className="flex items-center gap-2 text-[14px]"><input type="checkbox" checked={f.special_needs} onChange={(e) => setF({ ...f, special_needs: e.target.checked })} /> Child with special needs</label>
             </div>
-            {f.special_needs && <div className="sm:col-span-2"><Field label="Special needs, in short" htmlFor={`${uid}-sn`}><Input id={`${uid}-sn`} maxLength={200} value={f.special_needs_note ?? ""} onChange={(e) => setF({ ...f, special_needs_note: e.target.value })} /></Field></div>}
+            {f.special_needs && <>
+              <Field label="Type of disability" htmlFor={`${uid}-dt`}>
+                <Select id={`${uid}-dt`} value={f.disability_type ?? ""} onChange={(e) => setF({ ...f, disability_type: e.target.value || null })}>
+                  <option value="">Choose</option>{DISABILITY.map((d) => <option key={d}>{d}</option>)}
+                </Select>
+              </Field>
+              <Field label="UDID number" htmlFor={`${uid}-ud`} hint="Unique disability ID, if issued"><Input id={`${uid}-ud`} maxLength={20} value={f.udid_no ?? ""} onChange={(e) => setF({ ...f, udid_no: e.target.value })} /></Field>
+              <div className="sm:col-span-2"><Field label="Special needs, in short" htmlFor={`${uid}-sn`}><Input id={`${uid}-sn`} maxLength={200} value={f.special_needs_note ?? ""} onChange={(e) => setF({ ...f, special_needs_note: e.target.value })} /></Field></div>
+            </>}
           </div>
           {error && <p role="alert" className="mt-3 text-left text-[13px] text-down">{error}</p>}
           <div className="mt-4 flex gap-2">

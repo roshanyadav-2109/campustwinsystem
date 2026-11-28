@@ -19,7 +19,7 @@ const num = (v: number | null | undefined) => (v == null ? "-" : Number.isIntege
 const compCell = (c: { score: number | null; out_of: number; exempt?: boolean; absent?: boolean }) =>
   c.exempt ? "Ex" : c.absent ? "AB" : c.score == null ? "-" : `${num(c.score)}/${num(c.out_of)}`;
 
-export function reportCardPdf(s: CardSnapshot, verifyUrl: string): PdfDoc {
+export function reportCardPdf(s: CardSnapshot, verifyUrl: string, photo?: string | null): PdfDoc {
   const show = s.scheme;
   let headers: string[];
   let rows: PdfCell[][];
@@ -87,5 +87,5 @@ export function reportCardPdf(s: CardSnapshot, verifyUrl: string): PdfDoc {
   blocks.push({ kind: "signatures", labels: [s.class_teacher ? `Class teacher (${s.class_teacher})` : "Class teacher", s.school?.signatory_title || "Principal", "Parent"] });
   blocks.push({ kind: "qr", data: verifyUrl, lines: ["Scan to check this report card is genuine.", verifyUrl.replace(/^https:\/\//, "")] });
   const meta = [s.term_name, s.year ?? "", [s.scheme.board, s.school?.affiliation_no ? `Affiliation ${s.school.affiliation_no}` : ""].filter(Boolean).join(", ")].filter(Boolean);
-  return { filename: `Report card ${s.student.name} ${s.term_name}`, title: "Report card", meta, blocks, school: s.school?.name };
+  return { filename: `Report card ${s.student.name} ${s.term_name}`, title: "Report card", meta, blocks, school: s.school?.name, photo: photo ?? null };
 }

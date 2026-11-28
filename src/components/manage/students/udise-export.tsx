@@ -22,13 +22,18 @@ export function UdiseExport({ sections }: { sections: { id: number; label: strin
     const missing = r.rows.filter((x) => x.missing.length).map((x) => ({ name: x.student_name, cls: `${x.class_name}-${x.section_name}`, what: x.missing }));
     setSummary({ total: r.rows.length, missing });
     if (!download) return;
-    const headers = ["Admission No", "Student Name", "Gender", "Date of Birth", "Class", "Section", "Roll No", "Date of Admission", "Mother's Name", "Father's Name",
+    const headers = ["Admission No", "Student Name", "Name as per Aadhaar", "Gender", "Date of Birth", "Class", "Section", "Roll No", "Date of Admission", "Mother's Name", "Father's Name",
       "Guardian's Name", "Mobile Number", "Email", "Address", "Pincode", "Mother Tongue", "Social Category", "Religion", "BPL", "CWSN", "CWSN Type",
-      "APAAR ID", "PEN", "Aadhaar (last 4)", "Blood Group", "Previous School", "Nationality"];
-    const data = r.rows.map((x: UdiseRow) => [x.admission_no, x.student_name, x.gender ?? "", dmy(x.dob), x.class_name, x.section_name, x.roll_no ?? "", dmy(x.admission_date),
+      "APAAR ID", "PEN", "Aadhaar (last 4)", "Blood Group", "Previous School", "Nationality",
+      "Minority Group", "AAY", "EWS / Disadvantaged", "Type of Impairment", "UDID", "Admitted under RTE", "Height (cm)", "Weight (kg)", "Medium of Instruction", "Stream",
+      "Previous Year Result", "Previous Year %", "Days Attended Last Year", "Facilities Received"];
+    const cap = (v: string | null) => (v ? v.charAt(0).toUpperCase() + v.slice(1).replace(/_/g, " ") : "");
+    const data = r.rows.map((x: UdiseRow) => [x.admission_no, x.student_name, x.aadhaar_name ?? "", x.gender ?? "", dmy(x.dob), x.class_name, x.section_name, x.roll_no ?? "", dmy(x.admission_date),
       x.mother_name ?? "", x.father_name ?? "", x.guardian_name ?? "", x.mobile ?? "", x.email ?? "", x.address ?? "", x.pincode ?? "", x.mother_tongue ?? "",
       x.social_category ?? "", x.religion ?? "", yn(x.bpl), yn(x.cwsn), x.cwsn_note ?? "", x.apaar_id ?? "", x.pen ?? "", x.aadhaar_last4 ?? "", x.blood_group ?? "",
-      x.previous_school ?? "", x.nationality ?? ""]);
+      x.previous_school ?? "", x.nationality ?? "", cap(x.minority), yn(x.aay), yn(x.disadvantaged), x.disability_type ?? "", x.udid_no ?? "", yn(x.rte_admission),
+      x.height_cm ?? "", x.weight_kg ?? "", x.medium ?? "", cap(x.stream), cap(x.prev_result), x.prev_percent ?? "", x.prev_attendance_days ?? "",
+      (x.facilities ?? []).map((f) => cap(f)).join(", ")]);
     downloadWorkbook(`UDISE+ students${sectionId === "" ? "" : ` ${sections.find((s) => s.id === sectionId)?.label ?? ""}`}`, [
       { name: "Students", headers, rows: data },
       { name: "Missing details", headers: ["Student", "Class", "Missing"], rows: missing.map((m) => [m.name, m.cls, m.what.join(", ")]) },
@@ -38,7 +43,7 @@ export function UdiseExport({ sections }: { sections: { id: number; label: strin
     <Card>
       <CardHeader title="UDISE+ student data" />
       <CardBody className="space-y-2">
-        <p className="text-[13px] text-ink-700">Download the students with the fields the UDISE+ portal asks for, and a list of details still missing. Aadhaar appears only as its last four digits; the portal also asks for some details CampusTwin does not hold yet (for example the name as on Aadhaar, minority group, EWS and RTE admission).</p>
+        <p className="text-[13px] text-ink-700">Download the students with the fields the UDISE+ portal asks for, and a list of details still missing. Aadhaar appears only as its last four digits; last year's result and days attended come from this school's records when not entered.</p>
         <div className="flex flex-wrap items-center gap-2">
           <Select className="h-9 w-44 text-[13px]" aria-label="Section for UDISE+" value={sectionId} onChange={(e) => setSectionId(e.target.value ? Number(e.target.value) : "")}>
             <option value="">Whole school</option>{sections.map((s) => <option key={s.id} value={s.id}>{s.label}</option>)}</Select>

@@ -16,6 +16,9 @@ const squash = (s: string) => s.toLowerCase().replace(/[^a-z0-9]/g, "");
 const BLOOD = ["A+", "A-", "B+", "B-", "AB+", "AB-", "O+", "O-"];
 const CATEGORY: Record<string, string> = { general: "general", gen: "general", sc: "sc", st: "st", obc: "obc", ews: "ews" };
 const YES = ["yes", "y", "true", "1"];
+const MINORITY: Record<string, string> = { none: "none", no: "none", notminority: "none", muslim: "muslim", christian: "christian", sikh: "sikh", buddhist: "buddhist", parsi: "parsi", jain: "jain" };
+const STREAM: Record<string, string> = { science: "science", commerce: "commerce", arts: "humanities", humanities: "humanities", vocational: "vocational" };
+const yes = (v: string) => YES.includes(v.trim().toLowerCase());
 
 // Dates as DD/MM/YYYY (what Excel shows in India) or YYYY-MM-DD.
 function isoDate(v: string): string | null {
@@ -53,6 +56,21 @@ const TARGETS: Target[] = [
   { table: "identity", key: "religion", aliases: ["religion"] },
   { table: "identity", key: "bpl", aliases: ["bpl", "belowpovertyline"], map: (v) => YES.includes(v.trim().toLowerCase()) },
   { table: "identity", key: "special_needs", aliases: ["specialneeds", "cwsn", "disability"], map: (v) => YES.includes(v.trim().toLowerCase()) },
+  { table: "identity", key: "aadhaar_name", aliases: ["nameasonaadhaar", "nameasperaadhaar", "aadhaarname", "nameonaadhaar"] },
+  { table: "identity", key: "minority", aliases: ["minority", "minoritygroup"], check: (v) => (MINORITY[squash(v)] ? null : "minority group is not one of None, Muslim, Christian, Sikh, Buddhist, Parsi, Jain"), map: (v) => MINORITY[squash(v)] },
+  { table: "identity", key: "disadvantaged", aliases: ["ews", "disadvantaged", "ewsdg", "disadvantagedgroup"], map: yes },
+  { table: "identity", key: "aay", aliases: ["aay", "antyodaya"], map: yes },
+  { table: "identity", key: "disability_type", aliases: ["typeofdisability", "disabilitytype", "impairment"] },
+  { table: "identity", key: "udid_no", aliases: ["udid", "udidno", "udidnumber"], check: (v) => (/^[A-Za-z0-9]{10,20}$/.test(v.replace(/\s/g, "")) ? null : "UDID needs 10 to 20 letters and digits"), map: (v) => v.replace(/\s/g, "") },
+  { table: "identity", key: "rte_admission", aliases: ["rte", "rteadmission", "admittedunderrte"], map: yes },
+  { table: "profile", key: "mother_name", aliases: ["mothername", "mothersname"] },
+  { table: "profile", key: "father_name", aliases: ["fathername", "fathersname"] },
+  { table: "profile", key: "medium", aliases: ["medium", "mediumofinstruction"] },
+  { table: "profile", key: "stream", aliases: ["stream"], check: (v) => (STREAM[squash(v)] ? null : "stream is not Science, Commerce, Humanities or Vocational"), map: (v) => STREAM[squash(v)] },
+  { table: "profile", key: "height_cm", aliases: ["height", "heightcm"], check: (v) => (Number(v) >= 40 && Number(v) <= 250 ? null : "height is in cm, 40 to 250") },
+  { table: "profile", key: "weight_kg", aliases: ["weight", "weightkg"], check: (v) => (Number(v) >= 5 && Number(v) <= 200 ? null : "weight is in kg, 5 to 200") },
+  { table: "profile", key: "prev_percent", aliases: ["lastyearpercentage", "previouspercentage", "percentagelastyear"], check: (v) => (Number(v) >= 0 && Number(v) <= 100 ? null : "last year's percentage is 0 to 100") },
+  { table: "profile", key: "prev_attendance_days", aliases: ["daysattendedlastyear", "lastyearattendance", "attendancedayslastyear"], check: (v) => (/^\d{1,3}$/.test(v.trim()) && Number(v) <= 366 ? null : "days attended last year is a whole number") },
 ];
 const ADMISSION_ALIASES = ["admissionno", "admissionnumber", "admno", "admission", "srno", "scholarno"];
 
@@ -60,6 +78,8 @@ export const DETAILS_TEMPLATE = [
   "Admission no", "Date of admission", "Class at admission", "Previous school", "Mother tongue", "Nationality", "Place of birth",
   "Blood group", "House", "Address", "City", "State", "PIN code", "Allergies", "Medical notes", "Emergency contact", "Emergency phone",
   "APAAR ID", "PEN", "Aadhaar", "Category", "Religion", "BPL", "Special needs",
+  "Name as on Aadhaar", "Minority", "EWS", "AAY", "Type of disability", "UDID", "RTE admission", "Mother's name", "Father's name",
+  "Medium", "Stream", "Height", "Weight", "Last year percentage", "Days attended last year",
 ];
 
 export function readDetails(table: string[][]): { rows: DetailsRow[]; problem?: string; columns: string[] } {

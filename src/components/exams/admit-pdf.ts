@@ -9,12 +9,13 @@ const day = (iso: string) => {
 };
 const hm = (t: string) => t.slice(0, 5);
 
-export function admitCardPdf(a: { exam: string; school: string; student: string; admissionNo: string; roll: number | null; classLabel: string; instructions: string | null; papers: AdmitPaper[]; verifyUrl: string }): PdfDoc {
+export function admitCardPdf(a: { exam: string; school: string; student: string; admissionNo: string; roll: number | null; classLabel: string; instructions: string | null; papers: AdmitPaper[]; verifyUrl: string; photo?: string | null }): PdfDoc {
   return {
     filename: `Admit card ${a.student} ${a.exam}`,
     title: "Admit card",
     meta: [a.exam],
     school: a.school,
+    photo: a.photo ?? null,
     blocks: [
       { kind: "facts", items: [["Student", a.student], ["Class", a.classLabel], ["Roll no.", a.roll == null ? "-" : String(a.roll)], ["Admission no.", a.admissionNo]] },
       { kind: "table", heading: "Date sheet", headers: ["Date", "Time", "Subject", "Note"],

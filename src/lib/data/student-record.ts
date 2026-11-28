@@ -11,10 +11,13 @@ export type StudentProfile = {
   blood_group: string | null; house: string | null;
   address_line: string | null; city: string | null; state: string | null; pincode: string | null;
   allergies: string | null; medical_notes: string | null; emergency_name: string | null; emergency_phone: string | null;
+  mother_name: string | null; father_name: string | null; height_cm: number | null; weight_kg: number | null; medium: string | null; stream: string | null;
+  prev_result: string | null; prev_percent: number | null; prev_attendance_days: number | null; facilities: string[];
 };
 export type StudentIdentity = {
   apaar_id: string | null; pen: string | null; aadhaar_last4: string | null; category: string | null;
   religion: string | null; special_needs: boolean; special_needs_note: string | null; bpl: boolean;
+  aadhaar_name: string | null; minority: string | null; disadvantaged: boolean; aay: boolean; disability_type: string | null; udid_no: string | null; rte_admission: boolean;
 };
 export type StudentRecord = {
   id: number; fullName: string; admissionNo: string; dob: string | null; gender: string | null;
@@ -30,13 +33,15 @@ export const EMPTY_PROFILE: StudentProfile = {
   admission_date: null, admitted_class: null, previous_school: null, mother_tongue: null, nationality: null, place_of_birth: null,
   blood_group: null, house: null, address_line: null, city: null, state: null, pincode: null,
   allergies: null, medical_notes: null, emergency_name: null, emergency_phone: null,
+  mother_name: null, father_name: null, height_cm: null, weight_kg: null, medium: null, stream: null, prev_result: null, prev_percent: null, prev_attendance_days: null, facilities: [],
 };
 export const EMPTY_IDENTITY: StudentIdentity = {
   apaar_id: null, pen: null, aadhaar_last4: null, category: null, religion: null, special_needs: false, special_needs_note: null, bpl: false,
+  aadhaar_name: null, minority: null, disadvantaged: false, aay: false, disability_type: null, udid_no: null, rte_admission: false,
 };
 
-const PROFILE_COLS = "admission_date, admitted_class, previous_school, mother_tongue, nationality, place_of_birth, blood_group, house, address_line, city, state, pincode, allergies, medical_notes, emergency_name, emergency_phone";
-const IDENTITY_COLS = "apaar_id, pen, aadhaar_last4, category, religion, special_needs, special_needs_note, bpl";
+const PROFILE_COLS = "admission_date, admitted_class, previous_school, mother_tongue, nationality, place_of_birth, blood_group, house, address_line, city, state, pincode, allergies, medical_notes, emergency_name, emergency_phone, mother_name, father_name, height_cm, weight_kg, medium, stream, prev_result, prev_percent, prev_attendance_days, facilities";
+const IDENTITY_COLS = "apaar_id, pen, aadhaar_last4, category, religion, special_needs, special_needs_note, bpl, aadhaar_name, minority, disadvantaged, aay, disability_type, udid_no, rte_admission";
 
 export async function getStudentRecord(studentId: number, yearId: number | null, withIdentity: boolean): Promise<StudentRecord | null> {
   const supabase = await createClient();

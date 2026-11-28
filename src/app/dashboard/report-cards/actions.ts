@@ -82,11 +82,11 @@ export async function withdrawCard(cardId: number, reason: string): Promise<Resu
 }
 
 // Published cards of a section for a term (snapshots, for PDF download).
-export async function publishedCards(sectionId: number, t: number): Promise<{ ok: true; cards: { snapshot: unknown; token: string }[] } | { ok: false; error: string }> {
+export async function publishedCards(sectionId: number, t: number): Promise<{ ok: true; cards: { snapshot: unknown; token: string; studentId: number }[] } | { ok: false; error: string }> {
   const c = await ctx();
   if (!c) return { ok: false, error: "Not allowed." };
-  const { data, error } = await c.supabase.from("report_card" as never).select("snapshot, verify_token")
+  const { data, error } = await c.supabase.from("report_card" as never).select("snapshot, verify_token, student_id")
     .eq("section_id", sectionId).eq("academic_year_id", c.year.id).eq("term", t).eq("status", "published").limit(1000);
   if (error) return { ok: false, error: "Could not read report cards." };
-  return { ok: true, cards: ((data ?? []) as unknown as { snapshot: unknown; verify_token: string }[]).map((r) => ({ snapshot: r.snapshot, token: r.verify_token })) };
+  return { ok: true, cards: ((data ?? []) as unknown as { snapshot: unknown; verify_token: string; student_id: number }[]).map((r) => ({ snapshot: r.snapshot, token: r.verify_token, studentId: r.student_id })) };
 }
