@@ -5,6 +5,7 @@ import { createClient } from "@/lib/supabase/server";
 import { CsvButton } from "@/components/courses/csv-button";
 import { TransferRequests, type TransferRequestRow } from "@/components/university/transfer-requests";
 import { CommonExam } from "@/components/university/common-exam";
+import { CentralValuation } from "@/components/university/central-valuation";
 import { UniversityChart, type UniChart } from "@/components/university/university-chart";
 import { CentralTools, type ExamRow, type TransferRow } from "@/components/university/central-tools";
 
@@ -26,6 +27,9 @@ export default async function UniversityPage() {
     supabase.from("student_transfer" as never).select("id, done_at, carried, not_carried, from_school, to_school, student_name, admission_no, cgpa_before, cgpa_after").order("done_at", { ascending: false }).limit(20), supabase.rpc("university_statistics" as never),
     supabase.from("transfer_request" as never).select("id, status, reason, order_no, created_at, decided_at, from_school, to_school, student_id, detail, receiving_ok, receiving_note").order("created_at", { ascending: false }).limit(50),
     supabase.rpc("university_org_chart" as never)]);
+  // the active campus's exams that were copied to other campuses (common exams)
+  const { data: commonExams } = await supabase.from("exam_session" as never).select("id, name, copies:exam_session!source_session_id(id)").eq("school_id", activeCampusId ?? 0).order("created_at", { ascending: false }).limit(30);
+  const common = ((commonExams ?? []) as unknown as { id: number; name: string; copies: { id: number }[] }[]).filter((x) => x.copies.length > 0).map((x) => ({ id: x.id, name: x.name }));
   // names of students at other campuses come through central administration's own view
   const reqRows = (treq ?? []) as unknown as Omit<TransferRequestRow, "student">[];
   const { data: reqNames } = reqRows.length ? await supabase.rpc("transfer_request_students" as never) : { data: [] };
@@ -92,6 +96,7 @@ export default async function UniversityPage() {
       <div className="mt-6 space-y-4"><UniversityChart chart={uniChart as unknown as UniChart | null} />
         <TransferRequests rows={reqRows.map((r) => ({ ...r, student: nameOf.get(r.id) ?? null }))} campuses={campuses.map((c) => ({ id: c.id, name: c.name }))} university={university.name} />
         <CommonExam campuses={campuses.map((c) => ({ id: c.id, name: c.name }))} /></div>
+      {activeCampusId ? <CentralValuation campusId={activeCampusId} exams={common} /> : null}
       <CentralTools campuses={campuses.map((c) => ({ id: c.id, name: c.name }))} exams={(exams ?? []) as unknown as ExamRow[]} transfers={(transfers ?? []) as unknown as TransferRow[]} />
 
       {campuses.length === 0 && (

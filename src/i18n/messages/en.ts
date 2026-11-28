@@ -39,6 +39,7 @@ const en = {
     examCell: "Exam cell",
     seating: "Seating and invigilation",
     scripts: "Coded scripts",
+    questionPapers: "Question papers",
     workload: "Workload",
     revaluation: "Revaluation",
     supplementary: "Supplementary exams",
