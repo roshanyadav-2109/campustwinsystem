@@ -9,11 +9,11 @@ import { saveTest, publishTest, startTest, saveAnswer, submitTest, markShort, re
 
 type Msg = { ok: boolean; text: string } | null;
 const Note = ({ m }: { m: Msg }) => (m ? <p role={m.ok ? "status" : "alert"} className={`text-[13px] font-medium ${m.ok ? "text-up" : "text-down"}`}>{m.text}</p> : null);
-const when = (s: string) => new Date(s).toLocaleString("en-IN", { timeZone: "Asia/Kolkata", day: "numeric", month: "short", hour: "2-digit", minute: "2-digit" });
+import { when } from "@/lib/when";
 const KIND: Record<string, string> = { single: "One correct choice", multi: "Several correct choices", truefalse: "True or false", number: "A number", short: "Short written answer" };
 // datetime-local (India time) <-> ISO
 const toLocal = (iso: string) => new Date(new Date(iso).getTime() + 5.5 * 3600 * 1000).toISOString().slice(0, 16);
-const fromLocal = (v: string) => new Date(`${v}:00+05:30`).toISOString();
+const fromLocal = (v: string) => (v ? new Date(`${v}:00+05:30`).toISOString() : "");
 
 export type Pair = { section_id: number; subject_id: number; label: string; subject: string };
 type QDraft = { kind: QuestionIn["kind"]; prompt: string; options: string; correct: number[]; tf: boolean; num: string; tol: string; marks: string; negative: string };
@@ -113,17 +113,25 @@ export function TakeTest({ testId }: { testId: number }) {
   const [done, setDone] = useState<{ score: number; to_mark: number } | null>(null);
   const [pending, start] = useTransition();
   const submitted = useRef(false);
-  useEffect(() => { void startTest(testId).then((r) => { setT(r); if (r.ok) setAnswers(r.data.answers ?? {}); }); }, [testId]);
+  const skew = useRef(0);                                  // server time minus this device's time
+  const timers = useRef(new Map<number, ReturnType<typeof setTimeout>>());
+  const inflight = useRef(new Set<Promise<unknown>>());
+  const latest = useRef(new Map<number, unknown>());
+  useEffect(() => { void startTest(testId).then((r) => { if (r.ok) { skew.current = new Date((r.data as { now?: string }).now ?? Date.now()).getTime() - Date.now(); setAnswers(r.data.answers ?? {}); } setT(r); }); }, [testId]);
   const attempt = t && t.ok ? t.data.attempt : 0;
-  const submit = () => { if (submitted.current || !attempt) return; submitted.current = true; start(async () => { const r = await submitTest(attempt); if (r.ok) setDone(r.data); else { submitted.current = false; setMsg({ ok: false, text: r.error }); } }); };
+  const send = (qid: number, v: unknown) => { const pr = saveAnswer(attempt, qid, v).then((r) => { if (!r.ok) setMsg({ ok: false, text: r.error }); }); inflight.current.add(pr); void pr.finally(() => inflight.current.delete(pr)); };
+  const flush = async () => { for (const [qid, h] of timers.current) { clearTimeout(h); send(qid, latest.current.get(qid)); } timers.current.clear(); await Promise.all([...inflight.current]); };
+  const submit = () => { if (submitted.current || !attempt) return; submitted.current = true; start(async () => { await flush(); const r = await submitTest(attempt); if (r.ok) setDone(r.data); else { submitted.current = false; setMsg({ ok: false, text: r.error }); } }); };
   useEffect(() => {
     if (!t || !t.ok) return;
     const end = new Date(t.data.deadline).getTime();
-    const tick = () => { const s = Math.max(0, Math.round((end - Date.now()) / 1000)); setLeft(s); if (s === 0) submit(); };
+    const tick = () => { const s = Math.max(0, Math.round((end - (Date.now() + skew.current)) / 1000)); setLeft(s); if (s <= 5 && timers.current.size) void flush(); if (s === 0) submit(); };
     tick(); const h = setInterval(tick, 1000); return () => clearInterval(h);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [t]);
-  const put = (qid: number, v: unknown) => { setAnswers((a) => ({ ...a, [qid]: v })); void saveAnswer(attempt, qid, v).then((r) => { if (!r.ok) setMsg({ ok: false, text: r.error }); }); };
+  const put = (qid: number, v: unknown) => { setAnswers((a) => ({ ...a, [qid]: v })); send(qid, v); };
+  // typed answers: saved shortly after typing stops (and flushed before submitting)
+  const type = (qid: number, v: unknown) => { latest.current.set(qid, v); const old = timers.current.get(qid); if (old) clearTimeout(old); timers.current.set(qid, setTimeout(() => { timers.current.delete(qid); send(qid, v); }, 800)); };
   if (!t) return <p className="text-[13px] text-ink-500">Opening the test…</p>;
   if (!t.ok) return <p role="alert" className="text-[13px] text-down">{t.error} <Link href="/dashboard/tests" className="text-[#0F6CBD] underline">Back</Link></p>;
   if (done) return (
@@ -144,8 +152,8 @@ export function TakeTest({ testId }: { testId: number }) {
           {x.kind === "single" && x.options.map((o, k) => <label key={k} className="flex items-center gap-2"><input type="radio" name={`q${x.id}`} checked={answers[x.id] === k} onChange={() => put(x.id, k)} />{o}</label>)}
           {x.kind === "multi" && x.options.map((o, k) => { const cur = (answers[x.id] as number[] | undefined) ?? []; return <label key={k} className="flex items-center gap-2"><input type="checkbox" checked={cur.includes(k)} onChange={(e) => put(x.id, e.target.checked ? [...cur, k] : cur.filter((y) => y !== k))} />{o}</label>; })}
           {x.kind === "truefalse" && ["True", "False"].map((o) => <label key={o} className="flex items-center gap-2"><input type="radio" name={`q${x.id}`} checked={answers[x.id] === (o === "True")} onChange={() => put(x.id, o === "True")} />{o}</label>)}
-          {x.kind === "number" && <Input className="w-40" inputMode="decimal" aria-label={`Answer to question ${i + 1}`} defaultValue={answers[x.id] != null ? String(answers[x.id]) : ""} onBlur={(e) => put(x.id, e.target.value.trim() === "" ? null : Number(e.target.value))} />}
-          {x.kind === "short" && <Textarea rows={4} aria-label={`Answer to question ${i + 1}`} defaultValue={(answers[x.id] as string) ?? ""} onBlur={(e) => put(x.id, e.target.value)} />}
+          {x.kind === "number" && <Input className="w-40" inputMode="decimal" aria-label={`Answer to question ${i + 1}`} defaultValue={answers[x.id] != null ? String(answers[x.id]) : ""} onChange={(e) => { const v = e.target.value.trim(); type(x.id, v === "" || !Number.isFinite(Number(v)) ? null : Number(v)); }} />}
+          {x.kind === "short" && <Textarea rows={4} aria-label={`Answer to question ${i + 1}`} defaultValue={(answers[x.id] as string) ?? ""} onChange={(e) => type(x.id, e.target.value)} />}
         </CardBody></Card>))}
       <Button disabled={pending} onClick={() => { if (confirm("Submit the test? You can't change answers afterwards.")) submit(); }}>Submit the test</Button>
     </div>
@@ -166,7 +174,7 @@ export function Review({ attemptId, canMark }: { attemptId: number; canMark: boo
     <div className="space-y-2 text-[13px]">
       <p className="text-[14px]">Score: <b>{r.score != null ? Number(r.score) : "-"}</b>{r.to_mark ? ` · ${r.to_mark} written answer${r.to_mark === 1 ? "" : "s"} to mark` : ""}</p>
       <Note m={msg} />
-      {!r.answers_shown && <p className="text-ink-500">The answers are shown when the test closes.</p>}
+      {!r.answers_shown && <p className="text-ink-500">The correct answers are not shown yet (or this test does not show them).</p>}
       {r.questions?.map((q, i) => (
         <div key={q.id} className="rounded-sm border border-hair bg-white p-3">
           <p className="font-medium">{i + 1}. {q.prompt}</p>
@@ -175,9 +183,8 @@ export function Review({ attemptId, canMark }: { attemptId: number; canMark: boo
           <p className={q.got == null ? "text-ink-500" : Number(q.got) > 0 ? "text-up" : "text-down"}>{q.got == null ? "Not marked yet" : `${Number(q.got)} of ${Number(q.marks)}`}</p>
           {canMark && q.kind === "short" && <div className="mt-1 flex items-center gap-2"><Input className="h-8 w-20" aria-label={`Marks for question ${i + 1}`} value={marks[q.id] ?? (q.got != null ? String(q.got) : "")} onChange={(e) => setMarks({ ...marks, [q.id]: e.target.value })} />
             <span className="text-ink-500">of {Number(q.marks)}</span>
-            <Button size="sm" disabled={pending} onClick={() => start(async () => { const x = await markShort(attemptId, q.id, Number(marks[q.id])); setMsg(x.ok ? { ok: true, text: x.message ?? "" } : { ok: false, text: x.error }); if (x.ok) load(); })}>Save marks</Button></div>}
+            <Button size="sm" disabled={pending || !(marks[q.id] ?? "").trim() || !Number.isFinite(Number(marks[q.id])) || Number(marks[q.id]) < 0 || Number(marks[q.id]) > Number(q.marks)} onClick={() => start(async () => { const x = await markShort(attemptId, q.id, Number(marks[q.id])); setMsg(x.ok ? { ok: true, text: x.message ?? "" } : { ok: false, text: x.error }); if (x.ok) load(); })}>Save marks</Button></div>}
         </div>))}
     </div>
   );
 }
-export { when };

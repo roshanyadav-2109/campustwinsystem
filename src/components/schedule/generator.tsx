@@ -17,7 +17,7 @@ export type GenData = {
   sections: { id: number; label: string; classId: number }[];
   teachers: { id: number; name: string }[];
   loads: { class_id: number; subject_id: number; periods: number; double_period: boolean; max_per_day: number | null; room: string | null }[];
-  allotments: { section_id: number; subject_id: number; staff_id: number; is_class_teacher: boolean }[];
+  allotments: { section_id: number; subject_id: number; staff_id: number; is_class_teacher: boolean; component?: string | null; batch?: string | null }[];
   unavailable: { staff_id: number; day_of_week: number; period_no: number }[];
   slots: { id: number; section_id: number; day_of_week: number; period_no: number; subject_id: number | null; staff_id: number | null; room: string | null; group_id: number | null; extra: { subject_id: number; staff_id: number | null }[] | null }[];
   groups: { id: number; label: string; sectionIds: number[]; periods: number; double: boolean; maxPerDay: number | null; room: string | null; items: { subjectId: number; staffId: number | null }[] }[];
@@ -268,7 +268,15 @@ function Make({ data, canEdit }: { data: GenData; canEdit: boolean }) {
   const tName = useMemo(() => new Map(data.teachers.map((t) => [t.id, t.name])), [data.teachers]);
   const secLabel = useMemo(() => new Map(data.sections.map((s) => [s.id, s.label])), [data.sections]);
   const groupLabel = useMemo(() => new Map(data.groups.map((g) => [g.id, g.label])), [data.groups]);
-  const allot = useMemo(() => { const m = new Map<string, number>(); for (const a of data.allotments) if (a.subject_id) m.set(`${a.section_id}|${a.subject_id}`, a.staff_id); return m; }, [data.allotments]);
+  const allot = useMemo(() => {
+    // one teacher per section and subject: the whole-subject (or theory) teacher before a lab-batch or practical teacher
+    const m = new Map<string, number>(), main = new Set<string>();
+    for (const a of data.allotments) if (a.subject_id) {
+      const k = `${a.section_id}|${a.subject_id}`, isMain = !a.batch && (!a.component || a.component === "theory");
+      if (isMain || (!m.has(k) && !main.has(k))) { m.set(k, a.staff_id); if (isMain) main.add(k); }
+    }
+    return m;
+  }, [data.allotments]);
   const ctOf = useMemo(() => new Map(data.allotments.filter((a) => a.is_class_teacher).map((a) => [a.section_id, a.staff_id])), [data.allotments]);
   // only sections that have something to place
   const gen = data.sections.filter((s) => classes.includes(s.classId) && (data.loads.some((l) => l.class_id === s.classId && l.periods > 0) || data.groups.some((g) => g.sectionIds.includes(s.id))));

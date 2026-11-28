@@ -38,7 +38,7 @@ export default async function LecturesPage({ searchParams }: { searchParams: SP 
     const [{ data }, { data: partsData }, { data: absData }, { data: corrData }] = await Promise.all([
       supabase.rpc("course_attendance" as never, { p_section: null, p_student: session.studentId } as never),
       supabase.rpc("course_attendance_parts" as never, { p_section: null, p_student: session.studentId } as never),
-      supabase.from("attendance_record").select("on_date, period, subject_id, component, subject:subject_id(name)" as "on_date").eq("student_id", session.studentId).eq("status", "absent").gte("on_date", since).order("on_date", { ascending: false }).limit(60),
+      supabase.from("attendance_record").select("on_date, period, subject_id, component, subject:subject_id(name)" as "on_date").eq("student_id", session.studentId).eq("status", "absent").not("period", "is", null).not("subject_id", "is", null).gte("on_date", since).order("on_date", { ascending: false }).limit(60),
       supabase.from("attendance_correction" as never).select("id, student_id, subject_id, on_date, period, reason, status, decision_note, subject:subject_id(name)").eq("student_id", session.studentId).order("created_at", { ascending: false }).limit(30),
     ]);
     const rows = (data ?? []) as unknown as AttRow[];

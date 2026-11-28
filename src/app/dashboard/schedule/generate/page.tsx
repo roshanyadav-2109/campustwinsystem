@@ -36,7 +36,7 @@ export default async function GeneratePage() {
   const [scope, teachers, loads, allot, unavail, slots, groups, items, rules] = await Promise.all([
     getStaffScope(), getTeachingStaff(),
     all<GenData["loads"][number]>("timetable_load", "class_id, subject_id, periods, double_period, max_per_day, room", (q) => q.eq("academic_year_id", y), "class_id"),
-    all<GenData["allotments"][number]>("teacher_allotment", "id, section_id, subject_id, staff_id, is_class_teacher", (q) => q.eq("academic_year_id", y), "id"),
+    all<GenData["allotments"][number]>("teacher_allotment", "id, section_id, subject_id, staff_id, is_class_teacher, component, batch", (q) => q.eq("academic_year_id", y), "id"),
     all<GenData["unavailable"][number]>("staff_unavailable", "staff_id, day_of_week, period_no", (q) => q, "staff_id"),
     all<GenData["slots"][number]>("timetable_slot", "id, section_id, day_of_week, period_no, subject_id, staff_id, room, group_id, extra:timetable_slot_extra(subject_id, staff_id)", (q) => q.eq("academic_year_id", y), "id"),
     all<{ id: number; label: string; section_ids: number[]; periods: number; double_period: boolean; max_per_day: number | null; room: string | null }>("timetable_group", "id, label, section_ids, periods, double_period, max_per_day, room", (q) => q.eq("academic_year_id", y), "id"),

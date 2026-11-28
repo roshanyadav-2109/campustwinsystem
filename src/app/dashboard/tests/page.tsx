@@ -4,7 +4,8 @@ import { getSession, getCurrentYear } from "@/lib/session";
 import { PageHeader } from "@/components/ui/page-header";
 import { Card, CardBody, CardHeader } from "@/components/ui/card";
 import { createClient } from "@/lib/supabase/server";
-import { TestBuilder, TakeTest, Review, when, type Pair } from "@/components/tests/tests";
+import { TestBuilder, TakeTest, Review, type Pair } from "@/components/tests/tests";
+import { when } from "@/lib/when";
 import type { TestIn } from "@/app/dashboard/tests/actions";
 
 type SP = Promise<Record<string, string | string[] | undefined>>;
