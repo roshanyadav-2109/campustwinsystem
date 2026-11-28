@@ -97,6 +97,7 @@ export default async function SchedulePage({ searchParams }: { searchParams: SP 
         )}
         <Link prefetch={false} href={bellOpen ? `/dashboard/schedule${section ? `?section=${section.id}` : ""}` : `/dashboard/schedule?bell=1${section ? `&section=${section.id}` : ""}`}
           className={pill(bellOpen)}>Bell times</Link>
+        <Link prefetch={false} href="/dashboard/schedule/generate" className={pill(false)}>Generate timetable</Link>
       </>
     ) : undefined;
 
