@@ -17,6 +17,7 @@ const BLANK: Values = {
 
 // The public admission form. Needs no sign-in.
 export function ApplyForm({ classes }: { classes: ClassRef[] }) {
+  const [token, setToken] = useState<string | null>(null);
   const id = useId();
   const [v, setV] = useState<Values>(BLANK);
   const [error, setError] = useState<string | null>(null);
@@ -48,6 +49,7 @@ export function ApplyForm({ classes }: { classes: ClassRef[] }) {
         if (!res.ok) { setError(res.error); return; }
         setV(BLANK);
         setSentFor(res.firstName);
+        setToken(res.token ?? null);
       } catch {
         setError("We could not send your application just now. Please check your connection and try again.");
       }
@@ -61,6 +63,7 @@ export function ApplyForm({ classes }: { classes: ClassRef[] }) {
         <p className="mt-2 text-[14px] text-ink-700">
           Thank you. We have received the application for {sentFor}. The school office will contact you about the next steps.
         </p>
+        {token && <p className="mt-3 text-[14px]"><a href={`/apply/status/${token}`} className="font-medium text-[#0F6CBD] hover:underline">Follow your application, pay the application fee and answer an offer here</a>. Keep this link; it is private to you.</p>}
       </div>
     );
   }

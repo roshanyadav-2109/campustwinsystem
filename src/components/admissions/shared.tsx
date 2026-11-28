@@ -2,7 +2,7 @@
 // server code behind them. No server-only or session imports here, so the
 // public application form can use it too.
 
-export const STATUSES = ["new", "contacted", "visit_scheduled", "applied", "admitted", "not_interested"] as const;
+export const STATUSES = ["new", "contacted", "visit_scheduled", "applied", "offered", "accepted", "waitlisted", "declined", "admitted", "not_interested"] as const;
 export type EnquiryStatus = (typeof STATUSES)[number];
 
 export const SOURCES = ["walk_in", "phone", "online", "referral", "other"] as const;
@@ -13,6 +13,10 @@ export const STATUS_LABEL: Record<EnquiryStatus, string> = {
   contacted: "Contacted",
   visit_scheduled: "Visit scheduled",
   applied: "Applied",
+  offered: "Seat offered",
+  accepted: "Offer accepted",
+  waitlisted: "Waiting list",
+  declined: "Offer closed",
   admitted: "Admitted",
   not_interested: "Not interested",
 };
@@ -26,7 +30,7 @@ export const SOURCE_LABEL: Record<EnquirySource, string> = {
 };
 
 // Statuses that no longer need a follow-up.
-export const CLOSED_STATUSES: EnquiryStatus[] = ["admitted", "not_interested"];
+export const CLOSED_STATUSES: EnquiryStatus[] = ["admitted", "not_interested", "declined"];
 
 export const isStatus = (v: unknown): v is EnquiryStatus => typeof v === "string" && (STATUSES as readonly string[]).includes(v);
 export const isSource = (v: unknown): v is EnquirySource => typeof v === "string" && (SOURCES as readonly string[]).includes(v);
@@ -54,6 +58,11 @@ export type Enquiry = {
   assignedName: string | null;
   nextFollowUp: string | null;
   createdAt: string;
+  offerNo: string | null;
+  offerExpiresOn: string | null;
+  publicToken: string | null;
+  feePaid: boolean;
+  decisionNote: string | null;
 };
 
 export type Followup = {

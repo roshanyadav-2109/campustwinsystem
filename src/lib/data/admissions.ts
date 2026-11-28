@@ -13,6 +13,7 @@ import {
 // office read them.
 
 type EnquiryDb = {
+  offer_no?: string | null; offer_expires_on?: string | null; public_token?: string | null; app_fee_paid_on?: string | null; decision_note?: string | null;
   id: number;
   student_id: number | null;
   child_name: string;
@@ -32,7 +33,7 @@ type EnquiryDb = {
 };
 
 const ENQUIRY_COLS =
-  "id, student_id, child_name, date_of_birth, class_id, guardian_name, phone, email, address, previous_school, message, source, status, assigned_to, next_follow_up, created_at";
+  "id, student_id, child_name, date_of_birth, class_id, guardian_name, phone, email, address, previous_school, message, source, status, assigned_to, next_follow_up, created_at, offer_no, offer_expires_on, public_token, app_fee_paid_on, decision_note";
 
 const PAGE = 1000;
 const MAX_ROWS = 5000;
@@ -98,6 +99,11 @@ export async function getEnquiries(
     assignedName: r.assigned_to != null ? staffName.get(r.assigned_to) ?? null : null,
     nextFollowUp: r.next_follow_up,
     createdAt: r.created_at,
+    offerNo: r.offer_no ?? null,
+    offerExpiresOn: r.offer_expires_on ?? null,
+    publicToken: r.public_token ?? null,
+    feePaid: !!r.app_fee_paid_on,
+    decisionNote: r.decision_note ?? null,
   }));
   return { missing: false, rows };
 }

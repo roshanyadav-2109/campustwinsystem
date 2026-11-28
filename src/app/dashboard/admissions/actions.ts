@@ -124,6 +124,10 @@ export async function updateEnquiry(
   const enquiryId = posInt(id);
   if (!enquiryId) return { ok: false, error: "That enquiry was not found." };
   if (!isStatus(input?.status)) return { ok: false, error: "Choose a status from the list." };
+  if (["offered", "accepted", "waitlisted", "declined"].includes(input.status)) {
+    const { data: cur } = await (await untyped()).from("admission_enquiry").select("status").eq("id", id).maybeSingle();
+    if ((cur as { status?: string } | null)?.status !== input.status) return { ok: false, error: "Use Offer and waiting list to offer a seat or change an offer." };
+  }
   const assignedTo = input?.assignedTo == null ? null : posInt(input.assignedTo);
   if (input?.assignedTo != null && !assignedTo) return { ok: false, error: "Choose a staff member from the list." };
   const followUp = optDate(input?.nextFollowUp);
@@ -284,4 +288,48 @@ export async function admitEnquiry(
     await supabase.rpc("release_admission_seat" as never, { p_enquiry: id } as never);
   }
   return res;
+}
+
+// --- Offers and the waiting list ---------------------------------------------
+const rpcMsg = (e: { message: string } | null, fallback: string) => (e && e.message.length < 160 && !/violates|function|relation/.test(e.message) ? e.message : fallback);
+
+export async function makeOffer(enquiryId: number, until: string): Promise<Result> {
+  const session = await officeSession();
+  if (!session) return { ok: false, error: OFFICE_ONLY };
+  if (until && !/^\d{4}-\d{2}-\d{2}$/.test(until)) return { ok: false, error: "Enter the date the offer stays open until." };
+  const supabase = await createClient();
+  const { error } = await supabase.rpc("make_offer" as never, { p_enquiry: enquiryId, p_until: until || null } as never);
+  if (error) return { ok: false, error: rpcMsg(error, "Could not make the offer.") };
+  revalidatePath(TAB);
+  return { ok: true };
+}
+export async function waitlistApplication(enquiryId: number): Promise<Result> {
+  const session = await officeSession();
+  if (!session) return { ok: false, error: OFFICE_ONLY };
+  const supabase = await createClient();
+  const { error } = await supabase.rpc("waitlist_application" as never, { p_enquiry: enquiryId } as never);
+  if (error) return { ok: false, error: rpcMsg(error, "Could not put it on the waiting list.") };
+  revalidatePath(TAB);
+  return { ok: true };
+}
+export async function withdrawOffer(enquiryId: number, note: string): Promise<Result> {
+  const session = await officeSession();
+  if (!session) return { ok: false, error: OFFICE_ONLY };
+  const supabase = await createClient();
+  const { error } = await supabase.rpc("withdraw_offer" as never, { p_enquiry: enquiryId, p_note: note || null } as never);
+  if (error) return { ok: false, error: rpcMsg(error, "Could not withdraw the offer.") };
+  revalidatePath(TAB);
+  return { ok: true };
+}
+// What the offer letter prints: the institution's letterhead details and the offer.
+export async function offerLetterData(enquiryId: number) {
+  const session = await getSession();
+  if (!session?.isAdminScope) return null;
+  const db = await untyped();
+  const { data: e } = await db.from("admission_enquiry").select("child_name, guardian_name, date_of_birth, offer_no, offered_at, offer_expires_on, app_fee_amount, app_fee_paid_on, class(name), academic_year(name)").eq("id", enquiryId).maybeSingle();
+  if (!e?.offer_no) return null;
+  const supabase = await createClient();
+  const { data: sc } = await supabase.from("school").select("name, address, phone, email, signatory_name, signatory_title" as "id").eq("id", session.schoolId).maybeSingle();
+  return { enquiry: e as unknown as { child_name: string; guardian_name: string; date_of_birth: string | null; offer_no: string; offered_at: string; offer_expires_on: string; app_fee_amount: number | null; app_fee_paid_on: string | null; class: { name: string } | null; academic_year: { name: string } | null },
+    school: sc as unknown as { name: string; address: string | null; phone: string | null; email: string | null; signatory_name: string | null; signatory_title: string | null } };
 }

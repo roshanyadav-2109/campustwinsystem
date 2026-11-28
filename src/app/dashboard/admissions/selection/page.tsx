@@ -5,6 +5,7 @@ import { PageHeader } from "@/components/ui/page-header";
 import { EmptyState } from "@/components/ui/empty";
 import { createClient } from "@/lib/supabase/server";
 import { SelectionDesk, type Applicant, type SeatRow, type SlotRow, type MeritRow } from "@/components/admissions/selection";
+import { AdmissionRules } from "@/components/admissions/admission-rules";
 
 type SP = Promise<Record<string, string | string[] | undefined>>;
 
@@ -35,6 +36,8 @@ export default async function SelectionPage({ searchParams }: { searchParams: SP
     supabase.from("admission_booking" as never).select("enquiry_id, slot_id, kind").in("enquiry_id", appIds.length ? appIds.slice(0, 300) : [0]).limit(1000),
     supabase.rpc("admission_slot_usage" as never, { p_year: year.id } as never),
   ]);
+  const { data: rules } = await supabase.from("school").select("application_fee, offer_days, auto_waitlist" as "id").eq("id", session.schoolId).maybeSingle();
+  const ru = rules as unknown as { application_fee: number | null; offer_days: number; auto_waitlist: boolean } | null;
   const usedBy = new Map(((usage.data ?? []) as unknown as { slot_id: number; used: number }[]).map((u) => [u.slot_id, u.used]));
   void slotIds;
   const docRows = (docs.data ?? []) as unknown as { id: number; enquiry_id: number; kind: string }[];
@@ -48,6 +51,7 @@ export default async function SelectionPage({ searchParams }: { searchParams: SP
     <div className="space-y-4">
       <PageHeader title="Admissions: selection" description={`Seats, entrance test and interview slots, scores, the application fee, documents and the merit list for ${year.name}.`} />
       <Link href="/dashboard/admissions" className="text-[13px] font-medium text-[#0F6CBD] hover:underline">Back to enquiries</Link>
+      <AdmissionRules fee={ru?.application_fee ?? null} offerDays={ru?.offer_days ?? 7} auto={ru?.auto_waitlist ?? true} canEdit={session.staffRole === "office"} />
       <SelectionDesk key={classId} canEdit={session.staffRole === "office"} classId={classId} seats={seats} applicants={applicants} slots={slotRows} merit={(merit.data ?? []) as unknown as MeritRow[]} />
     </div>
   );

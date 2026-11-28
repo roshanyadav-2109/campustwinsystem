@@ -28,7 +28,7 @@ export interface GatewayConnector {
   id: string;
   label: string;
   /** Start a payment: where to send the payer. */
-  checkout(order: GatewayOrder, ctx: { origin: string; returnUrl: string }): Promise<Checkout>;
+  checkout(order: GatewayOrder, ctx: { origin: string; returnUrl: string; publicFlow?: boolean }): Promise<Checkout>;
   /** A server-to-server notice from the gateway; must verify its signature. */
   webhook?(request: Request, lookup: (publicId: string) => Promise<GatewayOrder | null>): Promise<WebhookOutcome>;
 }
@@ -53,9 +53,9 @@ export function checkTestOrder(publicId: string, sig: string) {
 const testGateway: GatewayConnector = {
   id: "test",
   label: "Test gateway (no real money)",
-  async checkout(order) {
+  async checkout(order, ctx) {
     if (order.mode !== "test") return { ok: false, error: "The test gateway only works in test mode." };
-    return { ok: true, redirectUrl: `/dashboard/fees/pay/test/${order.public_id}?s=${signTestOrder(order.public_id)}` };
+    return { ok: true, redirectUrl: `${ctx.publicFlow ? "/apply/pay/test" : "/dashboard/fees/pay/test"}/${order.public_id}?s=${signTestOrder(order.public_id)}` };
   },
 };
 

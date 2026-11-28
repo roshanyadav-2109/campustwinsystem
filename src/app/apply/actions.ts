@@ -21,7 +21,7 @@ export type ApplyInput = {
   website: string;
 };
 
-export type ApplyResult = { ok: true; firstName: string } | { ok: false; error: string };
+export type ApplyResult = { ok: true; firstName: string; token?: string } | { ok: false; error: string };
 
 const TRY_AGAIN = "We could not send your application just now. Please try again in a little while, or contact the school office.";
 
@@ -82,7 +82,7 @@ export async function submitApplication(input: ApplyInput): Promise<ApplyResult>
       return { ok: false, error: "We already have your application. The school office will contact you." };
     }
 
-    const { error } = await db.from("admission_enquiry").insert({
+    const { data: made, error } = await db.from("admission_enquiry").insert({
       child_name: childName,
       date_of_birth: dob,
       class_id: classId,
@@ -95,8 +95,9 @@ export async function submitApplication(input: ApplyInput): Promise<ApplyResult>
       status: "new",
       academic_year_id: (year.data as { id: number }).id,
       school_id: schoolId,
-    });
+    }).select("public_token").single();
     if (error) return { ok: false, error: TRY_AGAIN };
+    return { ok: true, firstName: firstNameOf(childName), token: (made as { public_token: string } | null)?.public_token };
   } catch {
     return { ok: false, error: TRY_AGAIN };
   }

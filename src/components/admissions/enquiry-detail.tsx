@@ -3,10 +3,14 @@ import { useEffect, useId, useState, useTransition } from "react";
 import Link from "@/components/ui/hover-link";
 import { Button } from "@/components/ui/button";
 import { Field, Input, Select, Textarea } from "@/components/ui/field";
-import { addFollowup, admitEnquiry, getAdmitOptions, updateEnquiry } from "@/app/dashboard/admissions/actions";
+import { addFollowup, admitEnquiry, getAdmitOptions, updateEnquiry, makeOffer, waitlistApplication, withdrawOffer, offerLetterData } from "@/app/dashboard/admissions/actions";
+import { downloadPdf } from "@/lib/pdf";
+import { offerLetterPdf } from "@/components/admissions/offer-letter";
 import {
   LIMITS, SOURCE_LABEL, STATUSES, STATUS_LABEL, fmtDate, type Enquiry, type Followup, type StaffRef,
 } from "@/components/admissions/shared";
+
+const OFFER_STATUSES: string[] = ["offered", "accepted", "waitlisted", "declined"];
 
 function Detail({ label, children }: { label: string; children: React.ReactNode }) {
   return (
@@ -95,7 +99,7 @@ export function EnquiryDetail({
             <div className="mt-3 grid gap-3 sm:grid-cols-3">
               <Field label="Status" htmlFor={`${id}-status`}>
                 <Select id={`${id}-status`} value={status} onChange={(e) => setStatus(e.target.value)}>
-                  {STATUSES.map((s) => <option key={s} value={s}>{STATUS_LABEL[s]}</option>)}
+                  {STATUSES.filter((s) => !OFFER_STATUSES.includes(s) || s === enquiry.status).map((s) => <option key={s} value={s} disabled={OFFER_STATUSES.includes(s)}>{STATUS_LABEL[s]}</option>)}
                 </Select>
               </Field>
               <Field label="Assigned to" htmlFor={`${id}-assign`}>
@@ -128,7 +132,10 @@ export function EnquiryDetail({
             <Link href="/dashboard/students/manage" className="font-medium text-[#0F6CBD] hover:underline">Open Students</Link>
           </p>
         ) : canEdit && enquiry.status !== "not_interested" ? (
-          <AdmitPanel enquiry={enquiry} onDone={onSaved} />
+          <>
+            <OfferPanel enquiry={enquiry} onDone={onSaved} />
+            <AdmitPanel enquiry={enquiry} onDone={onSaved} />
+          </>
         ) : showAdmittedHint ? (
           <p className="mt-3 rounded-sm border border-hair bg-panel px-3 py-2 text-[13px] text-ink-700">
             Marked admitted before automatic admission was available. Add the student in{" "}
@@ -174,6 +181,38 @@ export function EnquiryDetail({
           </ul>
         )}
       </section>
+    </div>
+  );
+}
+
+// Offer a seat (held until a date), put on the waiting list, or withdraw an offer; the letter and the family's link.
+function OfferPanel({ enquiry, onDone }: { enquiry: Enquiry; onDone: () => void }) {
+  const [until, setUntil] = useState("");
+  const [msg, setMsg] = useState<{ ok: boolean; text: string } | null>(null);
+  const [pending, start] = useTransition();
+  const link = typeof window !== "undefined" && enquiry.publicToken ? `${window.location.origin}/apply/status/${enquiry.publicToken}` : "";
+  const run = (fn: () => Promise<{ ok: boolean; error?: string }>, done: string) => start(async () => { const r = await fn(); setMsg(r.ok ? { ok: true, text: done } : { ok: false, text: r.error ?? "Failed." }); if (r.ok) onDone(); });
+  const open = enquiry.status === "offered" || enquiry.status === "accepted";
+  return (
+    <div className="mt-3 rounded-md border border-hair bg-white px-4 py-3 text-[13px]">
+      <h4 className="text-[14px] font-semibold text-ink-900">Offer and waiting list</h4>
+      {open ? <p className="mt-1 text-ink-700">Offer {enquiry.offerNo}{enquiry.status === "accepted" ? ", accepted by the family" : `, open until ${fmtDate(enquiry.offerExpiresOn)}`}.</p>
+        : enquiry.status === "waitlisted" ? <p className="mt-1 text-ink-700">On the waiting list. A seat that becomes free is offered automatically, best score first.</p>
+        : enquiry.status === "declined" ? <p className="mt-1 text-ink-700">Offer closed{enquiry.decisionNote ? `: ${enquiry.decisionNote}` : ""}.</p> : null}
+      <div className="mt-2 flex flex-wrap items-end gap-2">
+        {!open && <>
+          <label className="text-[12px] text-ink-700">Open until<Input type="date" className="mt-1 h-8 w-40 text-[12px]" value={until} onChange={(e) => setUntil(e.target.value)} aria-label="Offer open until" /></label>
+          <Button size="sm" disabled={pending} onClick={() => run(() => makeOffer(enquiry.id, until), "Seat offered. The family is told.")}>Offer a seat</Button>
+          {enquiry.status !== "waitlisted" && <Button size="sm" variant="subtle" disabled={pending} onClick={() => run(() => waitlistApplication(enquiry.id), "On the waiting list. The family is told.")}>Waiting list</Button>}
+        </>}
+        {open && <>
+          <Button size="sm" variant="subtle" disabled={pending} onClick={() => start(async () => { const d = await offerLetterData(enquiry.id); if (!d) { setMsg({ ok: false, text: "No offer to print." }); return; } await downloadPdf(offerLetterPdf(d, link)); })}>Offer letter</Button>
+          <Button size="sm" variant="ghost" disabled={pending} onClick={() => run(() => withdrawOffer(enquiry.id, ""), "Offer withdrawn; the seat goes to the waiting list.")}>Withdraw offer</Button>
+        </>}
+        {link && <Button size="sm" variant="ghost" onClick={() => { void navigator.clipboard?.writeText(link); setMsg({ ok: true, text: "The family's link is copied." }); }}>Copy family link</Button>}
+        {!enquiry.feePaid && <span className="text-[12px] text-ink-500">Application fee not paid yet</span>}
+      </div>
+      {msg && <p role={msg.ok ? "status" : "alert"} className={`mt-1 text-[12px] font-medium ${msg.ok ? "text-up" : "text-down"}`}>{msg.text}</p>}
     </div>
   );
 }

@@ -98,3 +98,13 @@ export async function admissionDocLink(docId: number): Promise<{ ok: true; url: 
   if (!key || !key.startsWith(`${await tenantPrefixForSchool(s.schoolId)}/admissions/`)) return { ok: false, error: "Not found." };
   return { ok: true, url: await presignGet(key) };
 }
+
+export async function setAdmissionRules(fee: string, offerDays: string, auto: boolean): Promise<R> {
+  if (fee.trim() && !/^\d{1,6}(\.\d{1,2})?$/.test(fee.trim())) return { ok: false, error: "Enter the application fee in rupees." };
+  if (!/^\d{1,2}$/.test(offerDays.trim())) return { ok: false, error: "Enter how many days an offer stays open." };
+  const supabase = await createClient();
+  const { error } = await supabase.rpc("set_admission_rules" as never, { p_fee: fee.trim() ? Number(fee) : null, p_offer_days: Number(offerDays), p_auto: auto } as never);
+  if (error) return { ok: false, error: error.message.length < 160 ? error.message : "Could not save." };
+  revalidatePath("/dashboard/admissions/selection");
+  return { ok: true, message: "Saved." };
+}
