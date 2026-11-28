@@ -30,12 +30,13 @@ export default async function HostelPage({ searchParams }: { searchParams: SP })
   }
 
   const isOffice = session.isAdminScope;
-  const { data: hs } = await supabase.from("hostel" as never).select("id, name, kind, warden, warden_staff_id").order("name");
+  // the hostels this person runs (all of them for the office; their own for a warden)
+  const { data: hs } = await supabase.rpc("my_hostels" as never);
   const allHostels = (hs ?? []) as unknown as { id: number; name: string; kind: string; warden: string | null; warden_staff_id: number | null }[];
-  const myHostels = isOffice ? allHostels : allHostels.filter((h) => h.warden_staff_id === session.staffId);
-  if (!myHostels.length) return <div><PageHeader title="Hostel" /><EmptyState art="no-access" title="You are not a hostel warden" hint="The office names a warden for each hostel." /></div>;
-  const view = one(sp.view) ?? (isOffice ? "rooms" : "passes");
-  const hostelId = Number(one(sp.hostel)) || myHostels[0].id;
+  const myHostels = allHostels;
+  if (!myHostels.length && !isOffice) return <div><PageHeader title="Hostel" /><EmptyState art="no-access" title="You are not a hostel warden" hint="The office names a warden for each hostel." /></div>;
+  const view = !myHostels.length ? "rooms" : one(sp.view) ?? (isOffice ? "rooms" : "passes");
+  const hostelId = Number(one(sp.hostel)) || myHostels[0]?.id || 0;
   const tabs = [...(isOffice ? [["rooms", "Rooms and beds"]] : []), ["passes", "Passes"], ["roll", "Roll call"], ...(isOffice ? [["wardens", "Wardens"]] : [])];
   const nav = (
     <div className="flex flex-wrap gap-1.5">{tabs.map(([k, l]) => (
@@ -44,10 +45,11 @@ export default async function HostelPage({ searchParams }: { searchParams: SP })
     </div>);
   let body: React.ReactNode = null;
   if (view === "passes") {
-    const { data } = await supabase.from("hostel_pass" as never).select(PASS_COLS).eq("hostel_id", hostelId).in("status", ["pending", "approved", "out"]).order("out_at").limit(200);
-    body = <WardenPasses passes={(data ?? []) as unknown as PassRow[]} />;
+    const { data } = await supabase.rpc("hostel_open_passes" as never, { p_hostel: hostelId } as never);
+    body = <WardenPasses passes={((data ?? []) as unknown as (PassRow & { student_name: string })[]).map((x) => ({ ...x, student: { full_name: x.student_name } }))} />;
   } else if (view === "roll") {
-    const day = one(sp.day) ?? today();
+    const asked = one(sp.day) ?? "";
+    const day = /^\d{4}-\d{2}-\d{2}$/.test(asked) ? asked : today();
     const { data } = await supabase.rpc("hostel_roll_sheet" as never, { p_hostel: hostelId, p_day: day } as never);
     body = <RollCall key={`${hostelId}-${day}`} hostelId={hostelId} day={day} rows={(data ?? []) as unknown as { student_id: number; student_name: string; room: string; status: string | null; on_pass: boolean }[]} />;
   } else if (view === "wardens" && isOffice) {

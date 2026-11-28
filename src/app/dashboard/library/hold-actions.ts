@@ -25,11 +25,7 @@ export const removeLink = async (id: number) => rpc("remove_library_link", { p_i
 export async function findBooks(q: string) {
   const supabase = await createClient();
   const term = q.trim().replace(/[%_,()]/g, " ").slice(0, 60);
-  const { data: books } = await supabase.from("library_book" as never).select("id, title, author, copies_total").eq("is_active", true).or(`title.ilike.%${term}%,author.ilike.%${term}%`).order("title").limit(20);
-  const list = (books ?? []) as unknown as { id: number; title: string; author: string; copies_total: number }[];
-  if (!list.length) return [];
-  const { data: out } = await supabase.from("library_issue" as never).select("book_id").in("book_id", list.map((b) => b.id)).is("returned_on", null);
-  const outN = new Map<number, number>();
-  for (const o of (out ?? []) as unknown as { book_id: number }[]) outN.set(o.book_id, (outN.get(o.book_id) ?? 0) + 1);
-  return list.map((b) => ({ id: b.id, title: b.title, author: b.author, free: Math.max(0, b.copies_total - (outN.get(b.id) ?? 0)) }));
+  // the library's own stock figures (copies out to anyone), not just the student's own issues
+  const { data: books } = await supabase.from("library_book_stock" as never).select("id, title, author, copies_available").eq("is_active", true).or(`title.ilike.%${term}%,author.ilike.%${term}%`).order("title").limit(20);
+  return ((books ?? []) as unknown as { id: number; title: string; author: string; copies_available: number }[]).map((b) => ({ id: b.id, title: b.title, author: b.author, free: Math.max(0, Number(b.copies_available)) }));
 }
