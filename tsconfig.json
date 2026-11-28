@@ -36,7 +36,7 @@
     ".next/dev/types/**/*.ts",
     "**/*.mts"
   ],
-  "exclude": [
+  "exclude": ["cf-worker.ts", 
     "node_modules",
     "supabase/functions",
     "scripts",
