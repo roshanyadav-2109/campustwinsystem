@@ -190,7 +190,8 @@ function OfferPanel({ enquiry, onDone }: { enquiry: Enquiry; onDone: () => void 
   const [until, setUntil] = useState("");
   const [msg, setMsg] = useState<{ ok: boolean; text: string } | null>(null);
   const [pending, start] = useTransition();
-  const link = typeof window !== "undefined" && enquiry.publicToken ? `${window.location.origin}/apply/status/${enquiry.publicToken}` : "";
+  const [link, setLink] = useState("");
+  useEffect(() => { setLink(enquiry.publicToken ? `${window.location.origin}/apply/status/${enquiry.publicToken}` : ""); }, [enquiry.publicToken]);
   const run = (fn: () => Promise<{ ok: boolean; error?: string }>, done: string) => start(async () => { const r = await fn(); setMsg(r.ok ? { ok: true, text: done } : { ok: false, text: r.error ?? "Failed." }); if (r.ok) onDone(); });
   const open = enquiry.status === "offered" || enquiry.status === "accepted";
   return (
