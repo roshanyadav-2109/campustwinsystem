@@ -26,7 +26,7 @@ export default async function PaymentSettingsPage() {
       .or("status.eq.review,refund_due.gt.0").order("created_at").limit(500),
   ]);
   const gateways: GatewayRow[] = ((gwRes.data ?? []) as unknown as (Omit<GatewayRow, "hasKeys" | "merchantId"> & { secret_id: string | null; config: { merchant_id?: string; key_id?: string } })[])
-    .map((g) => ({ id: g.id, provider: g.provider, label: g.label, mode: g.mode, active: g.active, hasKeys: !!g.secret_id, merchantId: g.config?.merchant_id ?? "", keyId: g.config?.key_id ?? "", updated_at: g.updated_at }));
+    .map((g) => ({ id: g.id, provider: g.provider, label: g.label, mode: g.mode, active: g.active, hasKeys: !!g.secret_id, merchantId: g.config?.merchant_id ?? "", keyId: g.config?.key_id ?? "", config: g.config as Record<string, string>, updated_at: g.updated_at }));
   const host = (await headers()).get("host") ?? "";
   const site = `https://${host}`;
   const { data: prof } = isFinance(session) ? await supabase.from("payment_profile" as never).select("legal_name, entity_type, registration_no, gstin, pan_last4, contact_name, contact_phone, contact_email, address, expected_monthly, bank_holder, bank_ifsc, bank_last4, admission_refundable, refund_days, hostel_rule, transport_rule, extra_terms, grievance_name").maybeSingle() : { data: null };

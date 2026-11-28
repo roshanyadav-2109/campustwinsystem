@@ -101,7 +101,16 @@ export async function testGatewayConnection(gatewayId: number): Promise<Result> 
   const { data } = await createAdminClient().rpc("payment_gateway_keys" as never, { p_gateway: gatewayId, p_school: s.schoolId } as never);
   const row = ((data ?? []) as unknown as { provider: string; mode: string; config: Record<string, unknown>; secret: string | null }[])[0];
   if (!row) return { ok: false, error: "Unknown gateway." };
-  if (row.provider !== "razorpay") return { ok: false, error: "A connection test is available for Razorpay." };
+  if (row.provider !== "razorpay") {
+    const { HOSTED } = await import("@/core/payments/hosted-list");
+    const { keysOf } = await import("@/core/payments/hosted");
+    const g = HOSTED[row.provider];
+    const keys = g ? keysOf(row, g.fields) : null;
+    if (!g?.test) return { ok: false, error: "A connection test is not available for this gateway." };
+    if (!keys) return { ok: false, error: "Save the keys first." };
+    const t = await g.test(keys, row.mode as "live" | "test");
+    return t.ok ? { ok: true, message: `Connected to ${g.label}${row.mode === "test" ? " (test mode)" : ""}. Switch it on for parents when ready.` } : { ok: false, error: t.error };
+  }
   const { razorpayKeys, razorpayApi } = await import("@/core/payments/razorpay");
   const keys = razorpayKeys(row);
   if (!keys) return { ok: false, error: "Save the keys first." };
@@ -119,4 +128,24 @@ export async function savePaymentProfile(p: PaymentProfileInput, pan: string, ba
   revalidatePath(PATH);
   revalidatePath("/policies", "layout");
   return { ok: true, message: "Saved. Your policy pages now show these details." };
+}
+
+// Keys of a hosted gateway (PayU, Cashfree, Easebuzz, CCAvenue): public fields to its settings, secret ones to the vault.
+export async function saveHostedKeys(gatewayId: number, values: Record<string, string>): Promise<Result> {
+  if (!(await office())) return { ok: false, error: "Only the office or the finance head can change payment settings." };
+  const { GATEWAY_FIELDS } = await import("@/core/payments/choices");
+  const supabase = await createClient();
+  const { data: g } = await supabase.from("payment_gateway" as never).select("id, provider").eq("id", gatewayId).maybeSingle();
+  const fields = g ? GATEWAY_FIELDS[(g as unknown as { provider: string }).provider] : undefined;
+  if (!fields) return { ok: false, error: "Unknown gateway." };
+  const config: Record<string, string> = {}, secret: Record<string, string> = {};
+  for (const f of fields) {
+    const v = String(values[f.name] ?? "").trim();
+    if (!v || v.length > 200 || /\s/.test(v)) return { ok: false, error: `Enter the ${f.label.toLowerCase()} exactly as shown by the gateway.` };
+    (f.secret ? secret : config)[f.name] = v;
+  }
+  const { error } = await supabase.rpc("set_payment_gateway_keys" as never, { p_gateway: gatewayId, p_secret: JSON.stringify(secret), p_config: config } as never);
+  if (error) return { ok: false, error: "Could not save the keys." };
+  revalidatePath(PATH);
+  return { ok: true, message: "Keys saved securely; the secret will not be shown again. Now test the connection." };
 }

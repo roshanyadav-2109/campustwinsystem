@@ -4,10 +4,10 @@ import { useRouter } from "next/navigation";
 import { Card, CardBody, CardHeader } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Field, Input, Select, Textarea } from "@/components/ui/field";
-import { GATEWAY_CHOICES, CONNECTED } from "@/core/payments/choices";
-import { addGateway, saveGatewayKeys, setActiveGateway, resolvePayment, saveRazorpayKeys, testGatewayConnection } from "@/app/dashboard/settings/payments/actions";
+import { GATEWAY_CHOICES, CONNECTED, GATEWAY_FIELDS } from "@/core/payments/choices";
+import { addGateway, saveGatewayKeys, setActiveGateway, resolvePayment, saveRazorpayKeys, testGatewayConnection, saveHostedKeys } from "@/app/dashboard/settings/payments/actions";
 
-export type GatewayRow = { id: number; provider: string; label: string | null; mode: "live" | "test"; active: boolean; hasKeys: boolean; merchantId: string; keyId?: string; updated_at: string };
+export type GatewayRow = { id: number; provider: string; label: string | null; mode: "live" | "test"; active: boolean; hasKeys: boolean; merchantId: string; keyId?: string; config?: Record<string, string>; updated_at: string };
 const name = (id: string) => GATEWAY_CHOICES.find((g) => g.id === id)?.label ?? id;
 
 function Msg({ m }: { m: { ok: boolean; text: string } | null }) {
@@ -34,7 +34,8 @@ function GatewayCard({ g, webhookBase }: { g: GatewayRow; webhookBase: string })
       </div>
       {!ready && <p className="mt-1 text-[12px] text-ink-500">CampusTwin connects {name(g.provider)} for you. Save your merchant keys here; we will tell you when it is ready.</p>}
       {g.provider === "razorpay" && <RazorpayKeys g={g} webhookBase={webhookBase} onMsg={setMsg} />}
-      {g.provider !== "test" && g.provider !== "razorpay" && (
+      {GATEWAY_FIELDS[g.provider] && <HostedKeys g={g} webhookBase={webhookBase} onMsg={setMsg} />}
+      {g.provider !== "test" && g.provider !== "razorpay" && !GATEWAY_FIELDS[g.provider] && (
         <div className="mt-2 space-y-2">
           <Field label={g.hasKeys ? "Keys (saved; enter new ones to replace them)" : "Keys from your gateway"} htmlFor={`${uid}-k`} hint="As JSON, for example {&quot;key_id&quot;: &quot;...&quot;, &quot;key_secret&quot;: &quot;...&quot;}. Stored securely and never shown again.">
             <Textarea id={`${uid}-k`} rows={2} value={keys} autoComplete="off" spellCheck={false} onChange={(e) => setKeys(e.target.value)} />
@@ -130,6 +131,36 @@ function RazorpayKeys({ g, webhookBase, onMsg }: { g: GatewayRow; webhookBase: s
         <p>Secret: the webhook secret CampusTwin shows when you save the keys.</p>
         <p>Active events: <code>payment.authorized</code>, <code>payment.captured</code>, <code>order.paid</code>, <code>refund.processed</code></p>
         <p className="mt-1">Keys: Account &amp; Settings, API keys, Generate key. The Key Secret is shown only once in Razorpay; paste it here straight away.</p>
+      </div>
+    </div>
+  );
+}
+
+const NOTICE: Record<string, string> = {
+  payu: "In PayU, Developers, Webhooks: add this address for Successful and Failed payments.",
+  cashfree: "Cashfree is told this address with each payment; nothing to set up.",
+  easebuzz: "In Easebuzz, Settings, Webhooks: add this address for transactions.",
+};
+// Keys of PayU, Cashfree, Easebuzz, CCAvenue: public fields are shown again; secrets never are.
+function HostedKeys({ g, webhookBase, onMsg }: { g: GatewayRow; webhookBase: string; onMsg: (m: { ok: boolean; text: string } | null) => void }) {
+  const uid = useId();
+  const fields = GATEWAY_FIELDS[g.provider] ?? [];
+  const [v, setV] = useState<Record<string, string>>(Object.fromEntries(fields.map((f) => [f.name, f.secret ? "" : g.config?.[f.name] ?? ""])));
+  const [pending, start] = useTransition();
+  const router = useRouter();
+  return (
+    <div className="mt-2 space-y-3">
+      <div className="grid gap-3 sm:grid-cols-3">{fields.map((f) => (
+        <Field key={f.name} label={f.secret && g.hasKeys ? `${f.label} (saved; enter to replace)` : f.label} htmlFor={`${uid}-${f.name}`} hint={f.hint}>
+          <Input id={`${uid}-${f.name}`} type={f.secret ? "password" : "text"} autoComplete={f.secret ? "new-password" : "off"} spellCheck={false} value={v[f.name] ?? ""} onChange={(e) => setV({ ...v, [f.name]: e.target.value })} />
+        </Field>))}</div>
+      <div className="flex flex-wrap gap-2">
+        <Button size="sm" variant="subtle" disabled={pending || fields.some((f) => !(v[f.name] ?? "").trim())} onClick={() => start(async () => { const r = await saveHostedKeys(g.id, v); onMsg(r.ok ? { ok: true, text: r.message ?? "" } : { ok: false, text: r.error }); if (r.ok) setV(Object.fromEntries(fields.map((f) => [f.name, f.secret ? "" : v[f.name]]))); router.refresh(); })}>Save keys</Button>
+        {g.hasKeys && <Button size="sm" variant="ghost" disabled={pending} onClick={() => start(async () => { const r = await testGatewayConnection(g.id); onMsg(r.ok ? { ok: true, text: r.message ?? "" } : { ok: false, text: r.error }); })}>Test connection</Button>}
+      </div>
+      <div className="rounded-sm bg-[#fafafa] p-2 text-[12px] text-ink-700">
+        <p>Payment notices address: <code className="select-all break-all">{`${webhookBase}/api/payments/webhook/${g.provider}`}</code></p>
+        <p>{NOTICE[g.provider]}</p>
       </div>
     </div>
   );

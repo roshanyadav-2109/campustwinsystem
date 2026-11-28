@@ -60,7 +60,12 @@ const testGateway: GatewayConnector = {
 };
 
 import { razorpay } from "@/core/payments/razorpay";
-export const CONNECTORS: Record<string, GatewayConnector> = { test: testGateway, razorpay };
+import { HOSTED } from "@/core/payments/hosted-list";
+import { hostedConnector } from "@/core/payments/hosted";
+export const CONNECTORS: Record<string, GatewayConnector> = {
+  test: testGateway, razorpay,
+  ...Object.fromEntries(Object.values(HOSTED).map((g) => [g.id, hostedConnector(g)])),
+};
 
 export { GATEWAY_CHOICES } from "@/core/payments/choices";
 export const hasConnector = (id: string) => id in CONNECTORS;

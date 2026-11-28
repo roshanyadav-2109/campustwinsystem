@@ -15,4 +15,21 @@ export const GATEWAY_CHOICES: { id: string; label: string }[] = [
   { id: "icici", label: "ICICI Eazypay" },
   { id: "sbi", label: "SBI ePay" },
 ];
-export const CONNECTED = new Set(["test", "razorpay"]);   // gateways with a connector built
+export const CONNECTED = new Set(["test", "razorpay", "payu", "cashfree"]);   // gateways with a connector built
+
+// The keys each hosted gateway needs: public ones are kept in the gateway's settings, secret ones only in the vault.
+export type GatewayField = { name: string; label: string; secret: boolean; hint?: string };
+export const GATEWAY_FIELDS: Record<string, GatewayField[]> = {
+  payu: [
+    { name: "key", label: "Merchant key", secret: false, hint: "PayU dashboard, Developers, API keys" },
+    { name: "salt", label: "Salt (v1)", secret: true, hint: "The 32-character salt shown with the key" },
+  ],
+  cashfree: [
+    { name: "app_id", label: "App ID (client id)", secret: false, hint: "Cashfree dashboard, Developers, API keys" },
+    { name: "secret_key", label: "Secret key (client secret)", secret: true },
+  ],
+  easebuzz: [
+    { name: "key", label: "Merchant key", secret: false, hint: "Easebuzz dashboard, Settings, API keys" },
+    { name: "salt", label: "Salt", secret: true },
+  ],
+};
