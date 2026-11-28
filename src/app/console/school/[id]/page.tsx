@@ -35,7 +35,7 @@ export default async function SchoolOverview({ params }: { params: Promise<{ id:
       <ZoneHeader
         title={s.name}
         sub={s.place ?? undefined}
-        badges={<><TypeBadge kind={s.university_id ? "campus" : "school"} /><StatusBadge status={s.status} /></>}
+        badges={<><TypeBadge kind={s.university_id ? "campus" : (s as { institution_type?: string }).institution_type === "college" ? "college" : "school"} /><StatusBadge status={s.status} /></>}
       >
         <a href={`https://${s.slug}.${BASE}`} target="_blank" rel="noreferrer" className={btnGhost}>Open portal <Icon name="external" size={14} /></a>
       </ZoneHeader>

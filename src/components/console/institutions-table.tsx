@@ -6,7 +6,7 @@ import { StatusBadge, TypeBadge } from "./ui";
 
 export type InstRow = {
   id: number;
-  kind: "university" | "campus" | "school";
+  kind: "university" | "campus" | "college" | "school";
   name: string;
   slug: string;
   parent: string | null;
@@ -23,6 +23,7 @@ const FILTERS = [
   { key: "all", label: "All" },
   { key: "university", label: "Universities" },
   { key: "campus", label: "Campuses" },
+  { key: "college", label: "Colleges" },
   { key: "school", label: "Schools" },
 ] as const;
 const n = (v: number) => v.toLocaleString("en-IN");

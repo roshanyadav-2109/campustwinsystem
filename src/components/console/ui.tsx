@@ -26,7 +26,7 @@ export function StatusBadge({ status }: { status: string }) {
 }
 
 export function TypeBadge({ kind }: { kind: string }) {
-  const label = kind === "university" ? "University" : kind === "campus" ? "Campus" : "School";
+  const label = kind === "university" ? "University" : kind === "campus" ? "Campus" : kind === "college" ? "College" : "School";
   return <span className="whitespace-nowrap text-[13px] text-cx-text-2">{label}</span>;
 }
 
