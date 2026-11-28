@@ -40,6 +40,8 @@ jobs:
           ENV
       - name: Build (OpenNext for Cloudflare)
         run: npx opennextjs-cloudflare build
+      - name: Prepare Next.js at Worker start-up
+        run: node scripts/patch-worker.mjs
       - name: Deploy Worker
         run: npx wrangler deploy
         env:
