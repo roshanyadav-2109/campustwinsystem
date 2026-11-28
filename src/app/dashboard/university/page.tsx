@@ -28,8 +28,8 @@ export default async function UniversityPage() {
     supabase.from("transfer_request" as never).select("id, status, reason, order_no, created_at, decided_at, from_school, to_school, student_id, detail, receiving_ok, receiving_note").order("created_at", { ascending: false }).limit(50),
     supabase.rpc("university_org_chart" as never)]);
   // the active campus's exams that were copied to other campuses (common exams)
-  const { data: commonExams } = await supabase.from("exam_session" as never).select("id, name, copies:exam_session!source_session_id(id)").eq("school_id", activeCampusId ?? 0).order("created_at", { ascending: false }).limit(30);
-  const common = ((commonExams ?? []) as unknown as { id: number; name: string; copies: { id: number }[] }[]).filter((x) => x.copies.length > 0).map((x) => ({ id: x.id, name: x.name }));
+  const { data: commonExams } = await supabase.rpc("common_exams" as never);
+  const common = ((commonExams ?? []) as unknown as { id: number; name: string; copies: number }[]).map((x) => ({ id: x.id, name: `${x.name} (${x.copies} campus${x.copies === 1 ? "" : "es"})` }));
   // names of students at other campuses come through central administration's own view
   const reqRows = (treq ?? []) as unknown as Omit<TransferRequestRow, "student">[];
   const { data: reqNames } = reqRows.length ? await supabase.rpc("transfer_request_students" as never) : { data: [] };

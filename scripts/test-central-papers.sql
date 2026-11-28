@@ -48,11 +48,15 @@ begin
   if public.question_paper_upload_ok(v_qp) is distinct from 14 then raise exception 'FAIL upload not allowed for the setter'; end if;
   begin perform public.submit_question_paper(v_qp, 'elsewhere/x.pdf'); raise exception 'FAIL a key outside the folder was accepted'; exception when others then if sqlerrm like 'FAIL%' then raise; end if; end;
   reset role;
-  k := public.tenant_prefix(14) || '/exams/question-papers/' || v_qp || '/qa.pdf';
+  k := public.tenant_prefix(14) || '/exams/question-papers/' || v_qp || '/' || gen_random_uuid() || '.pdf';
   perform set_config('request.jwt.claims', json_build_object('sub', su, 'role', 'authenticated')::text, true); set local role authenticated;
   perform public.submit_question_paper(v_qp, k);
   reset role;
 
+  -- someone else cannot moderate
+  perform set_config('request.jwt.claims', json_build_object('sub', ou, 'role', 'authenticated')::text, true); set local role authenticated;
+  begin perform public.moderate_question_paper(v_qp, true, null); raise exception 'FAIL another person approved the paper'; exception when others then if sqlerrm like 'FAIL%' then raise; end if; end;
+  reset role;
   -- the moderator sends it back (a note is needed), the setter resubmits, the moderator approves
   perform set_config('request.jwt.claims', json_build_object('sub', mu, 'role', 'authenticated')::text, true); set local role authenticated;
   begin perform public.moderate_question_paper(v_qp, false, ''); raise exception 'FAIL sent back without a note'; exception when others then if sqlerrm like 'FAIL%' then raise; end if; end;
@@ -67,13 +71,16 @@ begin
   if (select status from public.question_paper where id = v_qp) <> 'approved' then raise exception 'FAIL not approved'; end if;
 
   -- City's exam cell: closed two days ahead; open 30 minutes before the start; the opening is logged
-  update public.exam_paper set exam_date = (now() at time zone 'Asia/Kolkata')::date + 2 where id = v_cpaper;
+  perform set_config('request.jwt.claims', '', true);
+  update public.exam_paper set exam_date = (now() at time zone 'Asia/Kolkata')::date + 2 where id in (v_paper, v_cpaper);
   perform set_config('request.jwt.claims', json_build_object('sub', ou, 'role', 'authenticated')::text, true); set local role authenticated;
   begin perform public.question_paper_key(v_qp, v_cpaper); raise exception 'FAIL opened two days early'; exception when others then if sqlerrm like 'FAIL%' then raise; end if; end;
   reset role;
+  perform set_config('request.jwt.claims', '', true);
   update public.exam_paper set exam_date = (now() at time zone 'Asia/Kolkata')::date, starts_at = ((now() at time zone 'Asia/Kolkata') + interval '30 minutes')::time,
-    ends_at = ((now() at time zone 'Asia/Kolkata') + interval '150 minutes')::time where id = v_cpaper;
+    ends_at = ((now() at time zone 'Asia/Kolkata') + interval '150 minutes')::time where id in (v_paper, v_cpaper);
   perform set_config('request.jwt.claims', json_build_object('sub', ou, 'role', 'authenticated')::text, true); set local role authenticated;
+  begin update public.exam_paper set source_paper_id = null where id = v_cpaper; raise exception 'FAIL the exam cell changed a paper''s source'; exception when others then if sqlerrm like 'FAIL%' then raise; end if; end;
   if public.question_paper_key(v_qp, v_cpaper) is distinct from k then raise exception 'FAIL City could not open the paper in time'; end if;
   if (select count(*) from public.session_question_papers(v_copy) where paper_id = v_cpaper and central and status = 'approved') <> 1 then raise exception 'FAIL City does not see the central paper state'; end if;
   reset role;

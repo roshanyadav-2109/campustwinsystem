@@ -15,7 +15,7 @@ export default async function QuestionPapersPage({ searchParams }: { searchParam
   const [session, year, sp] = await Promise.all([getSession(), getCurrentYear(), searchParams]);
   if (!session) return null;
   const supabase = await createClient();
-  const runs = session.accessTypes.includes("confidential") || session.accessTypes.includes("exams_head") || session.isAdminScope || session.isUniversityAdmin;
+  const runs = ["confidential", "exams_head", "exams_deputy", "exams_staff"].some((t) => session.accessTypes.includes(t)) || session.isAdminScope || session.isUniversityAdmin;
   const { data: mine } = await supabase.rpc("my_question_papers" as never);
   let sessions: { id: number; name: string }[] = []; let sessionId = 0; let rows: SessionPaper[] = []; let staff: { id: number; name: string }[] = [];
   if (runs && year) {

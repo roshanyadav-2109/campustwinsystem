@@ -14,9 +14,12 @@ const dmy = (d: string) => d.split("-").reverse().join("/");
 const STATUS: Record<string, string> = { assigned: "Being set", submitted: "With the moderator", returned: "Sent back", approved: "Approved" };
 const Note = ({ m }: { m: Msg }) => (m ? <p role={m.ok ? "status" : "alert"} className={`text-[13px] font-medium ${m.ok ? "text-up" : "text-down"}`}>{m.text}</p> : null);
 
+// The tab is opened at the click (so a pop-up blocker allows it), then sent to the paper.
 async function open(qpId: number, paperId: number | null, setMsg: (m: Msg) => void) {
+  const w = window.open("about:blank", "_blank");
   const r = await paperLink(qpId, paperId);
-  if (r.ok) window.open(r.url, "_blank", "noopener"); else setMsg({ ok: false, text: r.error });
+  if (r.ok && w) { w.opener = null; w.location.href = r.url; }
+  else { w?.close(); setMsg({ ok: false, text: r.ok ? "Allow pop-ups to open the paper." : r.error }); }
 }
 
 // Papers this teacher sets or moderates.
