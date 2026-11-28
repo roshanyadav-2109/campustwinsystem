@@ -17,8 +17,8 @@ type Txn = { status?: string; unmappedstatus?: string; amt?: string; mihpayid?: 
 async function verifyTxn(mode: string, key: string, salt: string, txnid: string) {
   const command = "verify_payment";
   const r = await postForm(apiURL(mode), { key, command, var1: txnid, hash: sha512(`${key}|${command}|${txnid}|${salt}`) });
-  if (!r.ok) return null;
-  try { return JSON.parse(r.text) as { status?: number; msg?: string; transaction_details?: Record<string, Txn> }; } catch { return null; }
+  if (!r.ok) { console.log("payu verify http", r.status, r.text.slice(0, 200)); return { http: r.status } as { status?: number; msg?: string; http?: number; transaction_details?: Record<string, Txn> }; }
+  try { return JSON.parse(r.text) as { status?: number; msg?: string; http?: number; transaction_details?: Record<string, Txn> }; } catch { return { http: r.status } as { http?: number }; }
 }
 
 export const payu: HostedGateway = {
@@ -58,6 +58,7 @@ export const payu: HostedGateway = {
   async test(keys, mode) {
     const j = await verifyTxn(mode, keys.config.key, keys.secret.salt, "campustwincheck");
     if (j && j.status === 1) return { ok: true };
+    if (j?.http !== undefined) return { ok: false, error: `PayU could not be reached (answer ${j.http}). Try again shortly.` };
     return { ok: false, error: j ? `PayU did not accept these keys (${j.msg ?? "check the key and salt"}). Check test or live mode too.` : "PayU could not be reached. Try again shortly." };
   },
 };
