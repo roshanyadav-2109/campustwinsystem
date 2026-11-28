@@ -64,12 +64,12 @@ create or replace function public.tt_owner_guard() returns trigger
 language plpgsql security definer set search_path = '' as $$
 declare j jsonb := to_jsonb(new);
 begin
-  if j ? 'class_id' and not exists (select 1 from public.class where id = (j ->> 'class_id')::bigint and school_id = new.school_id) then raise exception 'Unknown class'; end if;
-  if j ? 'subject_id' and not exists (select 1 from public.subject where id = (j ->> 'subject_id')::bigint and school_id = new.school_id) then raise exception 'Unknown subject'; end if;
-  if j ? 'staff_id' and j ->> 'staff_id' is not null and not exists (select 1 from public.staff where id = (j ->> 'staff_id')::bigint and school_id = new.school_id) then raise exception 'Unknown staff member'; end if;
-  if j ? 'academic_year_id' and not exists (select 1 from public.academic_year where id = (j ->> 'academic_year_id')::bigint and school_id = new.school_id) then raise exception 'Unknown year'; end if;
-  if j ? 'section_ids' and exists (select 1 from unnest(new.section_ids) x where not exists (select 1 from public.section s where s.id = x and s.school_id = new.school_id)) then raise exception 'Unknown section'; end if;
-  if j ? 'group_id' and j ->> 'group_id' is not null and not exists (select 1 from public.timetable_group g where g.id = (j ->> 'group_id')::bigint and g.school_id = new.school_id) then raise exception 'Unknown group'; end if;
+  if j ? 'class_id' and not exists (select 1 from public.class where id = (j ->> 'class_id')::bigint and school_id = (j ->> 'school_id')::bigint) then raise exception 'Unknown class'; end if;
+  if j ? 'subject_id' and not exists (select 1 from public.subject where id = (j ->> 'subject_id')::bigint and school_id = (j ->> 'school_id')::bigint) then raise exception 'Unknown subject'; end if;
+  if j ? 'staff_id' and j ->> 'staff_id' is not null and not exists (select 1 from public.staff where id = (j ->> 'staff_id')::bigint and school_id = (j ->> 'school_id')::bigint) then raise exception 'Unknown staff member'; end if;
+  if j ? 'academic_year_id' and not exists (select 1 from public.academic_year where id = (j ->> 'academic_year_id')::bigint and school_id = (j ->> 'school_id')::bigint) then raise exception 'Unknown year'; end if;
+  if j ? 'section_ids' and exists (select 1 from jsonb_array_elements_text(j -> 'section_ids') x where not exists (select 1 from public.section s where s.id = x::bigint and s.school_id = (j ->> 'school_id')::bigint)) then raise exception 'Unknown section'; end if;
+  if j ? 'group_id' and j ->> 'group_id' is not null and not exists (select 1 from public.timetable_group g where g.id = (j ->> 'group_id')::bigint and g.school_id = (j ->> 'school_id')::bigint) then raise exception 'Unknown group'; end if;
   return new;
 end $$;
 do $$ declare t text;
