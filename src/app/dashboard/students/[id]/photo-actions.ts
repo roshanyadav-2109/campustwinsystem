@@ -83,3 +83,15 @@ export async function missingPhotos(sectionId: number): Promise<string[]> {
   const { data } = await supabase.from("student_enrollment").select("student:student_id(full_name, photo_path)").eq("section_id", sectionId).eq("academic_year_id", year.id).eq("status", "active").limit(500);
   return ((data ?? []) as unknown as { student: { full_name: string; photo_path: string | null } | null }[]).filter((r) => r.student && !r.student.photo_path).map((r) => r.student!.full_name);
 }
+
+export async function siblingCampuses(): Promise<{ id: number; name: string }[]> {
+  const supabase = await createClient();
+  const { data } = await supabase.rpc("sibling_campuses" as never);
+  return (data ?? []) as unknown as { id: number; name: string }[];
+}
+export async function askTransfer(studentId: number, to: number, reason: string): Promise<{ ok: true; message: string } | { ok: false; error: string }> {
+  const supabase = await createClient();
+  const { error } = await supabase.rpc("request_campus_transfer" as never, { p_student: studentId, p_to: to, p_reason: reason } as never);
+  if (error) return { ok: false, error: error.message.length < 160 ? error.message : "Could not send the request." };
+  return { ok: true, message: "Sent to central administration. The transfer order follows its approval." };
+}

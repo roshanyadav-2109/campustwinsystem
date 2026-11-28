@@ -16,6 +16,7 @@ export function CentralTools({ campuses, exams, transfers }: { campuses: Campus[
   const router = useRouter();
   const [cFrom, setCFrom] = useState(campuses[0]?.id ?? 0);
   const [cTo, setCTo] = useState(campuses[1]?.id ?? 0);
+  const [cUpd, setCUpd] = useState(false);
   const [tFrom, setTFrom] = useState(campuses[0]?.id ?? 0);
   const [tTo, setTTo] = useState(campuses[1]?.id ?? 0);
   const [adm, setAdm] = useState("");
@@ -67,7 +68,8 @@ export function CentralTools({ campuses, exams, transfers }: { campuses: Campus[
           <p className="w-full text-ink-700">Copy the departments, courses and programmes one campus has and another lacks (matched by code). Nothing already there is changed.</p>
           <label>From<Select aria-label="Copy from campus" className="mt-1" value={cFrom} onChange={(e) => setCFrom(Number(e.target.value))}>{opts}</Select></label>
           <label>To<Select aria-label="Copy to campus" className="mt-1" value={cTo} onChange={(e) => setCTo(Number(e.target.value))}>{opts}</Select></label>
-          <Button size="sm" disabled={pending || cFrom === cTo} onClick={() => start(async () => show(await copyCatalogue(cFrom, cTo)))}>Copy</Button>
+          <label className="flex items-center gap-1"><input type="checkbox" checked={cUpd} onChange={(e) => setCUpd(e.target.checked)} />Also update courses the campus already has (names, hours, credits)</label>
+          <Button size="sm" disabled={pending || cFrom === cTo} onClick={() => start(async () => show(await copyCatalogue(cFrom, cTo, cUpd)))}>Copy</Button>
         </CardBody>
       </Card>}
     </div>

@@ -11,6 +11,7 @@ import { CertificatesPanel, type CertRow } from "@/components/students/certifica
 import { IdCardForStudent } from "@/components/students/id-cards";
 import { untyped } from "@/lib/data/schedule";
 import { StudentPhoto } from "@/components/students/student-photo";
+import { AskTransfer } from "@/components/students/ask-transfer";
 
 // One student, everything in one place: admission, address, family,
 // medical and, for the office and principal, identity and category.
@@ -71,6 +72,7 @@ export default async function StudentPage({ params }: { params: Promise<{ id: st
       )}
       <div className="grid items-start gap-5 xl:grid-cols-2">
         {canEdit && <Card><CardHeader title="Photo" /><CardBody><StudentPhoto studentId={s.id} url={s.photoUrl} name={s.fullName} /></CardBody></Card>}
+        {admin && s.status === "active" && session?.school.higherEd && <AskTransfer studentId={s.id} />}
         <Card>
           <CardHeader title="Admission and personal" />
           <CardBody className="pt-1">
