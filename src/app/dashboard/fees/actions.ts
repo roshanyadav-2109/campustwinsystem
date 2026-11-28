@@ -1,4 +1,5 @@
 "use server";
+import { isFinance } from "@/lib/roles";
 import { revalidatePath } from "next/cache";
 import { createClient } from "@/lib/supabase/server";
 import { getSession, getCurrentYear } from "@/lib/session";
@@ -18,7 +19,7 @@ const MAX_AMOUNT = 10_000_000;
 
 async function office() {
   const session = await getSession();
-  if (!session?.staffId || session.staffRole !== "office") return null;
+  if (!session?.staffId || !isFinance(session)) return null;
   return session;
 }
 
@@ -455,7 +456,7 @@ export async function getTuitionCertificate(input: { studentId: number; fyStartY
   if (!session) return fail(NOT_ALLOWED);
   if (!isId(input?.studentId) || !Number.isInteger(input?.fyStartYear) || input.fyStartYear < 2000 || input.fyStartYear > 2100) return fail(TRY_AGAIN);
   const supabase = await createClient();
-  let allowed = session.isAdminScope || (session.role === "student" && session.studentId === input.studentId);
+  let allowed = session.isAdminScope || isFinance(session) || (session.role === "student" && session.studentId === input.studentId);
   if (!allowed && session.role === "guardian") {
     // A parent sees only their own children's links.
     const { data: mine } = await supabase.from("guardian_student").select("student_id").eq("student_id", input.studentId).limit(1);

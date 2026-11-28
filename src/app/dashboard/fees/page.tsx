@@ -1,3 +1,4 @@
+import { isFinance } from "@/lib/roles";
 import Link from "@/components/ui/hover-link";
 import { getSession, getCurrentYear } from "@/lib/session";
 import { guardTab } from "@/lib/access";
@@ -45,7 +46,7 @@ export default async function FeesPage({ searchParams }: { searchParams: Promise
 
   try {
     if (session.role === "student" || session.role === "guardian") return await ownerScreen(session, sp);
-    if (session.isAdminScope) return await adminScreen(session, sp);
+    if (session.isAdminScope || isFinance(session)) return await adminScreen(session, sp);
   } catch (e) {
     if (!(e instanceof FeesNotReady)) throw e;
     return (
@@ -126,7 +127,7 @@ async function ownerScreen(session: Session, sp: SP) {
 // Office (full) / principal (read-only)
 // ---------------------------------------------------------------------------
 async function adminScreen(session: Session, sp: SP) {
-  const isOffice = session.staffRole === "office";
+  const isOffice = isFinance(session);
   const views = VIEWS.filter((v) => (isOffice || !v.officeOnly) && (v.key !== "letters" || session.school.higherEd));
   const asked = strParam(sp.view);
   const view: ViewKey = views.find((v) => v.key === asked)?.key ?? "overview";

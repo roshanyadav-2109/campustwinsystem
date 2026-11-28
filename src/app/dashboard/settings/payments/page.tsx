@@ -1,3 +1,4 @@
+import { isFinance } from "@/lib/roles";
 import { guardTab } from "@/lib/access";
 import { getSession } from "@/lib/session";
 import { PageHeader } from "@/components/ui/page-header";
@@ -31,7 +32,7 @@ export default async function PaymentSettingsPage() {
   return (
     <div className="space-y-5">
       <PageHeader title="Online payment" description="Parents pay fees online into your own merchant account. Add your gateway and its keys; the receipt, the bill and Finance update by themselves." />
-      {session?.staffRole === "office" && <PaymentGateways gateways={gateways} />}
+      {isFinance(session) && <PaymentGateways gateways={gateways} />}
       {attention.length > 0 && (
         <Card>
           <CardHeader title="Needs your attention" action={<span className="text-[12px] text-down">{attention.length}</span>} />
@@ -40,7 +41,7 @@ export default async function PaymentSettingsPage() {
               <li key={o.id} className="border-b border-hair px-4 py-2 text-[13px] last:border-b-0">
                 <span className="font-medium">{o.student?.full_name}</span>, {money(o.amount)}: {o.failure_reason ?? "check this payment"}
                 {Number(o.refund_due) > 0 && <span className="text-down"> · refund due {money(o.refund_due)}</span>}
-                {session?.staffRole === "office" && <ResolvePayment orderId={o.id} />}
+                {isFinance(session) && <ResolvePayment orderId={o.id} />}
               </li>))}
             </ul>
           </CardBody>

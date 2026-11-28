@@ -11,7 +11,12 @@ export function isExams(s: Session | null | undefined): boolean {
 
 /** Office work: the office record or a registrar position (kept when a head position also applies). */
 export function isOffice(s: Session | null | undefined): boolean {
-  return !!s && (s.staffRole === "office" || s.baseStaffRole === "office" || s.accessTypes.includes("registrar") || s.accessTypes.includes("finance_head"));
+  return !!s && (s.staffRole === "office" || s.baseStaffRole === "office" || s.accessTypes.includes("registrar"));
+}
+
+/** Fees and payments: the office, or a finance head (who has no other office powers). */
+export function isFinance(s: Session | null | undefined): boolean {
+  return isOffice(s) || (!!s && s.accessTypes.includes("finance_head"));
 }
 
 /** Roles and positions, logins and access: the office or the head, not a deputy head. */

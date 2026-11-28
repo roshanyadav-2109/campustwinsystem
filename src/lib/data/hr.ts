@@ -24,6 +24,8 @@ export type StaffLeave = {
   decided_at: string | null;
   decision_note: string | null;
   created_at: string;
+  step?: string | null;
+  step_log?: { step: string; name?: string; ok: boolean; note?: string; at: string; override?: boolean }[] | null;
 };
 
 export type StaffRef = { id: number; full_name: string; role: string; employee_code: string | null };
@@ -64,7 +66,7 @@ export type Payslip = {
   net: number;
 };
 
-const LEAVE_COLS = "id, staff_id, academic_year_id, leave_type_id, from_date, to_date, days, reason, status, decided_by, decided_at, decision_note, created_at";
+const LEAVE_COLS = "id, staff_id, academic_year_id, leave_type_id, from_date, to_date, days, reason, status, decided_by, decided_at, decision_note, created_at, step, step_log";
 const SALARY_COLS = "staff_id, basic, hra, da, other_allowance, pf_deduction, tax_deduction, other_deduction, bank_name, account_last4, effective_from, updated_at";
 const PAYSLIP_COLS = "id, run_id, staff_id, month, working_days, unpaid_leave_days, basic, hra, da, other_allowance, gross, pf_deduction, tax_deduction, other_deduction, lwp_deduction, net";
 

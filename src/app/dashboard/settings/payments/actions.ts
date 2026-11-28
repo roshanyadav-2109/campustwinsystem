@@ -1,4 +1,5 @@
 "use server";
+import { isFinance } from "@/lib/roles";
 import { revalidatePath } from "next/cache";
 import { createClient } from "@/lib/supabase/server";
 import { getSession } from "@/lib/session";
@@ -8,7 +9,7 @@ import { GATEWAY_CHOICES, CONNECTED } from "@/core/payments/choices";
 // and keys; one is active for new payments. Keys go to Vault.
 export type Result = { ok: true; message?: string } | { ok: false; error: string };
 const PATH = "/dashboard/settings/payments";
-async function office() { const s = await getSession(); return s?.staffRole === "office" ? s : null; }
+async function office() { const s = await getSession(); return isFinance(s) ? s : null; }
 
 export async function addGateway(input: { provider: string; mode: "live" | "test"; label: string; merchantId: string }): Promise<Result> {
   if (!(await office())) return { ok: false, error: "Only the office can change payment settings." };

@@ -37,7 +37,7 @@ export const SHARED_ROUTES: RouteDef[] = [
   { href: "/dashboard/announcements", icon: AnnounceIcon, labelKey: "nav.announcements", roles: ALL, group: "campus" },
   { href: "/dashboard/calendar", icon: CalendarIcon, labelKey: "nav.calendar", roles: ALL, group: "campus" },
   { href: "/dashboard/reports", icon: ReportIcon, labelKey: "nav.reports", roles: ["student", "guardian", "class_teacher", "principal", "office"], group: "academics" },
-  { href: "/dashboard/fees", icon: FeesIcon, labelKey: "nav.fees", roles: ["student", "guardian", "principal", "office"], module: "fees", group: "fees" },
+  { href: "/dashboard/fees", icon: FeesIcon, labelKey: "nav.fees", roles: ["student", "guardian", "principal", "office"], module: "fees", group: "fees", types: ["finance_head"] },
   { href: "/dashboard/library", icon: LibraryIcon, labelKey: "nav.library", roles: ["student", "subject_teacher", "class_teacher", "principal", "office"], module: "library", group: "campus" },
   { href: "/dashboard/homework", icon: HomeworkIcon, labelKey: "nav.homework", roles: ["student", "guardian", "subject_teacher", "class_teacher", "principal"], module: "homework", group: "academics" },
   { href: "/dashboard/admissions", icon: AdmissionsIcon, labelKey: "nav.admissions", roles: ["principal", "office"], module: "admissions", group: "students" },
@@ -70,7 +70,7 @@ export const SHARED_ROUTES: RouteDef[] = [
   { href: "/dashboard/settings/fees", labelKey: "settings.fees", roles: ["office"], module: "fees", group: "settings", menu: false },
   { href: "/dashboard/settings/transport", labelKey: "settings.transport", roles: ["principal", "office"], module: "transport", group: "settings", menu: false },
   { href: "/dashboard/settings/access", labelKey: "settings.access", roles: ["office"], group: "settings", menu: false },
-  { href: "/dashboard/settings/payments", labelKey: "settings.payments", roles: ["office", "principal"], module: "fees", group: "settings", menu: false },
+  { types: ["finance_head"], href: "/dashboard/settings/payments", labelKey: "settings.payments", roles: ["office", "principal"], module: "fees", group: "settings", menu: false },
   { href: "/dashboard/settings/messages", labelKey: "settings.messages", roles: ["office", "principal"], group: "settings", menu: false },
   { href: "/dashboard/settings/admin", labelKey: "settings.admin", roles: ["office", "principal"], group: "settings", menu: false },
 

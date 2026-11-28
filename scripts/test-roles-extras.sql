@@ -30,12 +30,17 @@ begin
   -- the HoD sees it and passes it on
   perform set_config('request.jwt.claims', json_build_object('sub', hu, 'role', 'authenticated')::text, true); set local role authenticated;
   if not exists (select 1 from public.my_leave_steps() x where x.id = v_lid) then raise exception 'FAIL the HoD does not see it'; end if;
+  ok := false; begin perform public.advance_staff_leave(v_lid, false, ''); exception when others then ok := sqlerrm like '%reason%'; end;
+  if not ok then raise exception 'FAIL refused without a reason'; end if;
   if public.advance_staff_leave(v_lid, true, 'ok') <> 'final' then raise exception 'FAIL step'; end if;
   reset role;
+  ok := false; begin update public.staff_leave set step = 'hod' where id = v_lid; exception when others then ok := sqlerrm like '%cannot be changed%'; end;
+  if not ok then raise exception 'FAIL steps changed directly'; end if;
   update public.staff_leave set status = 'approved' where id = v_lid;
-  -- the finance head works as the office
+  -- the finance head handles fees, not the office's other powers
   perform set_config('request.jwt.claims', json_build_object('sub', fu, 'role', 'authenticated')::text, true); set local role authenticated;
-  if not app.is_office() then raise exception 'FAIL finance head is not office'; end if;
+  if app.is_office() then raise exception 'FAIL finance head must not be the office'; end if;
+  if not app.is_finance() then raise exception 'FAIL finance head has no fees access'; end if;
   reset role;
 end $$;
 rollback;

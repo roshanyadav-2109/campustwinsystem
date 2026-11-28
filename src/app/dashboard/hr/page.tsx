@@ -162,6 +162,8 @@ async function MyLeave({ staffId, yearId, types }: { staffId: number; yearId: nu
                           <div className="font-medium">{fmtRange(l.from_date, l.to_date)}</div>
                           <div className="text-[13px] text-ink-500">{l.reason}</div>
                           {l.decision_note && <div className="mt-0.5 text-[13px] text-ink-700">Note: {l.decision_note}</div>}
+                          {(l.step_log ?? []).map((g, i) => <div key={i} className="mt-0.5 text-[12px] text-ink-700">{g.step === "hod" ? "Head of Department" : "Dean"}{g.name ? ` (${g.name})` : ""}: {g.ok ? "recommended" : "refused"}{g.note ? `, ${g.note}` : ""}{g.override ? " (moved on by the office)" : ""}</div>)}
+                          {l.status === "pending" && l.step && l.step !== "final" && <div className="mt-0.5 text-[12px] font-medium text-ink-900">Waiting for the {l.step === "hod" ? "Head of Department" : "Dean"}</div>}
                         </td>
                         <td className={td}>{typeById.get(l.leave_type_id)?.name ?? "-"}</td>
                         <td className={cn(td, "tabular whitespace-nowrap")}>{fmtDays(l.days)}</td>
@@ -359,6 +361,8 @@ async function Requests({ staffId, yearId, types, status }: { staffId: number; y
                       <div><dt className="text-[12px] text-ink-500">Balance left</dt><dd className="tabular text-ink-900">{balanceLeft(l.staff_id, type)}</dd></div>
                     </dl>
                     <p className="mt-3 text-[14px] text-ink-900"><span className="text-ink-500">Reason: </span>{l.reason}</p>
+                    {(l.step_log ?? []).map((g, i) => <div key={i} className="mt-1 text-[12px] text-ink-700">{g.step === "hod" ? "Head of Department" : "Dean"}{g.name ? ` (${g.name})` : ""}: {g.ok ? "recommended" : "refused"}{g.note ? `, ${g.note}` : ""}{g.override ? " (moved on by the office)" : ""}</div>)}
+                          {l.status === "pending" && l.step && l.step !== "final" && <div className="mt-1 text-[12px] font-medium text-ink-900">Waiting for the {l.step === "hod" ? "Head of Department" : "Dean"}</div>}
                     {l.status === "pending" ? (
                       <div className="mt-3 border-t border-hair pt-3">
                         {l.staff_id === staffId
