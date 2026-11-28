@@ -26,7 +26,7 @@ export async function switchCampus(formData: FormData) {
 }
 
 type R = { ok: true; message: string } | { ok: false; error: string };
-const clean = (e: { message?: string } | null, fallback: string) => (e?.message && !/[_(]|violates|function|relation/.test(e.message) ? e.message : fallback);
+const clean = (e: { message?: string; code?: string } | null, fallback: string) => (e?.message && ((e.code === "P0001" && e.message.length < 400) || !/[_(]|violates|function|relation/.test(e.message)) ? e.message : fallback);
 
 export async function campusSections(campusId: number) {
   const supabase = await createClient();
@@ -87,12 +87,13 @@ export async function campusExams(campusId: number) {
 }
 export async function copyExam(sessionId: number, to: number[]): Promise<R> {
   const supabase = await createClient();
-  const done: string[] = [];
+  const done: string[] = [], failed: string[] = [];
   for (const t of to) {
     const { data, error } = await supabase.rpc("copy_exam_session" as never, { p_session: sessionId, p_to: t } as never);
-    if (error) return { ok: false, error: clean(error, "Could not copy the exam.") };
+    if (error) { failed.push(clean(error, "could not copy")); continue; }
     const d = data as unknown as { papers: number; skipped: number };
     done.push(`${d.papers} papers${d.skipped ? ` (${d.skipped} without a matching class or subject)` : ""}`);
   }
-  return { ok: true, message: `Copied as a draft to ${to.length} campus${to.length === 1 ? "" : "es"}: ${done.join("; ")}. Each campus checks and publishes it.` };
+  if (!done.length) return { ok: false, error: failed.join("; ") };
+  return { ok: true, message: `Copied as a draft to ${done.length} campus${done.length === 1 ? "" : "es"}: ${done.join("; ")}.${failed.length ? ` Not copied: ${failed.join("; ")}.` : ""} Each campus checks and publishes it.` };
 }

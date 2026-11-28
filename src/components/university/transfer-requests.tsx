@@ -7,13 +7,13 @@ import { Input, Select } from "@/components/ui/field";
 import { downloadPdf } from "@/lib/pdf";
 import { transferMapping, decideTransferRequest, type MappingRow } from "@/app/dashboard/university/actions";
 
-export type TransferRequestRow = { id: number; status: string; reason: string | null; order_no: string | null; created_at: string; decided_at: string | null; from_school: number; to_school: number;
+export type TransferRequestRow = { detail?: { programme: string | null; register_no: string | null; courses: { from: string; credits: number; grade: string; to: string | null }[] } | null; id: number; status: string; reason: string | null; order_no: string | null; created_at: string; decided_at: string | null; from_school: number; to_school: number;
   student_id: number; student: { full_name: string; admission_no: string } | null };
 
 // Requests from campuses; central administration maps the courses, chooses the section and approves, with a transfer order.
 export function TransferRequests({ rows, campuses, university }: { rows: TransferRequestRow[]; campuses: { id: number; name: string }[]; university: string }) {
   const [open, setOpen] = useState<number | null>(null);
-  const [data, setData] = useState<{ rows: MappingRow[]; courses: { id: number; code: string; name: string }[]; sections: { id: number; label: string }[] } | null>(null);
+  const [data, setData] = useState<{ rows: MappingRow[]; courses: { id: number; code: string; name: string; credits: number }[]; sections: { id: number; label: string }[] } | null>(null);
   const [map, setMap] = useState<Record<number, number | "">>({});
   const [sec, setSec] = useState(0);
   const [note, setNote] = useState("");
@@ -23,7 +23,10 @@ export function TransferRequests({ rows, campuses, university }: { rows: Transfe
   const router = useRouter();
   const name = (id: number) => campuses.find((c) => c.id === id)?.name ?? "";
   const order = (r: TransferRequestRow) => downloadPdf({ filename: `Transfer order ${r.order_no}`, title: "Transfer order", meta: [`Order ${r.order_no}`, `Date ${(r.decided_at ?? "").slice(0, 10).split("-").reverse().join("/")}`], school: university,
-    blocks: [{ kind: "text", lines: [`${r.student?.full_name ?? "The student"} (admission no. ${r.student?.admission_no ?? ""}) is transferred from ${name(r.from_school)} to ${name(r.to_school)}, in the same programme, with the grades and credits earned so far.`, r.reason ? `Reason: ${r.reason}` : ""].filter(Boolean) },
+    blocks: [{ kind: "facts", items: [["Student", r.student?.full_name ?? ""], ["Admission no. (old campus)", r.student?.admission_no ?? ""], ["University register no.", r.detail?.register_no ?? "-"],
+        ["Programme", r.detail?.programme ?? "-"], ["From", name(r.from_school)], ["To", name(r.to_school)], ["With effect from", (r.decided_at ?? "").slice(0, 10).split("-").reverse().join("/")]] as [string, string][] },
+      { kind: "text", lines: [`The student is transferred in the same programme, with the grades and credits shown below accepted at ${name(r.to_school)}.`, r.reason ? `Reason: ${r.reason}` : ""].filter(Boolean) },
+      { kind: "table", heading: "Courses accepted", headers: ["Course at the old campus", "Credits", "Grade", "Accepted as"], rows: (r.detail?.courses ?? []).map((c) => [c.from, String(c.credits), c.grade, c.to ?? "Not accepted"]) },
       { kind: "signatures", labels: ["Registrar", "Head of the campus left", "Head of the campus joined"] }] });
   if (!rows.length) return null;
   return (
@@ -44,7 +47,8 @@ export function TransferRequests({ rows, campuses, university }: { rows: Transfe
             {open === r.id && data && <div className="mt-2 space-y-2 rounded-sm border border-hair p-3">
               <p className="text-ink-700">Each course with a result and its equivalent at {name(r.to_school)}. Leave a course empty if it has no equivalent (its result is not carried).</p>
               <table className="w-full"><tbody>{data.rows.map((x) => (
-                <tr key={x.from_course_id} className="border-t border-hair"><td className="py-1 pr-2">{x.code} {x.name}</td><td className="pr-2 text-ink-500">{x.credits} cr, {x.grade}</td>
+                <tr key={x.from_course_id} className="border-t border-hair"><td className="py-1 pr-2">{x.code} {x.name}</td><td className="pr-2 text-ink-500">{x.credits} cr, {x.grade}
+                  {(() => { const t = data.courses.find((c) => c.id === map[x.from_course_id]); return t && Number(t.credits) !== Number(x.credits) ? <span className="block text-down">{t.credits} credits there</span> : null; })()}</td>
                   <td className="py-1"><Select className="h-8 w-72 text-[12px]" aria-label={`Equivalent of ${x.code}`} value={map[x.from_course_id] ?? ""} onChange={(e) => setMap({ ...map, [x.from_course_id]: e.target.value ? Number(e.target.value) : "" })}>
                     <option value="">No equivalent</option>{data.courses.map((c) => <option key={c.id} value={c.id}>{c.code} {c.name}</option>)}</Select></td></tr>))}</tbody></table>
               <div className="flex flex-wrap items-end gap-2">
@@ -53,6 +57,7 @@ export function TransferRequests({ rows, campuses, university }: { rows: Transfe
                 <label className="flex items-center gap-1"><input type="checkbox" checked={partial} onChange={(e) => setPartial(e.target.checked)} />Approve even if some results are not carried</label>
                 <Button size="sm" disabled={pending} onClick={() => start(async () => {
                   const m = Object.entries(map).filter(([, v]) => v !== "").map(([k, v]) => ({ from_course_id: Number(k), to_course_id: Number(v) }));
+                  if (new Set(m.map((x) => x.to_course_id)).size !== m.length) { setMsg({ ok: false, text: "Two courses are mapped to the same course; map each to its own." }); return; }
                   const x = await decideTransferRequest(r.id, true, sec, m, note, partial); setMsg(x.ok ? { ok: true, text: x.message } : { ok: false, text: x.error }); if (x.ok) { setOpen(null); router.refresh(); } })}>Approve and transfer</Button>
                 <Button size="sm" variant="ghost" disabled={pending} onClick={() => start(async () => { const x = await decideTransferRequest(r.id, false, null, [], note, false); setMsg(x.ok ? { ok: true, text: x.message } : { ok: false, text: x.error }); if (x.ok) { setOpen(null); router.refresh(); } })}>Decline</Button>
               </div>

@@ -4,7 +4,7 @@ import { createClient } from "@/lib/supabase/server";
 import { consolidatedData } from "@/app/dashboard/results/actions";
 
 type R = { ok: true; message?: string } | { ok: false; error: string };
-const clean = (e: { message?: string } | null, fallback: string) => (e?.message && !/[_(]|violates|function|relation/.test(e.message) ? e.message : fallback);
+const clean = (e: { message?: string; code?: string } | null, fallback: string) => (e?.message && ((e.code === "P0001" && e.message.length < 400) || !/[_(]|violates|function|relation/.test(e.message)) ? e.message : fallback);
 
 // The exam cell issues a transcript: the standing at this moment, with a QR check.
 export async function issueTranscript(admissionNo: string) {
@@ -70,16 +70,16 @@ export async function importUniversityResults(semesterId: number, rows: ImportRo
   return { ok: true, message: `Imported ${Number(data ?? 0)} course results. Students see them on their Results page.` };
 }
 
-export async function requestTranscript(studentId: number, copies: number, purpose: string, sealed: boolean): Promise<R> {
+export async function requestTranscript(studentId: number, copies: number, purpose: string, sealed: boolean, delivery = "collect", address = ""): Promise<R> {
   const supabase = await createClient();
-  const { error } = await supabase.rpc("request_transcript" as never, { p_student: studentId, p_copies: copies, p_purpose: purpose, p_sealed: sealed } as never);
+  const { error } = await supabase.rpc("request_transcript" as never, { p_student: studentId, p_copies: copies, p_purpose: purpose, p_sealed: sealed, p_delivery: delivery, p_address: address || null } as never);
   if (error) return { ok: false, error: clean(error, "Could not send the request.") };
   revalidatePath("/dashboard/results");
   return { ok: true, message: "Requested. Any fee appears under Fees; the exam cell issues the transcript once it is paid." };
 }
-export async function decideTranscriptRequest(id: number, issue: boolean, note: string): Promise<R> {
+export async function decideTranscriptRequest(id: number, issue: boolean, note: string, waive = ""): Promise<R> {
   const supabase = await createClient();
-  const { error } = await supabase.rpc("decide_transcript_request" as never, { p_id: id, p_issue: issue, p_note: note || null } as never);
+  const { error } = await supabase.rpc("decide_transcript_request" as never, { p_id: id, p_issue: issue, p_note: note || null, p_waive: waive || null } as never);
   if (error) return { ok: false, error: clean(error, "Could not save.") };
   revalidatePath("/dashboard/transcripts");
   return { ok: true, message: issue ? "Issued. The student can download it on the Results page." : "Request declined." };
@@ -91,4 +91,19 @@ export async function setTranscriptFee(fee: string): Promise<R> {
   if (error) return { ok: false, error: clean(error, "Could not save.") };
   revalidatePath("/dashboard/transcripts");
   return { ok: true, message: "Fee saved." };
+}
+
+export async function withdrawTranscriptRequest(id: number): Promise<R> {
+  const supabase = await createClient();
+  const { error } = await supabase.rpc("withdraw_transcript_request" as never, { p_id: id } as never);
+  if (error) return { ok: false, error: clean(error, "Could not withdraw.") };
+  revalidatePath("/dashboard/results"); revalidatePath("/dashboard/transcripts");
+  return { ok: true, message: "Withdrawn; any fee for it is cancelled." };
+}
+// The exam cell asks on behalf of a student (often a former student) by admission number.
+export async function requestTranscriptFor(admissionNo: string, copies: number, purpose: string, sealed: boolean, delivery: string, address: string): Promise<R> {
+  const supabase = await createClient();
+  const { data: st } = await supabase.from("student").select("id").eq("admission_no", admissionNo.trim()).maybeSingle();
+  if (!st) return { ok: false, error: "No student with that admission number." };
+  return requestTranscript(st.id, copies, purpose, sealed, delivery, address);
 }

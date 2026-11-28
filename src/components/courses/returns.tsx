@@ -5,7 +5,8 @@ import { Button } from "@/components/ui/button";
 import { Select } from "@/components/ui/field";
 import { internalMarks, importUniversityResults, setRegisterNumbers, type ImportRow } from "@/app/dashboard/returns/actions";
 
-export type Stats = { students: number; by_gender: Record<string, number>; by_programme: { programme: string; year: number | null; students: number; female: number; sc?: number; st?: number; obc?: number; pwd?: number }[];
+export type Stats = { students: number; by_gender: Record<string, number>; by_programme: { programme: string; year: number | null; students: number; female: number; sc?: number; st?: number; obc?: number; ews?: number; pwd?: number }[];
+  gender_by_category?: Record<string, Record<string, number>>; outgoing?: { year: string; programme: string; appeared: number; passed: number }[];
   staff: number; staff_by_title: Record<string, number>; pass_rates: { semester: string; students: number; all_passed: number }[]; programmes: number; departments: number;
   by_category?: Record<string, number>; by_minority?: Record<string, number>; pwd?: number; by_state?: Record<string, number>;
   intake?: { programme: string; intake: number | null; admitted: number }[]; final_year?: { programme: string; appeared: number; passed: number }[];
@@ -13,7 +14,7 @@ export type Stats = { students: number; by_gender: Record<string, number>; by_pr
 const list = (o?: Record<string, number>) => Object.entries(o ?? {}).map(([k, v]) => `${k.replace(/_/g, " ")} ${v}`).join(", ") || "-";
 type Opt = { id: number; label: string };
 
-const esc = (v: unknown) => { const s = v == null ? "" : String(v); return /[",\n]/.test(s) ? `"${s.replace(/"/g, '""')}"` : s; };
+const esc = (v: unknown) => { let s = v == null ? "" : String(v); if (/^[=+\-@\t\r]/.test(s)) s = `'${s}`; return /[",\n]/.test(s) ? `"${s.replace(/"/g, '""')}"` : s; };
 function saveCsv(name: string, header: string[], rows: unknown[][]) {
   const text = "\ufeff" + [header, ...rows].map((r) => r.map(esc).join(",")).join("\r\n");
   const url = URL.createObjectURL(new Blob([text], { type: "text/csv;charset=utf-8" }));
@@ -45,7 +46,7 @@ export function Returns({ stats, semesters, sections, canImport, collegeCode }: 
     <div className="space-y-4">
       {msg && <p role={msg.ok ? "status" : "alert"} className={`text-[13px] font-medium ${msg.ok ? "text-up" : "text-down"}`}>{msg.text}</p>}
       {stats && <Card>
-        <CardHeader title="Counts for NAAC and AISHE" action={<Button size="sm" variant="subtle" onClick={() => saveCsv("Enrolment by programme.csv", ["Programme", "Year", "Students", "Female", "SC", "ST", "OBC", "PwD"], stats.by_programme.map((p) => [p.programme, p.year ?? "", p.students, p.female, p.sc ?? "", p.st ?? "", p.obc ?? "", p.pwd ?? ""]))}>Download enrolment</Button>} />
+        <CardHeader title="Counts for NAAC and AISHE" action={<Button size="sm" variant="subtle" onClick={() => saveCsv("Enrolment by programme.csv", ["Programme", "Year", "Students", "Female", "SC", "ST", "OBC", "EWS", "PwD"], stats.by_programme.map((p) => [p.programme, p.year ?? "", p.students, p.female, p.sc ?? "", p.st ?? "", p.obc ?? "", p.ews ?? "", p.pwd ?? ""]))}>Download enrolment</Button>} />
         <CardBody className="space-y-3 text-[13px]">
           <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
             {[["Students", stats.students], ["Teaching staff", stats.staff], ["Programmes", stats.programmes], ["Departments", stats.departments]].map(([k, v]) => (
@@ -55,6 +56,9 @@ export function Returns({ stats, semesters, sections, canImport, collegeCode }: 
           {Object.keys(stats.staff_by_title).length > 0 && <p className="text-ink-700">Staff by position: {Object.entries(stats.staff_by_title).map(([t, n]) => `${t} ${n}`).join(", ")}</p>}
           <p className="text-ink-700">By category: {list(stats.by_category)} · Persons with disability: {stats.pwd ?? 0} · Minority: {list(stats.by_minority)}</p>
           <p className="text-ink-700">By state of residence: {list(stats.by_state)}</p>
+          {stats.gender_by_category && <p className="text-ink-700">Gender by category: {Object.entries(stats.gender_by_category).map(([c, g]) => `${c.toUpperCase()} (${list(g)})`).join("; ")}</p>}
+          {(stats.outgoing ?? []).length > 0 && <table className="w-full"><thead><tr className="text-left text-ink-500"><th className="py-1 font-medium">Outgoing (final semester)</th><th className="py-1 font-medium">Programme</th><th className="py-1 text-right font-medium">Appeared</th><th className="py-1 text-right font-medium">Passed</th></tr></thead>
+            <tbody>{stats.outgoing!.map((o, i) => <tr key={i} className="border-t border-hair"><td className="py-1">{o.year}</td><td className="py-1">{o.programme}</td><td className="tabular py-1 text-right">{o.appeared}</td><td className="tabular py-1 text-right">{o.passed}</td></tr>)}</tbody></table>}
           <p className="text-ink-700">Teachers by gender: {list(stats.staff_by_gender)} · qualification: {list(stats.staff_by_qualification)} · appointment: {list(stats.staff_by_appointment)}</p>
           {(stats.intake ?? []).length > 0 && <table className="w-full"><thead><tr className="text-left text-ink-500"><th className="py-1 font-medium">Programme</th><th className="py-1 text-right font-medium">Sanctioned intake</th><th className="py-1 text-right font-medium">Admitted (first year)</th></tr></thead>
             <tbody>{stats.intake!.map((p) => <tr key={p.programme} className="border-t border-hair"><td className="py-1">{p.programme}</td><td className="tabular py-1 text-right">{p.intake ?? "not set"}</td><td className="tabular py-1 text-right">{p.admitted}</td></tr>)}</tbody></table>}
