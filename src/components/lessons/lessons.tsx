@@ -88,11 +88,12 @@ export function Feed({ rows, canEdit, showAttendance }: { rows: FeedRow[]; canEd
 }
 
 // The teacher: log a lesson (topics from the syllabus, a note, links) and keep the syllabus.
-export function TeacherLessons({ sectionId, subjectId, classId, progress, today }: { sectionId: number | null; subjectId: number; classId: number | null; progress: ProgressRow[]; today: string }) {
+export function TeacherLessons({ sectionId, subjectId, classId, progress, today, otherSections = [] }: { sectionId: number | null; subjectId: number; classId: number | null; progress: ProgressRow[]; today: string; otherSections?: { id: number; label: string }[] }) {
   const us = useMemo(() => units(progress), [progress]);
   const [f, setF] = useState({ date: today, period: "", summary: "" });
   const [picked, setPicked] = useState<number[]>([]);
   const [links, setLinks] = useState([{ title: "", url: "" }]);
+  const [also, setAlso] = useState<number[]>([]);
   const [editing, setEditing] = useState(us.length === 0);
   const [draft, setDraft] = useState(us.length ? us.map((u) => ({ title: u.title, topics: u.topics.map((t) => t.title).join("\n") })) : [{ title: "", topics: "" }]);
   const [msg, setMsg] = useState<Msg>(null);
@@ -121,11 +122,18 @@ export function TeacherLessons({ sectionId, subjectId, classId, progress, today 
               <Input className="h-8 flex-1" aria-label={`Link ${i + 1}`} placeholder="https://… (video, slides, reading)" value={l.url} onChange={(e) => setLinks(links.map((x, j) => (j === i ? { ...x, url: e.target.value } : x)))} />
             </div>))}
             <button type="button" className="text-[12px] text-[#0F6CBD] hover:underline" onClick={() => setLinks([...links, { title: "", url: "" }])}>Add another link</button></div>
+          {otherSections.length > 0 && <div className="flex flex-wrap items-center gap-x-3 gap-y-1"><span className="text-ink-700">Also for:</span>{otherSections.map((o) => (
+            <label key={o.id} className="flex items-center gap-1"><input type="checkbox" checked={also.includes(o.id)} onChange={(e) => setAlso(e.target.checked ? [...also, o.id] : also.filter((x) => x !== o.id))} />{o.label}</label>))}</div>}
           <div className="flex items-center gap-2">
             <Button size="sm" disabled={pending} onClick={() => start(async () => {
-              const r = await logLesson({ sectionId, subjectId, date: f.date, period: f.period.trim() ? Number(f.period) : null, topics: picked, summary: f.summary, links });
-              setMsg(r.ok ? { ok: true, text: `${r.message} Add files to it in the list below.` } : { ok: false, text: r.error });
-              if (r.ok) { setPicked([]); setF({ ...f, summary: "" }); setLinks([{ title: "", url: "" }]); router.refresh(); }
+              // one log per section taught together (each section sees only lessons logged for it)
+              let r: Awaited<ReturnType<typeof logLesson>> = { ok: false, error: "Nothing saved." };
+              for (const sec of [sectionId, ...also]) {
+                r = await logLesson({ sectionId: sec, subjectId, date: f.date, period: f.period.trim() ? Number(f.period) : null, topics: picked, summary: f.summary, links });
+                if (!r.ok) break;
+              }
+              setMsg(r.ok ? { ok: true, text: `${r.message}${also.length ? ` (${also.length + 1} sections)` : ""} Add files to it in the list below.` } : { ok: false, text: r.error });
+              if (r.ok) { setPicked([]); setF({ ...f, summary: "" }); setLinks([{ title: "", url: "" }]); setAlso([]); router.refresh(); }
             })}>Save the lesson</Button>
             <span className="text-[12px] text-ink-500">Saving the same date and period again updates that lesson.</span>
           </div>

@@ -57,7 +57,8 @@ export default async function LessonsPage({ searchParams }: { searchParams: SP }
           <Link key={`${p.section_id}:${p.subject_id}`} href={qs(p)} className={`rounded-sm border px-2.5 py-1 text-[13px] ${p === cur ? "border-ink-900 bg-ink-900 text-white" : "border-hair bg-white text-ink-700"}`}>{p.label}</Link>))}</div>
         {cur && <div className="grid gap-4 lg:grid-cols-[1fr_320px]">
           <div className="space-y-4">
-            {teaches && <TeacherLessons key={`${cur.section_id}:${cur.subject_id}`} sectionId={cur.section_id} subjectId={cur.subject_id} classId={cur.class_id} progress={(prog ?? []) as unknown as ProgressRow[]} today={today} />}
+            {teaches && <TeacherLessons key={`${cur.section_id}:${cur.subject_id}`} sectionId={cur.section_id} subjectId={cur.subject_id} classId={cur.class_id} progress={(prog ?? []) as unknown as ProgressRow[]} today={today}
+              otherSections={session.isAdminScope ? [] : uniq.filter((p) => p.subject_id === cur.subject_id && p.section_id !== cur.section_id).map((p) => ({ id: p.section_id, label: p.label }))} />}
             <Card><CardHeader title="Lessons so far" /><CardBody><Feed rows={(feed ?? []) as unknown as FeedRow[]} canEdit={teaches} showAttendance={!isStaff} /></CardBody></Card>
           </div>
           {!teaches && <Card><CardHeader title="Syllabus" /><CardBody><Progress rows={(prog ?? []) as unknown as ProgressRow[]} /></CardBody></Card>}
