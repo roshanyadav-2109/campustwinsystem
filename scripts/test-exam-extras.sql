@@ -3,7 +3,7 @@
 begin;
 do $$ declare u uuid := gen_random_uuid(); v_coe bigint; v_t bigint; v_sem record; v_class bigint; v_type bigint; v_sess bigint; v_subj bigint;
   v_paper bigint; n int; ok boolean; r record; v_seat bigint; v_stu bigint; v_duty bigint; d date := (now() at time zone 'Asia/Kolkata')::date + 10; v_res bigint; v_req bigint;
-  v_adm text; v_code text; v_att int;
+  v_adm text; v_code text; v_att int; v_key text;
 begin
   insert into auth.users (id, email, aud, role) values (u, 'qa-x-coe@example.com', 'authenticated', 'authenticated');
   insert into public.staff (school_id, full_name, email, role) values (11, 'QA CoE', 'qa-x-coe@example.com', 'subject_teacher') returning id into v_coe;
@@ -52,27 +52,30 @@ begin
   if r.duties <> 1 or r.duty_amount <> 300 then raise exception 'FAIL remuneration %', row_to_json(r); end if;
   reset role;
 
-  -- a photocopy of the answer script, asked for and supplied
-  select cr.id, cr.student_id into v_res, v_stu from public.course_result cr where cr.school_id = 11 and cr.attempt = 1 and cr.grade <> 'Ab' limit 1;
-  if v_res is not null then
-    perform set_config('request.jwt.claims', json_build_object('sub', u, 'role', 'authenticated')::text, true); set local role authenticated;
-    v_req := public.request_revaluation(v_res, 'photocopy');
-    perform public.supply_photocopy(v_req, 'meridian/qa/photocopy.pdf');
-    reset role;
-    if (select status from public.reval_request where id = v_req) <> 'supplied' then raise exception 'FAIL photocopy'; end if;
-  end if;
-
-  -- supplementary results from the university: a new attempt; AB is absent; WH withholds the semester
-  select cr.student_id, st.admission_no, c.code, cr.attempt into v_stu, v_adm, v_code, v_att from public.course_result cr join public.student st on st.id = cr.student_id join public.course c on c.id = cr.course_id
-   where cr.school_id = 11 and cr.semester_id is not null order by cr.id limit 1;
-  if v_stu is not null then
-    perform set_config('request.jwt.claims', json_build_object('sub', u, 'role', 'authenticated')::text, true); set local role authenticated;
-    n := public.import_university_results((select semester_id from public.course_result where student_id = v_stu and attempt = v_att order by id limit 1),
-      jsonb_build_array(jsonb_build_object('admission_no', v_adm, 'course_code', v_code, 'grade', 'AB')), 'supplementary');
-    reset role;
-    if n <> 1 or not exists (select 1 from public.course_result cr join public.course c on c.id = cr.course_id where cr.student_id = v_stu and c.code = v_code and cr.kind = 'supplementary' and cr.grade = 'Ab' and not cr.passed and cr.attempt > v_att) then
-      raise exception 'FAIL supplementary import';
-    end if;
-  end if;
+  -- a failed result to work with
+  select e.student_id into v_stu from public.student_enrollment e join public.academic_year y on y.id = e.academic_year_id and y.is_current where e.school_id = 11 and e.status = 'active' limit 1;
+  select st.admission_no into v_adm from public.student st where st.id = v_stu;
+  select id, code into v_res, v_code from public.course where school_id = 11 limit 1;
+  insert into public.course_result (school_id, semester_id, student_id, course_id, attempt, credits, grade, point, passed)
+  values (11, (select id from public.semester where school_id = 11 order by starts_on desc limit 1), v_stu, v_res, 1, 3, 'F', 0, false) returning id into v_res;
+  -- a photocopy: a file outside the student's own folder is refused; the right one is accepted
+  v_key := public.tenant_prefix(11) || '/students/' || v_stu || '/scripts/' || gen_random_uuid() || '.pdf';
+  perform set_config('request.jwt.claims', json_build_object('sub', u, 'role', 'authenticated')::text, true); set local role authenticated;
+  v_req := public.request_revaluation(v_res, 'photocopy');
+  reset role;
+  update public.fee_invoice set status = 'paid' where id = (select invoice_id from public.reval_request where id = v_req);
+  perform set_config('request.jwt.claims', json_build_object('sub', u, 'role', 'authenticated')::text, true); set local role authenticated;
+  ok := false; begin perform public.supply_photocopy(v_req, 'schools/other/students/1/scripts/00000000-0000-0000-0000-000000000000.pdf'); exception when others then ok := sqlerrm like '%Bad file%'; end;
+  if not ok then raise exception 'FAIL a file outside the folder was accepted'; end if;
+  perform public.supply_photocopy(v_req, v_key);
+  reset role;
+  if (select status from public.reval_request where id = v_req) <> 'supplied' then raise exception 'FAIL photocopy'; end if;
+  -- supplementary from the university: a new attempt once; the same file again adds nothing
+  perform set_config('request.jwt.claims', json_build_object('sub', u, 'role', 'authenticated')::text, true); set local role authenticated;
+  n := public.import_university_results((select semester_id from public.course_result where id = v_res), jsonb_build_array(jsonb_build_object('admission_no', v_adm, 'course_code', v_code, 'grade', 'AB')), 'supplementary');
+  if n <> 1 then raise exception 'FAIL supplementary import %', n; end if;
+  n := public.import_university_results((select semester_id from public.course_result where id = v_res), jsonb_build_array(jsonb_build_object('admission_no', v_adm, 'course_code', v_code, 'grade', 'AB')), 'supplementary');
+  if n <> 0 then raise exception 'FAIL the same supplementary result added twice'; end if;
+  reset role;
 end $$;
 rollback;

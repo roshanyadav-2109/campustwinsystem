@@ -109,12 +109,9 @@ export async function saveAccommodation(input: { admissionNo: string; sessionId:
   if (!st) return { ok: false, error: "No student with that admission number." };
   if (!Number.isInteger(input.extra) || input.extra < 0 || input.extra > 120) return { ok: false, error: "Extra time is 0 to 120 minutes." };
   const db = await untyped();
-  let q = db.from("exam_accommodation").delete().eq("student_id", st.id);
-  q = input.sessionId ? q.eq("session_id", input.sessionId) : q.is("session_id", null);
-  await q;
-  const { error } = await db.from("exam_accommodation").insert({ student_id: st.id, session_id: input.sessionId, scribe: input.scribe, scribe_name: input.scribeName.trim().slice(0, 80) || null,
-    extra_minutes: input.extra, note: input.note.trim().slice(0, 200) || null } as never);
-  if (error) return { ok: false, error: clean(error, "Could not save.") };
+  const { error } = await db.from("exam_accommodation").upsert({ student_id: st.id, session_id: input.sessionId, scribe: input.scribe, scribe_name: input.scribeName.trim().slice(0, 80) || null,
+    extra_minutes: input.extra, note: input.note.trim().slice(0, 200) || null } as never, { onConflict: "student_id,session_id" });
+  if (error) return { ok: false, error: clean(error, "Only the Controller of Examinations or a deputy can change this.") };
   revalidatePath("/dashboard/seating");
   return { ok: true, message: "Saved. It shows on the room roster and the seating chart." };
 }
@@ -147,15 +144,15 @@ export async function signPhotocopy(requestId: number, contentType: string, size
   if (contentType !== "application/pdf" && !/^image\/(jpeg|png)$/.test(contentType)) return { ok: false, error: "Upload a PDF, JPG or PNG." };
   if (size > 20 * 1024 * 1024) return { ok: false, error: "The file is over 20 MB." };
   const supabase = await createClient();
-  const { data: rq } = await supabase.from("reval_request" as never).select("id, student_id, kind").eq("id", requestId).maybeSingle();
-  const r = rq as unknown as { id: number; student_id: number; kind: string } | null;
-  if (!r || r.kind !== "photocopy") return { ok: false, error: "Unknown request." };
+  // only the exam cell, only for a waiting request (or a lead replacing a supplied one)
+  const { data: studentId } = await supabase.rpc("photocopy_upload_ok" as never, { p_id: requestId } as never);
+  if (!studentId) return { ok: false, error: "Not allowed." };
   const { getSession } = await import("@/lib/session");
   const s = await getSession();
   if (!s) return { ok: false, error: "Not allowed." };
   const { presignPrivatePut, tenantPrefixForSchool } = await import("@/lib/r2");
   const ext = contentType === "application/pdf" ? "pdf" : contentType === "image/png" ? "png" : "jpg";
-  const key = `${await tenantPrefixForSchool(s.schoolId)}/students/${r.student_id}/scripts/${crypto.randomUUID()}.${ext}`;
+  const key = `${await tenantPrefixForSchool(s.schoolId)}/students/${Number(studentId)}/scripts/${crypto.randomUUID()}.${ext}`;
   return { ok: true, key, uploadUrl: await presignPrivatePut(key) };
 }
 export async function supplyPhotocopy(requestId: number, key: string): Promise<R> {
@@ -167,10 +164,10 @@ export async function supplyPhotocopy(requestId: number, key: string): Promise<R
 }
 export async function photocopyLink(requestId: number): Promise<{ ok: true; url: string } | { ok: false; error: string }> {
   const supabase = await createClient();
-  const { data } = await supabase.from("reval_request" as never).select("file_key, status").eq("id", requestId).maybeSingle();
-  const r = data as unknown as { file_key: string | null; status: string } | null;
-  if (!r?.file_key || r.status !== "supplied") return { ok: false, error: "Not available yet." };
+  // the database checks who may open it and logs the opening
+  const { data, error } = await supabase.rpc("photocopy_key" as never, { p_id: requestId } as never);
+  if (error || !data) return { ok: false, error: "Not available." };
   const { presignGet } = await import("@/lib/r2");
-  return { ok: true, url: await presignGet(r.file_key) };
+  return { ok: true, url: await presignGet(String(data)) };
 }
 export const setPhotocopyFee = async (fee: string) => rpc("set_photocopy_fee", { p_fee: fee.trim() ? Number(fee) : null }, ["/dashboard/settings/evaluation"], () => "Saved.", "Could not save.");
