@@ -33,6 +33,7 @@ export const SHARED_ROUTES: RouteDef[] = [
   { href: "/dashboard/exam-timetable", icon: CalendarIcon, labelKey: "nav.examTimetable", roles: ["subject_teacher", "class_teacher", "principal", "office", "guardian", "student"], group: "academics" , types: ["exams_head", "exams_deputy", "exams_staff"] },
   { href: "/dashboard/attendance", icon: AttendanceIcon, labelKey: "nav.attendance", roles: ALL, group: "academics" },
   { href: "/dashboard/schedule", icon: CalendarIcon, labelKey: "nav.schedule", roles: ALL, group: "academics" },
+  { href: "/dashboard/tests", icon: MarksIcon, labelKey: "nav.tests", roles: ["subject_teacher", "class_teacher", "principal", "office", "student"], group: "academics" },
   { href: "/dashboard/lessons", icon: HomeworkIcon, labelKey: "nav.lessons", roles: ["subject_teacher", "class_teacher", "principal", "office", "student", "guardian"], group: "academics" },
   { href: "/dashboard/marks", icon: MarksIcon, labelKey: "nav.marks", roles: ["subject_teacher", "class_teacher", "office"], group: "academics" },
   { href: "/dashboard/students", icon: StudentsIcon, labelKey: "nav.students", roles: ["class_teacher", "principal", "office"], group: "students" },

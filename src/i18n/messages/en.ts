@@ -41,6 +41,7 @@ const en = {
     scripts: "Coded scripts",
     questionPapers: "Question papers",
     lessons: "Lessons",
+    tests: "Tests",
     workload: "Workload",
     revaluation: "Revaluation",
     supplementary: "Supplementary exams",
