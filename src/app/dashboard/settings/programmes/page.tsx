@@ -13,7 +13,7 @@ export default async function ProgrammesPage() {
   const supabase = await createClient();
   const [d, p, pc, sem] = await Promise.all([
     supabase.from("department" as never).select("id, code, name").order("code"),
-    supabase.from("programme" as never).select("id, department_id, code, name, level, regulation, years, semesters, total_credits").order("code"),
+    supabase.from("programme" as never).select("id, department_id, code, name, level, regulation, years, semesters, total_credits, intake").order("code"),
     supabase.from("programme_course" as never).select("id, programme_id, semester_no, elective_group, course:course_id(code, name, kind, lecture, tutorial, practical, credits)").order("semester_no").limit(5000),
     supabase.from("semester" as never).select("id, kind, starts_on, ends_on, is_current").order("starts_on"),
   ]);

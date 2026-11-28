@@ -69,3 +69,26 @@ export async function importUniversityResults(semesterId: number, rows: ImportRo
   revalidatePath("/dashboard/results");
   return { ok: true, message: `Imported ${Number(data ?? 0)} course results. Students see them on their Results page.` };
 }
+
+export async function requestTranscript(studentId: number, copies: number, purpose: string, sealed: boolean): Promise<R> {
+  const supabase = await createClient();
+  const { error } = await supabase.rpc("request_transcript" as never, { p_student: studentId, p_copies: copies, p_purpose: purpose, p_sealed: sealed } as never);
+  if (error) return { ok: false, error: clean(error, "Could not send the request.") };
+  revalidatePath("/dashboard/results");
+  return { ok: true, message: "Requested. Any fee appears under Fees; the exam cell issues the transcript once it is paid." };
+}
+export async function decideTranscriptRequest(id: number, issue: boolean, note: string): Promise<R> {
+  const supabase = await createClient();
+  const { error } = await supabase.rpc("decide_transcript_request" as never, { p_id: id, p_issue: issue, p_note: note || null } as never);
+  if (error) return { ok: false, error: clean(error, "Could not save.") };
+  revalidatePath("/dashboard/transcripts");
+  return { ok: true, message: issue ? "Issued. The student can download it on the Results page." : "Request declined." };
+}
+export async function setTranscriptFee(fee: string): Promise<R> {
+  if (fee.trim() && !/^\d{1,6}(\.\d{1,2})?$/.test(fee.trim())) return { ok: false, error: "Enter the fee in rupees." };
+  const supabase = await createClient();
+  const { error } = await supabase.rpc("set_transcript_fee" as never, { p_fee: fee.trim() ? Number(fee) : null } as never);
+  if (error) return { ok: false, error: clean(error, "Could not save.") };
+  revalidatePath("/dashboard/transcripts");
+  return { ok: true, message: "Fee saved." };
+}

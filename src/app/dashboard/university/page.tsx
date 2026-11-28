@@ -2,6 +2,7 @@ import { redirect } from "next/navigation";
 import { getSession } from "@/lib/session";
 import { switchCampus } from "./actions";
 import { createClient } from "@/lib/supabase/server";
+import { CsvButton } from "@/components/courses/csv-button";
 import { CentralTools, type ExamRow, type TransferRow } from "@/components/university/central-tools";
 
 // Central university admin's cross-campus view: every campus of the university
@@ -17,9 +18,12 @@ export default async function UniversityPage() {
   const totalStudents = campuses.reduce((n, c) => n + c.students, 0);
   const totalStaff = campuses.reduce((n, c) => n + c.staff, 0);
   const supabase = await createClient();
-  const [{ data: exams }, { data: transfers }] = await Promise.all([
+  const [{ data: exams }, { data: transfers }, { data: uniStats }] = await Promise.all([
     supabase.rpc("university_exam_overview" as never),
-    supabase.from("student_transfer" as never).select("id, done_at, carried, not_carried, from_school, to_school, student_name, admission_no, cgpa_before, cgpa_after").order("done_at", { ascending: false }).limit(20)]);
+    supabase.from("student_transfer" as never).select("id, done_at, carried, not_carried, from_school, to_school, student_name, admission_no, cgpa_before, cgpa_after").order("done_at", { ascending: false }).limit(20), supabase.rpc("university_statistics" as never)]);
+  type CS = { campus: string; stats: { students: number; by_gender: Record<string, number>; by_category?: Record<string, number>; pwd?: number; staff: number; programmes: number; departments: number } };
+  const campusStats = (uniStats ?? []) as unknown as CS[];
+  const female = (g: Record<string, number>) => Object.entries(g).filter(([k]) => ["f", "female"].includes(k.toLowerCase())).reduce((a, [, v]) => a + v, 0);
 
   return (
     <div className="mx-auto w-full max-w-4xl">
@@ -73,6 +77,9 @@ export default async function UniversityPage() {
         })}
       </div>
 
+      {campusStats.length > 0 && <div className="mt-6 flex items-center justify-between rounded-lg border border-hair bg-surface p-4 text-[13px]"><span>Counts for NAAC and AISHE, campus by campus</span>
+        <CsvButton filename={`${university.name} campus statistics.csv`} headers={["Campus", "Students", "Female", "SC", "ST", "OBC", "EWS", "PwD", "Teaching staff", "Programmes", "Departments"]}
+          rows={campusStats.map((c) => [c.campus, c.stats.students, female(c.stats.by_gender), c.stats.by_category?.sc ?? 0, c.stats.by_category?.st ?? 0, c.stats.by_category?.obc ?? 0, c.stats.by_category?.ews ?? 0, c.stats.pwd ?? 0, c.stats.staff, c.stats.programmes, c.stats.departments])} /></div>}
       <CentralTools campuses={campuses.map((c) => ({ id: c.id, name: c.name }))} exams={(exams ?? []) as unknown as ExamRow[]} transfers={(transfers ?? []) as unknown as TransferRow[]} />
 
       {campuses.length === 0 && (

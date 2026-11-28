@@ -9,6 +9,7 @@ import { getStaffScope } from "@/lib/data/scope";
 import { getMyChildren } from "@/lib/data/analytics";
 import { ResultsDesk, MyResults, RankList, type PreviewRow, type OpenExam, type RequestView } from "@/components/courses/results";
 import { MyBacklogs } from "@/components/courses/supplementary";
+import { MyTranscripts, type MyTranscript, type MyTRequest } from "@/components/courses/my-transcripts";
 import { loadCards } from "@/lib/data/results";
 
 type SP = Promise<Record<string, string | string[] | undefined>>;
@@ -44,10 +45,15 @@ export default async function ResultsPage({ searchParams }: { searchParams: SP }
     const backlogs = (blData ?? []) as unknown as { course_id: number; semester_id: number; course_code: string; course_name: string; semester_no: number | null; attempts: number; last_grade: string }[];
     const { data: att } = ids.length ? await supabase.from("course_result" as never).select("attempt, grade, passed, course:course_id(code, name)").in("student_id", ids).gt("attempt", 1).order("attempt") : { data: [] };
     const attempts = ((att ?? []) as unknown as { attempt: number; grade: string; passed: boolean; course: { code: string; name: string } }[]).map((a) => ({ code: a.course.code, name: a.course.name, attempt: a.attempt, grade: a.grade, passed: a.passed }));
+    const [{ data: trIssued }, { data: trReq }, { data: trFee }] = sid ? await Promise.all([
+      supabase.from("transcript_issue" as never).select("id, serial, issued_at, revoked_at").eq("student_id", sid).order("issued_at", { ascending: false }),
+      supabase.from("transcript_request" as never).select("id, copies, status, created_at").eq("student_id", sid).order("created_at", { ascending: false }),
+      supabase.from("school").select("transcript_fee" as "id").eq("id", session.schoolId).maybeSingle()]) : [{ data: [] }, { data: [] }, { data: null }];
     const held = (await Promise.all(ids.map(async (id) => ((await supabase.rpc("my_result_holds" as never, { p_student: id } as never)).data ?? []) as unknown as { semester_no: number | null; reason: string }[]))).flat();
     return (
       <div className="space-y-4">
         <PageHeader title="Results" description="Published semester results, with SGPA and CGPA. Download the grade card." />
+        {sid ? <MyTranscripts studentId={sid} issued={(trIssued ?? []) as unknown as MyTranscript[]} requests={(trReq ?? []) as unknown as MyTRequest[]} fee={(trFee as unknown as { transcript_fee: number | null } | null)?.transcript_fee ?? null} signers={signers} verifyBase={verifyBase} /> : null}
         {held.map((h, i) => <p key={i} role="status" className="rounded-sm border border-down bg-white px-3 py-2 text-[13px] text-down">Semester {h.semester_no ?? ""} result is held back: {h.reason}. Speak to the office.</p>)}
         <MyBacklogs studentId={sid} backlogs={backlogs} attempts={attempts} open={(openData ?? []) as unknown as { session_id: number; session_name: string; for_semester_id: number; fee_per_course: number | null; registration_closes: string | null }[]}
           applied={(appliedData ?? []) as unknown as { id: number; session_id: number; session_name: string; course_id: number; course_code: string; status: string; fee_due: number | null }[]}

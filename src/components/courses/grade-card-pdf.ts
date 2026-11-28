@@ -23,7 +23,7 @@ export function gradeCardPdf(c: GradeCard, verifyUrl: string, signers: string[] 
   };
 }
 
-export type ConsolidatedRow = { semester_id: number; semester_no: number | null; course_code: string; course_name: string; credits: number; grade: string; point: number; attempt: number; kind: string; passed: boolean };
+export type ConsolidatedRow = { semester_id: number; semester_no: number | null; course_code: string; course_name: string; credits: number; grade: string; point: number; attempt: number; kind: string; passed: boolean; campus?: string | null };
 
 // All semesters, the counted attempt of every course; SGPA per semester from those grades.
 export function consolidatedPdf(student: { name: string; admission_no: string; programme: string | null; school: string }, rows: ConsolidatedRow[],
@@ -36,7 +36,7 @@ export function consolidatedPdf(student: { name: string; admission_no: string; p
       { kind: "facts", items: [["Student", student.name], ["Admission no.", student.admission_no], ["Programme", student.programme ?? "-"]] },
       { kind: "grouped", heading: "Courses (the attempt that counts)", headers: ["Code", "Course", "Credits", "Grade", "Points", "Attempt"], right: [2, 4, 5],
         groups: sems.map((no) => ({ label: `Semester ${no || "-"}${sg(no) != null ? `, SGPA ${sg(no)!.toFixed(2)}` : ""}`,
-          rows: rows.filter((r) => (r.semester_no ?? 0) === no).map((r) => [r.course_code, r.course_name, n(r.credits), r.passed ? r.grade : { text: r.grade, low: true }, n(r.point), r.attempt > 1 ? `${r.attempt} (${r.kind})` : "1"]) })) },
+          rows: rows.filter((r) => (r.semester_no ?? 0) === no).map((r) => [r.course_code, r.campus ? `${r.course_name} (at ${r.campus})` : r.course_name, n(r.credits), r.passed ? r.grade : { text: r.grade, low: true }, n(r.point), r.attempt > 1 ? `${r.attempt} (${r.kind})` : "1"]) })) },
       { kind: "facts", heading: "Standing", items: [["CGPA", n(standing?.cgpa)], ...(percent != null ? [["Percentage equivalent", `${n(percent)}%`] as [string, string]] : []),
         ["Credits earned", n(standing?.credits_earned)], ["Backlogs", String(standing?.backlogs ?? 0)]] },
       { kind: "signatures", labels: transcript?.signers ?? ["Controller of Examinations", "Registrar"] },

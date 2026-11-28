@@ -20,6 +20,10 @@ export type StaffRow = {
   hasLogin: boolean;
   photoUrl: string | null;
   titles?: string | null;
+  gender?: string | null;
+  qualification?: string | null;
+  appointment?: string | null;
+  joinedOn?: string | null;
 };
 
 export const ROLE_LABEL: Record<StaffRole, string> = {
@@ -176,9 +180,13 @@ function StaffForm({
   const [employeeCode, setEmployeeCode] = useState(initial?.employeeCode ?? "");
   const [email, setEmail] = useState(initial?.email ?? "");
   const [phone, setPhone] = useState(initial?.phone ?? "");
+  const [gender, setGender] = useState(initial?.gender ?? "");
+  const [qualification, setQualification] = useState(initial?.qualification ?? "");
+  const [appointment, setAppointment] = useState(initial?.appointment ?? "");
+  const [joinedOn, setJoinedOn] = useState(initial?.joinedOn ?? "");
 
   return (
-    <form onSubmit={(e) => { e.preventDefault(); onSave({ fullName, role, employeeCode, email, phone }); }}>
+    <form onSubmit={(e) => { e.preventDefault(); onSave({ fullName, role, employeeCode, email, phone, gender, qualification, appointment, joinedOn }); }}>
       <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-5">
         <Field label="Full name">
           <Input value={fullName} onChange={(e) => setFullName(e.target.value)} maxLength={120} required />
@@ -198,6 +206,18 @@ function StaffForm({
         </Field>
         <Field label="Phone">
           <Input type="tel" value={phone} onChange={(e) => setPhone(e.target.value)} maxLength={20} />
+        </Field>
+        <Field label="Gender">
+          <Select value={gender} onChange={(e) => setGender(e.target.value)}><option value="">Not given</option><option value="female">Female</option><option value="male">Male</option><option value="other">Other</option></Select>
+        </Field>
+        <Field label="Highest qualification">
+          <Select value={qualification} onChange={(e) => setQualification(e.target.value)}><option value="">Not given</option>{[["phd", "PhD"], ["mphil", "MPhil"], ["net", "NET"], ["set", "SET/SLET"], ["pg", "Postgraduate"], ["ug", "Graduate"], ["diploma", "Diploma"], ["other", "Other"]].map(([k, l]) => <option key={k} value={k}>{l}</option>)}</Select>
+        </Field>
+        <Field label="Appointment">
+          <Select value={appointment} onChange={(e) => setAppointment(e.target.value)}><option value="">Not given</option>{[["permanent", "Permanent"], ["contract", "Contract"], ["adhoc", "Ad hoc"], ["guest", "Guest"], ["visiting", "Visiting"]].map(([k, l]) => <option key={k} value={k}>{l}</option>)}</Select>
+        </Field>
+        <Field label="Joined on">
+          <Input type="date" value={joinedOn} onChange={(e) => setJoinedOn(e.target.value)} />
         </Field>
       </div>
       <div className="mt-3 flex items-center gap-2">

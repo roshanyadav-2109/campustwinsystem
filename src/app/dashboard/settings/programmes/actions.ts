@@ -18,14 +18,14 @@ export async function addDepartment(code: string, name: string): Promise<R> {
   revalidatePath(PATH); return { ok: true, message: "Department added." };
 }
 
-export async function addProgramme(input: { departmentId: number | null; code: string; name: string; level: string; regulation: string; years: string; semesters: string; credits: string; maxPerSem?: string }): Promise<R> {
+export async function addProgramme(input: { departmentId: number | null; code: string; name: string; level: string; regulation: string; years: string; semesters: string; credits: string; maxPerSem?: string; intake?: string }): Promise<R> {
   if (!(await office())) return { ok: false, error: "Only the office can change programmes." };
   if (!input.code.trim() || !input.name.trim() || !/^\d$/.test(input.years) || !/^\d{1,2}$/.test(input.semesters)) return { ok: false, error: "Give code, name, years and semesters." };
   const supabase = await createClient();
   const { error } = await supabase.from("programme" as never).insert({ department_id: input.departmentId, code: input.code.trim().toUpperCase().slice(0, 16), name: input.name.trim().slice(0, 100),
     level: ["diploma", "ug", "pg", "phd"].includes(input.level) ? input.level : "ug", regulation: input.regulation.trim().slice(0, 20) || "R2024",
     years: Number(input.years), semesters: Number(input.semesters), total_credits: input.credits ? Number(input.credits) : null,
-    max_credits_per_semester: input.maxPerSem && Number(input.maxPerSem) > 0 ? Number(input.maxPerSem) : null } as never);
+    max_credits_per_semester: input.maxPerSem && Number(input.maxPerSem) > 0 ? Number(input.maxPerSem) : null, intake: input.intake && /^\d{1,5}$/.test(input.intake) ? Number(input.intake) : null } as never);
   if (error) return { ok: false, error: msg(error, "Could not add.") };
   revalidatePath(PATH); return { ok: true, message: "Programme added." };
 }
@@ -76,4 +76,14 @@ export async function addSemester(kind: string, startsOn: string, endsOn: string
   const { error } = await supabase.from("semester" as never).insert({ academic_year_id: year.id, kind, starts_on: startsOn, ends_on: endsOn, registration_closes: /^\d{4}-\d{2}-\d{2}$/.test(closes) ? closes : null } as never);
   if (error) return { ok: false, error: msg(error, "Could not add.") };
   revalidatePath(PATH); return { ok: true, message: "Semester added." };
+}
+
+// Sanctioned intake (seats a year), for NAAC and AISHE returns.
+export async function setIntake(programmeId: number, intake: string): Promise<R> {
+  if (!(await office())) return { ok: false, error: "Only the office can change programmes." };
+  if (intake.trim() && !/^\d{1,5}$/.test(intake.trim())) return { ok: false, error: "Intake is a whole number." };
+  const supabase = await createClient();
+  const { error } = await supabase.from("programme" as never).update({ intake: intake.trim() ? Number(intake) : null } as never).eq("id", programmeId);
+  if (error) return { ok: false, error: msg(error, "Could not save.") };
+  revalidatePath(PATH); return { ok: true, message: "Intake saved." };
 }

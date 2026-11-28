@@ -40,7 +40,12 @@ export type StaffInput = {
   employeeCode: string;
   email: string;
   phone: string;
+  gender?: string;
+  qualification?: string;
+  appointment?: string;
+  joinedOn?: string;
 };
+const GENDERS = ["male", "female", "other"], QUALS = ["phd", "mphil", "net", "set", "pg", "ug", "diploma", "other"], APPTS = ["permanent", "contract", "guest", "visiting", "adhoc"];
 
 function cleanStaff(input: StaffInput) {
   const fullName = input.fullName.trim();
@@ -55,6 +60,10 @@ function cleanStaff(input: StaffInput) {
       employee_code: input.employeeCode.trim() || null,
       email: email || null,
       phone: input.phone.trim() || null,
+      ...(input.gender !== undefined ? { gender: GENDERS.includes(input.gender) ? input.gender : null } : {}),
+      ...(input.qualification !== undefined ? { qualification: QUALS.includes(input.qualification) ? input.qualification : null } : {}),
+      ...(input.appointment !== undefined ? { appointment: APPTS.includes(input.appointment) ? input.appointment : null } : {}),
+      ...(input.joinedOn !== undefined ? { joined_on: /^\d{4}-\d{2}-\d{2}$/.test(input.joinedOn) ? input.joinedOn : null } : {}),
     },
   } as const;
 }
@@ -65,7 +74,7 @@ export async function addStaff(input: StaffInput): Promise<ActionResult> {
   const clean = cleanStaff(input);
   if ("error" in clean) return { ok: false, error: clean.error as string };
   const supabase = await createClient();
-  const { error } = await supabase.from("staff").insert(clean.row);
+  const { error } = await supabase.from("staff").insert(clean.row as never);
   if (error) return { ok: false, error: plainError(error, "Another staff member already has this employee code.") };
   refresh();
   return { ok: true };
@@ -77,7 +86,7 @@ export async function updateStaff(id: number, input: StaffInput): Promise<Action
   const clean = cleanStaff(input);
   if ("error" in clean) return { ok: false, error: clean.error as string };
   const supabase = await createClient();
-  const { data, error } = await supabase.from("staff").update(clean.row).eq("id", id).select("id");
+  const { data, error } = await supabase.from("staff").update(clean.row as never).eq("id", id).select("id");
   if (error) return { ok: false, error: plainError(error, "Another staff member already has this employee code.") };
   if (!data?.length) return { ok: false, error: "This staff member could not be found. Please reload the page." };
   refresh();

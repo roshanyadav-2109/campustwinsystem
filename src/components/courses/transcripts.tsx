@@ -6,17 +6,33 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/field";
 import { downloadPdf } from "@/lib/pdf";
 import { consolidatedPdf } from "@/components/courses/grade-card-pdf";
-import { issueTranscript, revokeTranscript, reprintTranscript } from "@/app/dashboard/returns/actions";
+import { issueTranscript, revokeTranscript, reprintTranscript, decideTranscriptRequest, setTranscriptFee } from "@/app/dashboard/returns/actions";
 
 export type Issued = { id: number; serial: string | null; issued_at: string; revoked_at: string | null; cgpa: number | null; student: { full_name: string; admission_no: string } };
 
-export function Transcripts({ issued, signers, verifyBase }: { issued: Issued[]; signers: string[]; verifyBase: string }) {
+export type TRequest = { id: number; copies: number; purpose: string | null; sealed: boolean; status: string; created_at: string; student: { full_name: string; admission_no: string }; invoice: { status: string } | null };
+export function Transcripts({ issued, signers, verifyBase, requests = [], fee = null }: { issued: Issued[]; signers: string[]; verifyBase: string; requests?: TRequest[]; fee?: number | null }) {
+  const [feeV, setFeeV] = useState(fee == null ? "" : String(Number(fee)));
   const [adm, setAdm] = useState("");
   const [msg, setMsg] = useState<{ ok: boolean; text: string } | null>(null);
   const [pending, start] = useTransition();
   const router = useRouter();
   return (
     <div className="space-y-4">
+      <Card>
+        <CardHeader title={`Requests from students (${requests.filter((r) => r.status === "requested").length} waiting)`} />
+        <CardBody className="space-y-2 text-[13px]">
+          {requests.length === 0 ? <p className="text-ink-500">No requests yet. Students ask on their Results page.</p> : <ul className="space-y-1">{requests.map((r) => (
+            <li key={r.id} className="flex flex-wrap items-center gap-2 border-t border-hair pt-1"><b>{r.student.full_name}</b><span className="text-ink-500">{r.student.admission_no}</span>
+              {r.copies} cop{r.copies === 1 ? "y" : "ies"}{r.sealed ? ", sealed" : ""}{r.purpose ? `, for ${r.purpose}` : ""}
+              {r.status !== "requested" ? <span className="text-ink-700">({r.status})</span> : r.invoice && r.invoice.status !== "paid" ? <span className="text-down">fee not paid</span> : <>
+                <Button size="sm" disabled={pending} onClick={() => start(async () => { const x = await decideTranscriptRequest(r.id, true, ""); setMsg(x.ok ? { ok: true, text: x.message ?? "" } : { ok: false, text: x.error }); router.refresh(); })}>Issue</Button>
+                <Button size="sm" variant="ghost" disabled={pending} onClick={() => start(async () => { const x = await decideTranscriptRequest(r.id, false, ""); setMsg(x.ok ? { ok: true, text: x.message ?? "" } : { ok: false, text: x.error }); router.refresh(); })}>Decline</Button></>}
+            </li>))}</ul>}
+          <label className="flex items-center gap-2">Fee per copy (Rs)<Input className="h-8 w-24" aria-label="Transcript fee per copy" inputMode="decimal" value={feeV} onChange={(e) => setFeeV(e.target.value)} />
+            <Button size="sm" variant="subtle" disabled={pending} onClick={() => start(async () => { const x = await setTranscriptFee(feeV); setMsg(x.ok ? { ok: true, text: x.message ?? "" } : { ok: false, text: x.error }); })}>Save</Button></label>
+        </CardBody>
+      </Card>
       <Card>
         <CardHeader title="Issue a transcript" />
         <CardBody className="flex flex-wrap items-end gap-2">

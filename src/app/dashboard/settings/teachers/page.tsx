@@ -33,7 +33,7 @@ async function ManageTeachersPageBody() {
   if (!year) return <EmptyState art="error" title="No current school year is set" hint="Ask the person who set up the portal to mark this year as current." />;
 
   const [staffRes, loginRes, sectionRes, subjectRes, classSubjectRes, allotRes] = await Promise.all([
-    supabase.from("staff").select("id, full_name, role, employee_code, email, phone, photo_path").order("full_name"),
+    supabase.from("staff").select("id, full_name, role, employee_code, email, phone, photo_path, gender, qualification, appointment, joined_on" as "id, full_name, role, employee_code, email, phone, photo_path").order("full_name"),
     supabase.from("profile").select("staff_id").not("staff_id", "is", null),
     supabase.from("section").select("id, name, class:class_id(id, name, level)"),
     supabase.from("subject").select("id, name, code").order("name"),
@@ -57,6 +57,8 @@ async function ManageTeachersPageBody() {
     fullName: s.full_name,
     role: s.role,
     employeeCode: s.employee_code ?? "",
+    gender: (s as unknown as { gender: string | null }).gender, qualification: (s as unknown as { qualification: string | null }).qualification,
+    appointment: (s as unknown as { appointment: string | null }).appointment, joinedOn: (s as unknown as { joined_on: string | null }).joined_on,
     email: s.email ?? "",
     phone: s.phone ?? "",
     hasLogin: withLogin.has(s.id),

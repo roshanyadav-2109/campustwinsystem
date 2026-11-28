@@ -1,4 +1,5 @@
 "use client";
+import { setIntake } from "@/app/dashboard/settings/programmes/actions";
 import { useId, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { Card, CardBody, CardHeader } from "@/components/ui/card";
@@ -7,7 +8,7 @@ import { Field, Input, Select } from "@/components/ui/field";
 import { addDepartment, addProgramme, addCourse, removeFromProgramme, setCurrentSemester, addSemester } from "@/app/dashboard/settings/programmes/actions";
 
 export type DeptView = { id: number; code: string; name: string };
-export type ProgrammeView = { id: number; department_id: number | null; code: string; name: string; level: string; regulation: string; years: number; semesters: number; total_credits: number | null;
+export type ProgrammeView = { intake?: number | null; id: number; department_id: number | null; code: string; name: string; level: string; regulation: string; years: number; semesters: number; total_credits: number | null;
   courses: { id: number; semester_no: number; elective_group: string | null; course: { code: string; name: string; kind: string; lecture: number; tutorial: number; practical: number; credits: number } | null }[] };
 
 function useAct() {
@@ -40,7 +41,8 @@ function Programme({ p, canEdit }: { p: ProgrammeView; canEdit: boolean }) {
   const total = Array.from({ length: p.semesters }, (_, i) => semCredits(p, i + 1)).reduce((a, b) => a + b, 0);
   return (
     <Card>
-      <CardHeader title={`${p.name} (${p.code}, ${p.regulation})`} action={<span className="text-[12px] text-ink-500">{p.level.toUpperCase()} · {p.years} years · {p.semesters} semesters · {total} credits{p.total_credits ? ` of ${Number(p.total_credits)}` : ""}</span>} />
+      <CardHeader title={`${p.name} (${p.code}, ${p.regulation})`} action={<span className="flex items-center gap-2 text-[12px] text-ink-500">{p.level.toUpperCase()} · {p.years} years · {p.semesters} semesters · {total} credits{p.total_credits ? ` of ${Number(p.total_credits)}` : ""}
+        {canEdit ? <IntakeInput id={p.id} value={p.intake ?? null} /> : p.intake ? ` · intake ${p.intake}` : null}</span>} />
       <CardBody className="space-y-3">
         {Array.from({ length: p.semesters }, (_, i) => i + 1).map((sem) => {
           const list = p.courses.filter((x) => x.semester_no === sem);
@@ -149,5 +151,14 @@ export function Semesters({ semesters, canEdit }: { semesters: SemesterView[]; c
         )}
       </CardBody>
     </Card>
+  );
+}
+
+function IntakeInput({ id, value }: { id: number; value: number | null }) {
+  const [v, setV] = useState(value == null ? "" : String(value));
+  const [saved, setSaved] = useState<string | null>(null);
+  return (
+    <label className="flex items-center gap-1">Intake<input className="h-7 w-16 rounded-sm border border-hair px-1 text-right" inputMode="numeric" aria-label="Sanctioned intake" value={v}
+      onChange={(e) => setV(e.target.value)} onBlur={async () => { if (v === (value == null ? "" : String(value))) return; const r = await setIntake(id, v); setSaved(r.ok ? "saved" : r.error); }} />{saved && <span>{saved}</span>}</label>
   );
 }

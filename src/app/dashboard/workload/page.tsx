@@ -5,6 +5,7 @@ import { EmptyState } from "@/components/ui/empty";
 import { Card, CardBody, CardHeader } from "@/components/ui/card";
 import { createClient } from "@/lib/supabase/server";
 import { WorkloadLimits } from "@/components/courses/workload-limits";
+import { CsvButton } from "@/components/courses/csv-button";
 
 type Row = { staff_id: number; staff_name: string; department: string | null; courses: string | null; sections: number; planned_hours: number; timetabled_periods: number; clashes: number; load: string };
 
@@ -35,7 +36,7 @@ export default async function WorkloadPage() {
         ))}
       </div>
       <Card>
-        <CardHeader title="By teacher" />
+        <CardHeader title="By teacher" action={rows.length ? <CsvButton filename={`Workload ${s.kind} ${s.starts_on.slice(0, 4)}.csv`} headers={["Teacher", "Department", "Courses", "Sections", "Hours a week", "Timetabled periods", "Clashes", "Load"]} rows={rows.map((r) => [r.staff_name, r.department, r.courses, r.sections, r.planned_hours, r.timetabled_periods, r.clashes, r.load])} /> : undefined} />
         <CardBody className="p-0">
           {rows.length === 0 ? <p className="px-4 py-3 text-[13px] text-ink-500">No courses are allotted to teachers this semester.</p> : (
             <table className="w-full text-[13px]">
