@@ -5,6 +5,7 @@ import { createClient } from "@/lib/supabase/server";
 import { CsvButton } from "@/components/courses/csv-button";
 import { TransferRequests, type TransferRequestRow } from "@/components/university/transfer-requests";
 import { CommonExam } from "@/components/university/common-exam";
+import { UniversityChart, type UniChart } from "@/components/university/university-chart";
 import { CentralTools, type ExamRow, type TransferRow } from "@/components/university/central-tools";
 
 // Central university admin's cross-campus view: every campus of the university
@@ -20,10 +21,11 @@ export default async function UniversityPage() {
   const totalStudents = campuses.reduce((n, c) => n + c.students, 0);
   const totalStaff = campuses.reduce((n, c) => n + c.staff, 0);
   const supabase = await createClient();
-  const [{ data: exams }, { data: transfers }, { data: uniStats }, { data: treq }] = await Promise.all([
+  const [{ data: exams }, { data: transfers }, { data: uniStats }, { data: treq }, { data: uniChart }] = await Promise.all([
     supabase.rpc("university_exam_overview" as never),
     supabase.from("student_transfer" as never).select("id, done_at, carried, not_carried, from_school, to_school, student_name, admission_no, cgpa_before, cgpa_after").order("done_at", { ascending: false }).limit(20), supabase.rpc("university_statistics" as never),
-    supabase.from("transfer_request" as never).select("id, status, reason, order_no, created_at, decided_at, from_school, to_school, student_id").order("created_at", { ascending: false }).limit(50)]);
+    supabase.from("transfer_request" as never).select("id, status, reason, order_no, created_at, decided_at, from_school, to_school, student_id").order("created_at", { ascending: false }).limit(50),
+    supabase.rpc("university_org_chart" as never)]);
   // names of students at other campuses come through central administration's own view
   const reqRows = (treq ?? []) as unknown as Omit<TransferRequestRow, "student">[];
   const { data: reqNames } = reqRows.length ? await supabase.rpc("transfer_request_students" as never) : { data: [] };
@@ -87,7 +89,8 @@ export default async function UniversityPage() {
       {campusStats.length > 0 && <div className="mt-6 flex items-center justify-between rounded-lg border border-hair bg-surface p-4 text-[13px]"><span>Counts for NAAC and AISHE, campus by campus</span>
         <CsvButton filename={`${university.name} campus statistics.csv`} headers={["Campus", "Students", "Female", "SC", "ST", "OBC", "EWS", "PwD", "Teaching staff", "Programmes", "Departments"]}
           rows={campusStats.map((c) => [c.campus, c.stats.students, female(c.stats.by_gender), c.stats.by_category?.sc ?? 0, c.stats.by_category?.st ?? 0, c.stats.by_category?.obc ?? 0, c.stats.by_category?.ews ?? 0, c.stats.pwd ?? 0, c.stats.staff, c.stats.programmes, c.stats.departments])} /></div>}
-      <div className="mt-6 space-y-4"><TransferRequests rows={reqRows.map((r) => ({ ...r, student: nameOf.get(r.id) ?? null }))} campuses={campuses.map((c) => ({ id: c.id, name: c.name }))} university={university.name} />
+      <div className="mt-6 space-y-4"><UniversityChart chart={uniChart as unknown as UniChart | null} />
+        <TransferRequests rows={reqRows.map((r) => ({ ...r, student: nameOf.get(r.id) ?? null }))} campuses={campuses.map((c) => ({ id: c.id, name: c.name }))} university={university.name} />
         <CommonExam campuses={campuses.map((c) => ({ id: c.id, name: c.name }))} /></div>
       <CentralTools campuses={campuses.map((c) => ({ id: c.id, name: c.name }))} exams={(exams ?? []) as unknown as ExamRow[]} transfers={(transfers ?? []) as unknown as TransferRow[]} />
 

@@ -5,6 +5,7 @@ import { Card, CardBody, CardHeader } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input, Select } from "@/components/ui/field";
 import { transferPosition, assignPosition } from "@/app/dashboard/settings/positions/actions";
+import { downloadPdf } from "@/lib/pdf";
 
 export type Chart = {
   units: { id: number; parent_id: number | null; name: string; kind: string; code: string }[];
@@ -123,9 +124,28 @@ export function OrgChart({ chart, staff, canEdit }: { chart: Chart; staff: { id:
     </li>
   );
   const loose = chart.departments.filter((d) => !d.unit_id);
+  // the chart as a document: every place from the top down, with who holds each position
+  const print = () => {
+    const lines: string[] = [];
+    const held = (f: (p: Pos) => boolean) => chart.positions.filter(f).map((p) => `${p.title}: ${p.holder}${p.acting ? " (acting)" : ""}`).join("; ");
+    const topLine = held((p) => top.includes(p)); if (topLine) lines.push(topLine, "");
+    const dept = (d: Chart["departments"][number], pad: string) => {
+      lines.push(`${pad}${d.name}${held((p) => p.department_id === d.id && !p.programme_id) ? ` - ${held((p) => p.department_id === d.id && !p.programme_id)}` : ""}`);
+      for (const g of chart.programmes.filter((x) => x.department_id === d.id)) { const h = held((p) => p.programme_id === g.id); if (h) lines.push(`${pad}    ${g.name} - ${h}`); }
+    };
+    const unit = (u: Chart["units"][number], depth: number) => {
+      const pad = "    ".repeat(depth);
+      lines.push(`${pad}${u.name}${held((p) => p.unit_id === u.id) ? ` - ${held((p) => p.unit_id === u.id)}` : ""}`);
+      if (depth < 19) chart.units.filter((c) => c.parent_id === u.id).forEach((c) => unit(c, depth + 1));
+      chart.departments.filter((d) => d.unit_id === u.id).forEach((d) => dept(d, pad + "    "));
+    };
+    chart.units.filter((u) => !u.parent_id).forEach((u) => unit(u, 0));
+    loose.forEach((d) => dept(d, ""));
+    void downloadPdf({ filename: "Organisation chart", title: "Organisation chart", meta: [new Date().toISOString().slice(0, 10).split("-").reverse().join("/")], blocks: [{ kind: "text", lines }] });
+  };
   return (
     <Card>
-      <CardHeader title="Hierarchy" />
+      <CardHeader title="Hierarchy" action={<Button size="sm" variant="subtle" onClick={print}>Print the chart</Button>} />
       <CardBody className="space-y-3">
         <p className="text-[12px] text-ink-500">Who holds which position, from the top down. Hand a position over with Transfer: the new person starts on the date given and the previous holder ends the day before.</p>
         <Positions list={top} staff={staff} canEdit={canEdit} />

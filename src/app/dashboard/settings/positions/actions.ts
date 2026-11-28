@@ -95,3 +95,11 @@ export async function endPosition(id: number): Promise<R> {
   revalidatePath(PATH); revalidatePath("/dashboard/settings/teachers");
   return { ok: true, message: "Ended today." };
 }
+
+// Every position a person has held, past and present.
+export async function positionHistory(staffId: number) {
+  const supabase = await createClient();
+  const { data } = await supabase.from("staff_position" as never).select("id, starts_on, ends_on, acting, title:title_id(name), unit:unit_id(name), department:department_id(name), programme:programme_id(name)")
+    .eq("staff_id", staffId).order("starts_on", { ascending: false }).limit(200);
+  return (data ?? []) as unknown as { id: number; starts_on: string; ends_on: string | null; acting: boolean; title: { name: string } | null; unit: { name: string } | null; department: { name: string } | null; programme: { name: string } | null }[];
+}

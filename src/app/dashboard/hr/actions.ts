@@ -142,8 +142,18 @@ export async function decideStaffLeave(id: number, status: "approved" | "rejecte
   const { data, error } = await db.from("staff_leave")
     .update({ status, decided_by: session.staffId, decided_at: new Date().toISOString(), decision_note: decisionNote })
     .eq("id", leaveId).eq("status", "pending").neq("staff_id", session.staffId).select("id");
-  if (error) return fail("The decision could not be saved. Please try again.");
+  if (error) return fail(/waiting for the/.test(error.message) ? error.message : "The decision could not be saved. Please try again.");
   if (!data?.length) return fail("This request has already been decided or cancelled.");
+  revalidatePath(PATH);
+  return { ok: true };
+}
+
+// Head of Department or Dean: pass a teacher's leave on to the next step, or refuse it.
+export async function advanceStaffLeave(id: number, approve: boolean, note: string): Promise<Result> {
+  const db = await untyped();
+  const { error } = await db.rpc("advance_staff_leave", { p_id: id, p_approve: approve, p_note: note || null });
+  if (error) return fail(error.message.length < 160 ? error.message : "Could not save.");
+  revalidatePath("/dashboard");
   revalidatePath(PATH);
   return { ok: true };
 }

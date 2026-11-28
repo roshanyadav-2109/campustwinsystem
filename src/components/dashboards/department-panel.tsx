@@ -2,6 +2,7 @@ import Link from "@/components/ui/hover-link";
 import { createClient } from "@/lib/supabase/server";
 import type { Session } from "@/lib/session";
 import { CiaSignoff } from "@/components/dashboards/cia-signoff";
+import { LeaveSteps, type LeaveStep } from "@/components/dashboards/leave-steps";
 
 // Home for a Head of Department, Dean or Programme Coordinator: what waits in
 // their department, faculty or programme. Counts come through the database's
@@ -10,10 +11,11 @@ export async function DepartmentPanel({ session }: { session: Session }) {
   const supabase = await createClient();
   const { data: sem } = await supabase.from("semester" as never).select("id").eq("is_current", true).maybeSingle();
   const semId = (sem as unknown as { id: number } | null)?.id ?? 0;
-  const [{ data: secs }, { count: waiting }, { data: queue }] = await Promise.all([
+  const [{ data: secs }, { count: waiting }, { data: queue }, { data: leaveSteps }] = await Promise.all([
     supabase.rpc("my_scope_sections" as never),
     supabase.from("course_registration" as never).select("id", { count: "exact", head: true }).eq("semester_id", semId).eq("status", "registered"),
     supabase.rpc("my_relaxation_queue" as never),
+    supabase.rpc("my_leave_steps" as never),
   ]);
   const sections = (secs ?? []) as unknown as { id: number; label: string }[];
   const { data: cia } = semId ? await supabase.rpc("cia_signoff_status" as never, { p_semester: semId } as never) : { data: [] };
@@ -37,6 +39,7 @@ export async function DepartmentPanel({ session }: { session: Session }) {
         ))}
       </div>
       {sections.length > 0 && <p className="mt-3 text-[12px] text-ink-500">{sections.map((s) => s.label).join(", ")}</p>}
+      <LeaveSteps rows={(leaveSteps ?? []) as unknown as LeaveStep[]} />
       <CiaSignoff semesterId={semId} rows={(cia ?? []) as unknown as { section_id: number; section_label: string; subject_id: number; subject_name: string; signed: boolean }[]} />
     </section>
   );

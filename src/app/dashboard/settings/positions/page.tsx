@@ -5,6 +5,7 @@ import { PageHeader } from "@/components/ui/page-header";
 import { createClient } from "@/lib/supabase/server";
 import { PositionsAdmin, type TitleRow, type UnitRow, type PositionRow } from "@/components/settings/positions";
 import { OrgChart, type Chart } from "@/components/settings/org-chart";
+import { PositionHistory } from "@/components/settings/position-history";
 
 // Settings → Roles and positions (colleges and universities).
 export default async function PositionsPage() {
@@ -27,6 +28,7 @@ export default async function PositionsPage() {
     <div className="space-y-4">
       <PageHeader title="Roles and positions" description="Name your own titles (Vice Chancellor, Dean, Director, Head of Department...), say what kind of role each is and where it applies, and who holds which. One person can hold several positions." />
       <OrgChart chart={chart} staff={(s.data ?? []).map((x) => ({ id: x.id, name: x.full_name }))} canEdit={managesPeople(session)} />
+      <PositionHistory staff={(s.data ?? []).map((x) => ({ id: x.id, name: x.full_name }))} />
       <PositionsAdmin
         titles={(t.data ?? []) as unknown as TitleRow[]}
         units={(u.data ?? []) as unknown as UnitRow[]}

@@ -161,10 +161,10 @@ export const getSession = cache(async (): Promise<Session | null> => {
   const staffRole: StaffRole | null = baseStaffRole === "principal" ? baseStaffRole
     : accessTypes.some((t) => t === "head" || t === "deputy_head") ? "principal"
     : baseStaffRole === "office" ? baseStaffRole
-    : accessTypes.includes("registrar") ? "office" : baseStaffRole;
+    : accessTypes.includes("registrar") || accessTypes.includes("finance_head") ? "office" : baseStaffRole;
   const upgraded = staffRole !== baseStaffRole;
   const isHead = baseStaffRole === "principal" || accessTypes.includes("head");
-  const deputyOnly = accessTypes.includes("deputy_head") && !isHead && baseStaffRole !== "office" && !accessTypes.includes("registrar");
+  const deputyOnly = accessTypes.includes("deputy_head") && !isHead && baseStaffRole !== "office" && !accessTypes.includes("registrar") && !accessTypes.includes("finance_head");
   const effectiveRole: Session["effectiveRole"] =
     data.role === "staff" ? (staffRole ?? "office") : data.role;
 
