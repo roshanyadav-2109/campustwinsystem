@@ -102,29 +102,33 @@ export function ResolvePayment({ orderId }: { orderId: number }) {
   );
 }
 
-// Razorpay: Key ID (public), Key Secret and webhook secret (stored in the vault, never shown again).
+// Razorpay: Key ID (public) and Key Secret (stored in the vault, never shown again). The webhook secret is made by
+// CampusTwin and shown once, to paste into Razorpay.
 function RazorpayKeys({ g, webhookBase, onMsg }: { g: GatewayRow; webhookBase: string; onMsg: (m: { ok: boolean; text: string } | null) => void }) {
   const uid = useId();
-  const [f, setF] = useState({ keyId: g.keyId ?? "", keySecret: "", webhookSecret: "" });
+  const [f, setF] = useState({ keyId: g.keyId ?? "", keySecret: "" });
+  const [fresh, setFresh] = useState(false);
+  const [shown, setShown] = useState<string | null>(null);
   const [pending, start] = useTransition();
   const router = useRouter();
   const hook = `${webhookBase}/api/payments/webhook/razorpay`;
   return (
     <div className="mt-2 space-y-3">
-      <div className="grid gap-3 sm:grid-cols-3">
+      <div className="grid gap-3 sm:grid-cols-2">
         <Field label="Key ID" htmlFor={`${uid}-id`} hint={g.mode === "test" ? "Starts with rzp_test_" : "Starts with rzp_live_"}><Input id={`${uid}-id`} autoComplete="off" spellCheck={false} value={f.keyId} onChange={(e) => setF({ ...f, keyId: e.target.value })} /></Field>
         <Field label={g.hasKeys ? "Key Secret (saved; enter to replace)" : "Key Secret"} htmlFor={`${uid}-ks`}><Input id={`${uid}-ks`} type="password" autoComplete="new-password" spellCheck={false} value={f.keySecret} onChange={(e) => setF({ ...f, keySecret: e.target.value })} /></Field>
-        <Field label={g.hasKeys ? "Webhook secret (saved; enter to replace)" : "Webhook secret"} htmlFor={`${uid}-ws`}><Input id={`${uid}-ws`} type="password" autoComplete="new-password" spellCheck={false} value={f.webhookSecret} onChange={(e) => setF({ ...f, webhookSecret: e.target.value })} /></Field>
       </div>
+      {g.hasKeys && <label className="flex items-center gap-2 text-[12px] text-ink-700"><input type="checkbox" checked={fresh} onChange={(e) => setFresh(e.target.checked)} />Also make a new webhook secret (then update it in Razorpay)</label>}
       <div className="flex flex-wrap gap-2">
-        <Button size="sm" variant="subtle" disabled={pending || !f.keyId.trim() || !f.keySecret.trim() || !f.webhookSecret.trim()} onClick={() => start(async () => { const r = await saveRazorpayKeys(g.id, f); onMsg(r.ok ? { ok: true, text: r.message ?? "" } : { ok: false, text: r.error }); if (r.ok) setF({ ...f, keySecret: "", webhookSecret: "" }); router.refresh(); })}>Save keys</Button>
+        <Button size="sm" variant="subtle" disabled={pending || !f.keyId.trim() || !f.keySecret.trim()} onClick={() => start(async () => { const r = await saveRazorpayKeys(g.id, { ...f, newWebhookSecret: fresh }); onMsg(r.ok ? { ok: true, text: r.message ?? "" } : { ok: false, text: r.error }); if (r.ok) { setF({ ...f, keySecret: "" }); setFresh(false); setShown(r.webhookSecret ?? null); } router.refresh(); })}>Save keys</Button>
         {g.hasKeys && <Button size="sm" variant="ghost" disabled={pending} onClick={() => start(async () => { const r = await testGatewayConnection(g.id); onMsg(r.ok ? { ok: true, text: r.message ?? "" } : { ok: false, text: r.error }); })}>Test connection</Button>}
       </div>
+      {shown && <div className="rounded-sm border border-gold-500 bg-[#fffaf0] p-2 text-[12px]"><p className="font-medium text-ink-900">Webhook secret (shown only now):</p><code className="select-all break-all">{shown}</code></div>}
       <div className="rounded-sm bg-[#fafafa] p-2 text-[12px] text-ink-700">
         <p className="font-medium text-ink-900">In Razorpay, Account &amp; Settings, Webhooks, add a webhook:</p>
         <p className="mt-1">Webhook URL: <code className="select-all break-all">{hook}</code></p>
-        <p>Secret: any strong text you choose; type the same here as the webhook secret.</p>
-        <p>Active events: <code>payment.captured</code>, <code>order.paid</code>, <code>refund.processed</code></p>
+        <p>Secret: the webhook secret CampusTwin shows when you save the keys.</p>
+        <p>Active events: <code>payment.authorized</code>, <code>payment.captured</code>, <code>order.paid</code>, <code>refund.processed</code></p>
         <p className="mt-1">Keys: Account &amp; Settings, API keys, Generate key. The Key Secret is shown only once in Razorpay; paste it here straight away.</p>
       </div>
     </div>

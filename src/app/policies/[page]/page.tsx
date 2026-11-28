@@ -9,7 +9,7 @@ import { createAdminClient } from "@/lib/supabase/admin";
 export const dynamic = "force-dynamic";
 type D = { name: string; legal_name: string; entity_type: string | null; address: string | null; phone: string | null; email: string | null; website: string | null; gstin: string | null;
   admission_refundable: boolean; refund_days: number; hostel_rule: string | null; transport_rule: string | null; extra_terms: string | null; grievance_name: string | null; higher_ed: boolean; updated_at: string };
-const PAGES = { about: "About us", contact: "Contact us", privacy: "Privacy policy", terms: "Terms and conditions", refund: "Refund and cancellation policy" } as const;
+const PAGES = { about: "About us", contact: "Contact us", privacy: "Privacy policy", terms: "Terms and conditions", refund: "Refund and cancellation policy", delivery: "Service delivery policy" } as const;
 type Page = keyof typeof PAGES;
 
 async function details(): Promise<D | null> {
@@ -77,6 +77,11 @@ export default async function PolicyPage({ params }: { params: Promise<{ page: s
       <H>Changes and law</H>
       <P>The institution may update these terms; the date below shows the latest version. These terms are governed by the laws of India.</P>
     </>,
+    delivery: <>
+      <P>{d.legal_name} provides educational services; nothing is shipped. Fees paid on this website are for services of the institution, delivered in person on campus or digitally on this website.</P>
+      <P>A payment is confirmed on screen and the receipt is available straight away under Fees. Admission, examination and other services paid for are provided on the dates the institution announces.</P>
+      <P>Questions: {d.email ?? d.phone ?? "the institution's office"}.</P>
+    </>,
     refund: <>
       <P>This policy covers payments made to {d.legal_name} on this website.</P>
       <H>Admission and application fees</H>
@@ -90,7 +95,7 @@ export default async function PolicyPage({ params }: { params: Promise<{ page: s
       <H>Failed payments</H>
       <P>If money is taken from your account but the payment fails, the gateway returns it automatically, usually within 5 to 7 working days.</P>
       <H>How long a refund takes</H>
-      <P>Approved refunds are started within {d.refund_days} days and reach the original payment method in the time the bank takes after that.</P>
+      <P>Approved refunds are paid back to the original payment method within {d.refund_days} days.</P>
       <P>Questions: {d.email ?? d.phone ?? "the institution's office"}{d.grievance_name ? ` (${d.grievance_name})` : ""}.</P>
     </>,
   };

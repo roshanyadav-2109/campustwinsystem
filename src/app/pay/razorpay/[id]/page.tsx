@@ -1,4 +1,5 @@
 import { redirect } from "next/navigation";
+import { headers } from "next/headers";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { checkLink, razorpayKeys, safeReturn } from "@/core/payments/razorpay";
 import type { GatewayOrder } from "@/core/payments/gateways";
@@ -20,7 +21,8 @@ export default async function RazorpayPayPage({ params, searchParams }: { params
   if (order.status !== "created") redirect(ret);
   const keys = razorpayKeys(order);
   if (!keys) redirect(ret);
-  const back = `/api/payments/razorpay/return?o=${id}&r=${encodeURIComponent(ret)}&s=${one(sp.s)}`;
+  const host = (await headers()).get("host") ?? "";
+  const back = `https://${host}/api/payments/razorpay/return?o=${id}&r=${encodeURIComponent(ret)}&s=${one(sp.s)}`;
   return (
     <main className="mx-auto max-w-md px-4 py-16">
       <RazorpayCheckout

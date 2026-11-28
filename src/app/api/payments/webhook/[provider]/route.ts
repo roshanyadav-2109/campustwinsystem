@@ -20,15 +20,16 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
   catch { return NextResponse.json({ error: "could not read the notice" }, { status: 400 }); }
   if (outcome.kind !== "ignored" && !(await lookup(outcome.publicId))) return NextResponse.json({ error: "unknown payment" }, { status: 404 });
   let failed = false;
+  const err = (e: { code?: string } | null) => !!e && e.code !== "23505";   // already recorded: not an error
   if (outcome.kind === "paid") {
-    failed = !!(await admin.rpc("complete_payment_order" as never, {
+    failed = err((await admin.rpc("complete_payment_order" as never, {
       p_public_id: outcome.publicId, p_provider_payment_id: outcome.paymentId, p_amount: outcome.amount,
       p_provider_order_id: outcome.providerOrderId ?? null, p_paid_at: outcome.paidAt ?? null, p_method: outcome.method ?? null, p_gateway_fee: outcome.fee ?? null,
-    } as never)).error;
+    } as never)).error);
   } else if (outcome.kind === "failed") {
     failed = !!(await admin.rpc("fail_payment_order" as never, { p_public_id: outcome.publicId, p_reason: outcome.reason } as never)).error;
   } else if (outcome.kind === "refund") {
-    failed = !!(await admin.rpc("refund_payment_order" as never, { p_public_id: outcome.publicId, p_amount: outcome.amount, p_ref: outcome.ref, p_kind: outcome.chargeback ? "chargeback" : "refund" } as never)).error;
+    failed = err((await admin.rpc("refund_payment_order" as never, { p_public_id: outcome.publicId, p_amount: outcome.amount, p_ref: outcome.ref, p_kind: outcome.chargeback ? "chargeback" : "refund" } as never)).error);
   }
   // a database error makes the gateway send the notice again
   return failed ? NextResponse.json({ error: "try again" }, { status: 500 }) : NextResponse.json({ ok: true });

@@ -61,25 +61,36 @@ export async function resolvePayment(orderId: number, note: string): Promise<Res
   return { ok: true, message: "Marked as resolved." };
 }
 
-// Razorpay: the key id is public (the payer's browser needs it); the key secret and the webhook secret go to Vault.
-export async function saveRazorpayKeys(gatewayId: number, input: { keyId: string; keySecret: string; webhookSecret: string }): Promise<Result> {
+// Razorpay: the key id is public (the payer's browser needs it); the key secret and the webhook secret go to the vault.
+// The webhook secret is made here (32 random bytes) and shown once, to paste into Razorpay; replacing the keys keeps it
+// unless a new one is asked for.
+export async function saveRazorpayKeys(gatewayId: number, input: { keyId: string; keySecret: string; newWebhookSecret: boolean }): Promise<Result & { webhookSecret?: string }> {
   const s = await office();
   if (!s) return { ok: false, error: "Only the office or the finance head can change payment settings." };
-  const keyId = input.keyId.trim(), keySecret = input.keySecret.trim(), webhookSecret = input.webhookSecret.trim();
+  const keyId = input.keyId.trim(), keySecret = input.keySecret.trim();
   if (!/^rzp_(test|live)_[A-Za-z0-9]{8,32}$/.test(keyId)) return { ok: false, error: "The Key ID starts with rzp_live_ (or rzp_test_ in test mode). Copy it from Razorpay, Account & Settings, API keys." };
   if (keySecret.length < 10 || keySecret.length > 100) return { ok: false, error: "Paste the Key Secret shown when the key was made in Razorpay." };
-  if (webhookSecret.length < 6 || webhookSecret.length > 100) return { ok: false, error: "Enter the webhook secret you typed when adding the webhook in Razorpay." };
   const supabase = await createClient();
   const { data: g } = await supabase.from("payment_gateway" as never).select("id, provider, mode").eq("id", gatewayId).maybeSingle();
   const gw = g as unknown as { provider: string; mode: string } | null;
   if (!gw || gw.provider !== "razorpay") return { ok: false, error: "Unknown gateway." };
   if ((gw.mode === "test") !== keyId.startsWith("rzp_test_")) return { ok: false, error: gw.mode === "test" ? "This gateway is in test mode: use a key starting rzp_test_." : "This gateway is live: use a key starting rzp_live_." };
-  const { error: e1 } = await supabase.rpc("set_payment_gateway_secret" as never, { p_gateway: gatewayId, p_secret: JSON.stringify({ key_secret: keySecret, webhook_secret: webhookSecret }) } as never);
-  if (e1) return { ok: false, error: "Could not save the keys." };
-  const { error: e2 } = await supabase.rpc("set_payment_gateway_config" as never, { p_gateway: gatewayId, p_config: { key_id: keyId } } as never);
-  if (e2) return { ok: false, error: "Could not save the Key ID." };
+  // keep the webhook secret already saved, unless a new one is asked for
+  let webhook = "";
+  if (!input.newWebhookSecret) {
+    const { createAdminClient } = await import("@/lib/supabase/admin");
+    const { data } = await createAdminClient().rpc("payment_gateway_keys" as never, { p_gateway: gatewayId, p_school: s.schoolId } as never);
+    const row = ((data ?? []) as unknown as { secret: string | null }[])[0];
+    try { webhook = row?.secret ? String(JSON.parse(row.secret).webhook_secret ?? "") : ""; } catch { webhook = ""; }
+  }
+  const made = !webhook;
+  if (made) webhook = Array.from(crypto.getRandomValues(new Uint8Array(32)), (b) => b.toString(16).padStart(2, "0")).join("");
+  const { error } = await supabase.rpc("set_payment_gateway_keys" as never, { p_gateway: gatewayId, p_secret: JSON.stringify({ key_secret: keySecret, webhook_secret: webhook }), p_config: { key_id: keyId } } as never);
+  if (error) return { ok: false, error: "Could not save the keys." };
   revalidatePath(PATH);
-  return { ok: true, message: "Keys saved securely; the secrets will not be shown again. Now test the connection." };
+  return made
+    ? { ok: true, message: "Keys saved securely. Copy the webhook secret below into Razorpay now: it is shown only this once.", webhookSecret: webhook }
+    : { ok: true, message: "Keys saved securely; the webhook secret already in Razorpay still works. Now test the connection." };
 }
 
 // Ask Razorpay whether the saved keys work (reads one order; changes nothing).

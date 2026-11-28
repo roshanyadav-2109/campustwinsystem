@@ -21,7 +21,7 @@ export default async function LoginPage() {
     <LoginView brand={brand} owner={owner} demo={demo} />
     {!owner && brand.schoolId && (
       <footer className="flex flex-wrap justify-center gap-x-4 gap-y-1 px-4 py-3 text-[12px] text-ink-500">
-        {[["about", "About us"], ["contact", "Contact us"], ["privacy", "Privacy policy"], ["terms", "Terms and conditions"], ["refund", "Refund and cancellation"]].map(([k, l]) => (
+        {[["about", "About us"], ["contact", "Contact us"], ["privacy", "Privacy policy"], ["terms", "Terms and conditions"], ["refund", "Refund and cancellation"], ["delivery", "Service delivery"]].map(([k, l]) => (
           <a key={k} href={`/policies/${k}`} className="hover:underline">{l}</a>))}
       </footer>
     )}

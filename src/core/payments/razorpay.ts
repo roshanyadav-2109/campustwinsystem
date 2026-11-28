@@ -22,11 +22,14 @@ export function razorpayKeys(o: Pick<GatewayOrder, "config" | "secret">): Keys |
 }
 
 export async function razorpayApi<T>(keys: Pick<Keys, "key_id" | "key_secret">, path: string, init?: { method?: string; body?: unknown }): Promise<{ ok: true; data: T } | { ok: false; status: number; error: string }> {
-  const res = await fetch(`${API}${path}`, {
-    method: init?.method ?? "GET",
-    headers: { Authorization: `Basic ${Buffer.from(`${keys.key_id}:${keys.key_secret}`).toString("base64")}`, ...(init?.body ? { "Content-Type": "application/json" } : {}) },
-    body: init?.body ? JSON.stringify(init.body) : undefined,
-  });
+  let res: Response;
+  try {
+    res = await fetch(`${API}${path}`, {
+      method: init?.method ?? "GET",
+      headers: { Authorization: `Basic ${Buffer.from(`${keys.key_id}:${keys.key_secret}`).toString("base64")}`, ...(init?.body ? { "Content-Type": "application/json" } : {}) },
+      body: init?.body ? JSON.stringify(init.body) : undefined,
+    });
+  } catch { return { ok: false, status: 0, error: "Razorpay could not be reached" }; }
   const json = (await res.json().catch(() => ({}))) as { error?: { description?: string } } & T;
   if (!res.ok) return { ok: false, status: res.status, error: json?.error?.description ?? `Razorpay answered ${res.status}` };
   return { ok: true, data: json };
@@ -50,6 +53,22 @@ export const signLink = (publicId: string, ret: string) => createHmac("sha256", 
 export const checkLink = (publicId: string, ret: string, sig: string) => same(signLink(publicId, ret), sig);
 /** Only paths on this site (never another site) may be returned to. */
 export const safeReturn = (ret: string) => (/^\/[A-Za-z0-9/_\-?=&.%]*$/.test(ret) && !ret.startsWith("//") ? ret : "/dashboard/fees");
+
+/** The payment as Razorpay has it, captured if it was only authorised; null if it is not money in hand (yet). */
+export async function capturedPayment(keys: Pick<Keys, "key_id" | "key_secret">, paymentId: string): Promise<RazorpayPayment | null> {
+  let p = await razorpayApi<RazorpayPayment>(keys, `/payments/${encodeURIComponent(paymentId)}`);
+  if (!p.ok) throw new Error("payment not readable");   // the webhook is retried; the return marks it pending
+  if (p.data.status === "authorized") {
+    const c = await razorpayApi<RazorpayPayment>(keys, `/payments/${encodeURIComponent(paymentId)}/capture`, { method: "POST", body: { amount: p.data.amount, currency: p.data.currency } });
+    p = c.ok ? c : await razorpayApi<RazorpayPayment>(keys, `/payments/${encodeURIComponent(paymentId)}`);
+    if (!p.ok) throw new Error("payment not readable");
+  }
+  return p.data.status === "captured" ? p.data : null;
+}
+export const paidOutcome = (publicId: string, pay: RazorpayPayment) => ({
+  kind: "paid" as const, publicId, paymentId: pay.id, amount: pay.amount / 100, providerOrderId: pay.order_id, method: pay.method,
+  fee: pay.fee != null ? pay.fee / 100 : undefined, paidAt: pay.created_at ? new Date(pay.created_at * 1000).toISOString() : undefined,
+});
 
 export const razorpay: GatewayConnector = {
   id: "razorpay",
@@ -81,14 +100,22 @@ export const razorpay: GatewayConnector = {
     // the notice must be signed with this institution's webhook secret
     const keys = razorpayKeys(order);
     if (!keys?.webhook_secret || !same(hmac(keys.webhook_secret, raw), request.headers.get("x-razorpay-signature") ?? "")) throw new Error("bad signature");
-    if ((body.event === "payment.captured" || body.event === "order.paid") && pay && pay.status === "captured") {
-      if (order.provider_order_id && pay.order_id !== order.provider_order_id) return { kind: "ignored" };
-      return { kind: "paid", publicId, paymentId: pay.id, amount: pay.amount / 100, providerOrderId: pay.order_id, method: pay.method,
-        fee: pay.fee != null ? pay.fee / 100 : undefined, paidAt: pay.created_at ? new Date(pay.created_at * 1000).toISOString() : undefined };
+    // never the notice's own word: the payment is read back from Razorpay with this institution's key
+    if (!order.provider_order_id) return { kind: "ignored" };
+    if ((body.event === "payment.captured" || body.event === "order.paid" || body.event === "payment.authorized") && pay?.id) {
+      const done = await capturedPayment(keys, pay.id);
+      if (!done || done.order_id !== order.provider_order_id) return { kind: "ignored" };
+      return paidOutcome(publicId, done);
     }
     if (body.event === "refund.processed" && body.payload?.refund?.entity) {
       const rf = body.payload.refund.entity;
-      return { kind: "refund", publicId, amount: rf.amount / 100, ref: rf.id };
+      // the refund must be of this order's own payment, as Razorpay has it
+      const r = await razorpayApi<{ id: string; amount: number; payment_id: string; status: string }>(keys, `/refunds/${encodeURIComponent(rf.id)}`);
+      if (!r.ok || r.data.status !== "processed") throw new Error("refund not readable");
+      const p2 = await razorpayApi<RazorpayPayment>(keys, `/payments/${encodeURIComponent(r.data.payment_id)}`);
+      if (!p2.ok) throw new Error("payment not readable");
+      if (p2.data.order_id !== order.provider_order_id) return { kind: "ignored" };
+      return { kind: "refund", publicId, amount: r.data.amount / 100, ref: r.data.id };
     }
     // a failed try can be followed by a successful one on the same order, so failures are not recorded here
     return { kind: "ignored" };

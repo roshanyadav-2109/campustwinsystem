@@ -44,7 +44,7 @@ export function GatewayApplication({ profile, site, school }: { profile: Payment
   const [pending, start] = useTransition();
   const router = useRouter();
   const set = (k: keyof typeof f) => (e: { target: { value: string } }) => setF({ ...f, [k]: e.target.value });
-  const links = { privacy: `${site}/policies/privacy`, terms: `${site}/policies/terms`, refund: `${site}/policies/refund`, contact: `${site}/policies/contact`, about: `${site}/policies/about` };
+  const links = { privacy: `${site}/policies/privacy`, terms: `${site}/policies/terms`, refund: `${site}/policies/refund`, contact: `${site}/policies/contact`, about: `${site}/policies/about`, delivery: `${site}/policies/delivery` };
   return (
     <Card>
       <CardHeader title="Gateway application" action={<span className="text-[12px] text-ink-500">What the gateway asks when you apply</span>} />
@@ -105,6 +105,7 @@ export function GatewayApplication({ profile, site, school }: { profile: Payment
             <Copy label="Privacy policy" value={links.privacy} />
             <Copy label="Terms and conditions" value={links.terms} />
             <Copy label="Refund and cancellation policy" value={links.refund} />
+            <Copy label="Shipping / delivery policy" value={links.delivery} />
             <Copy label="Webhook URL (Razorpay)" value={`${site}/api/payments/webhook/razorpay`} />
             <Copy label="Business PAN" value={p?.pan_last4 ? `ending ${p.pan_last4} (type the full PAN in the gateway)` : ""} />
             <Copy label="Settlement account" value={p?.bank_last4 ? `${f.bank_holder || ""}, ****${p.bank_last4}, ${f.bank_ifsc}` : ""} />

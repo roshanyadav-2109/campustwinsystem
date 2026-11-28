@@ -38,6 +38,20 @@ begin
   begin perform public.save_payment_profile('{"legal_name":"X"}'::jsonb, null, null); raise exception 'FAIL a teacher changed the application'; exception when others then if sqlerrm like 'FAIL%' then raise; end if; end;
   begin perform public.set_payment_gateway_secret(v_gw, '{}'); raise exception 'FAIL a teacher changed the keys'; exception when others then if sqlerrm like 'FAIL%' then raise; end if; end;
   reset role;
+  -- a real (non-sample) institution cannot switch on a test-mode gateway
+  update public.school set is_sample = false where id = 8;
+  perform set_config('request.jwt.claims', json_build_object('sub', ou, 'role', 'authenticated')::text, true); set local role authenticated;
+  ok := true;
+  begin perform public.set_active_gateway(v_gw, array['razorpay']); ok := false; exception when others then null; end;
+  reset role;
+  if not ok then raise exception 'FAIL a real institution switched on test mode'; end if;
+  -- deleting the gateway deletes its secret from the vault
+  perform set_config('request.jwt.claims', '', true);
+  declare v_sid uuid; begin
+    select secret_id into v_sid from public.payment_gateway where id = v_gw;
+    delete from public.payment_gateway where id = v_gw;
+    if exists (select 1 from vault.secrets where id = v_sid) then raise exception 'FAIL the secret stayed in the vault'; end if;
+  end;
   raise notice 'gateway setup ok';
 end $$;
 rollback;
