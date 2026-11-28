@@ -21,7 +21,7 @@ async function back(request: NextRequest, provider: string) {
   const posted = request.method === "POST" ? new URLSearchParams(await request.text().catch(() => "")) : u.searchParams;
   try {
     let v = await g.verify(order, keys);
-    if (v.status === "unknown" && g.verifyPosted) v = g.verifyPosted(order, keys, posted);
+    if (v.status === "unknown" && g.verifyPosted && !["paid", "review"].includes(order.status)) v = g.verifyPosted(order, keys, posted);
     // not known yet: the payer may well have paid, so they are told it is being confirmed rather than to pay again
     await recordVerified(admin as never, order, v.status === "unknown" ? { status: "pending" } : v);
   } catch {

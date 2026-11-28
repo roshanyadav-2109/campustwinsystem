@@ -17,7 +17,7 @@ type Txn = { status?: string; unmappedstatus?: string; amt?: string; mihpayid?: 
 async function verifyTxn(mode: string, key: string, salt: string, txnid: string) {
   const command = "verify_payment";
   const r = await postForm(apiURL(mode), { key, command, var1: txnid, hash: sha512(`${key}|${command}|${txnid}|${salt}`) });
-  if (!r.ok) { console.log("payu verify http", r.status, r.text.slice(0, 200)); return { http: r.status } as { status?: number; msg?: string; http?: number; transaction_details?: Record<string, Txn> }; }
+  if (!r.ok) { console.log("payu verify http", r.status); return { http: r.status } as { status?: number; msg?: string; http?: number; transaction_details?: Record<string, Txn> }; }
   try { return JSON.parse(r.text) as { status?: number; msg?: string; http?: number; transaction_details?: Record<string, Txn> }; } catch { return { http: r.status } as { status?: number; msg?: string; http?: number; transaction_details?: Record<string, Txn> }; }
 }
 
@@ -44,7 +44,7 @@ export const payu: HostedGateway = {
     if (!j || j.status !== 1) return { status: "unknown" };
     const t = j.transaction_details?.[order.public_id];
     if (!t) return { status: "unknown" };
-    if (t.status === "success" && t.unmappedstatus === "captured" && t.mihpayid)
+    if (t.status === "success" && t.unmappedstatus === "captured" && t.mihpayid && Number.isFinite(Number(t.amt)))
       return { status: "paid", paymentId: t.mihpayid, amount: Number(t.amt), method: t.mode?.toLowerCase(), paidAt: t.addedon ? new Date(`${t.addedon.replace(" ", "T")}+05:30`).toISOString() : undefined };
     if (t.status === "pending" || t.unmappedstatus === "pending" || t.unmappedstatus === "auth") return { status: "pending" };
     if (t.status === "Not Found") return { status: "failed", reason: "The payment was not completed" };
@@ -59,6 +59,7 @@ export const payu: HostedGateway = {
     const g = (k: string) => p.get(k) ?? "";
     if (g("txnid") !== order.public_id || g("key") !== keys.config.key || !g("hash")) return { status: "unknown" };
     const extra = g("additional_charges") || g("additionalCharges");
+    if (extra && !/^\d+(\.\d+)?$/.test(extra)) return { status: "unknown" };
     const parts = [keys.secret.salt, g("status"), "", "", "", "", "", g("udf5"), g("udf4"), g("udf3"), g("udf2"), g("udf1"), g("email"), g("firstname"), g("productinfo"), g("amount"), g("txnid"), g("key")];
     const want = sha512((extra ? [extra, ...parts] : parts).join("|"));
     const a = Buffer.from(want), b = Buffer.from(g("hash").toLowerCase());

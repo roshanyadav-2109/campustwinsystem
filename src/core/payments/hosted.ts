@@ -74,9 +74,9 @@ export function hostedConnector(g: HostedGateway): GatewayConnector {
       const keys = order ? keysOf(order, g.fields) : null;
       if (!order || !keys) return { kind: "ignored" };
       let v = await g.verify(order, keys);
-      if (v.status === "unknown" && g.verifyPosted && !request.headers.get("content-type")?.includes("json")) v = g.verifyPosted(order, keys, new URLSearchParams(raw));
+      if (v.status === "unknown" && g.verifyPosted && !["paid", "review"].includes(order.status) && !request.headers.get("content-type")?.includes("json")) v = g.verifyPosted(order, keys, new URLSearchParams(raw));
       if (v.status === "paid") return { kind: "paid", publicId: id, paymentId: v.paymentId, amount: v.amount, method: v.method, fee: v.fee, paidAt: v.paidAt, providerOrderId: v.providerOrderId };
-      if (v.status === "failed") return { kind: "failed", publicId: id, reason: v.reason };
+      // a failure is not recorded from a notice: a later try on the same order may still succeed; expiry closes it
       return { kind: "ignored" };
     },
   };
@@ -91,7 +91,8 @@ export async function recordVerified(admin: { rpc: (fn: never, args: never) => P
     } as never);
     return !error || error.code === "23505";
   }
-  if (v.status === "failed" && order.status === "created") {
+  // "failed" only once the order's time is over: until then the payer may still be paying on the gateway's page
+  if (v.status === "failed" && order.status === "created" && new Date(order.expires_at).getTime() < Date.now()) {
     await admin.rpc("fail_payment_order" as never, { p_public_id: order.public_id, p_reason: v.reason.slice(0, 200) } as never);
     return true;
   }

@@ -30,7 +30,7 @@ export const easebuzz: HostedGateway = {
       key, txnid: order.public_id, amount: Number(order.amount).toFixed(2),
       productinfo: clean(`Fees ${order.student_name}`, 45) || "Fees", firstname: clean(order.payer_name ?? order.student_name, 150) || "Payer",
       email: (order.payer_email ?? "").trim().slice(0, 200) || "noreply@campustwin.org",
-      phone: ((order.payer_phone ?? "").replace(/\D/g, "").slice(-10)) || "9999999999",
+      phone: (() => { const d = (order.payer_phone ?? "").replace(/\D/g, "").slice(-10); return d.length === 10 ? d : "9999999999"; })(),
       surl: ctx.callbackUrl, furl: ctx.callbackUrl,
     };
     const hash = sha512([f.key, f.txnid, f.amount, f.productinfo, f.firstname, f.email, "", "", "", "", "", "", "", "", "", "", salt].join("|"));
@@ -43,9 +43,9 @@ export const easebuzz: HostedGateway = {
   async verify(order, keys): Promise<Verified> {
     const j = await retrieve(order.mode, keys.config.key, keys.secret.salt, order.public_id);
     if (!j || j.status !== true || !Array.isArray(j.msg)) return j && j.status === false ? { status: "failed", reason: "The payment was not completed" } : { status: "unknown" };
-    const t = j.msg.find((x) => x.txnid === order.public_id) ?? j.msg[0];
+    const t = j.msg.find((x) => x.txnid === order.public_id);
     if (!t) return { status: "unknown" };
-    if (t.status === "success" && t.easepayid)
+    if (t.status === "success" && t.easepayid && Number.isFinite(Number(t.amount)))
       return { status: "paid", paymentId: t.easepayid, amount: Number(t.amount), method: t.mode?.toLowerCase(), paidAt: t.addedon ? new Date(`${t.addedon.replace(" ", "T")}+05:30`).toISOString() : undefined };
     if (t.status === "pending" || t.status === "initiated") return { status: "pending" };
     if (["failure", "userCancelled", "dropped", "bounced"].includes(t.status ?? ""))

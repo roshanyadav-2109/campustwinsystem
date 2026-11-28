@@ -30,6 +30,7 @@ export const cashfree: HostedGateway = {
   label: "Cashfree",
   fields: GATEWAY_FIELDS.cashfree,
   async start(order, keys, ctx) {
+    if (ctx.callbackUrl.length > 250) return { ok: false, error: "The payment could not be started. Please pay at the office." };
     type O = { payment_session_id: string; order_status: string; cf_order_id: string | number };
     // the same order is reused if it already exists at Cashfree (a second click, another tab)
     let o = await cf<O>(order.mode, keys, `/orders/${order.public_id}`);
@@ -37,7 +38,8 @@ export const cashfree: HostedGateway = {
       o = await cf<O>(order.mode, keys, "/orders", { method: "POST", idem: order.public_id, body: {
         order_id: order.public_id, order_amount: Math.round(Number(order.amount) * 100) / 100, order_currency: order.currency || "INR",
         customer_details: { customer_id: `p${order.public_id}`, customer_phone: phone(order), ...(order.payer_name && order.payer_name.length >= 3 ? { customer_name: order.payer_name.slice(0, 100) } : {}), ...(order.payer_email ? { customer_email: order.payer_email.slice(0, 100) } : {}) },
-        order_meta: { return_url: ctx.callbackUrl.slice(0, 250), notify_url: `${ctx.origin}/api/payments/webhook/cashfree` },
+        order_meta: { return_url: ctx.callbackUrl, notify_url: `${ctx.origin}/api/payments/webhook/cashfree` },
+        order_expiry_time: new Date(Math.max(new Date(order.expires_at).getTime(), Date.now() + 16 * 60 * 1000)).toISOString(),
         order_note: `Payment for ${order.student_name}`.slice(0, 200).padEnd(3, "."),
       } });
     }
@@ -51,7 +53,7 @@ export const cashfree: HostedGateway = {
     if (!r.ok) return r.status === 404 ? { status: "failed", reason: "The payment was not started at Cashfree" } : { status: "unknown" };
     const list = Array.isArray(r.data) ? r.data : [];
     const ok = list.find((p) => p.payment_status === "SUCCESS");
-    if (ok) return { status: "paid", paymentId: String(ok.cf_payment_id), amount: Number(ok.payment_amount), method: ok.payment_group, paidAt: ok.payment_completion_time };
+    if (ok && Number.isFinite(Number(ok.payment_amount))) return { status: "paid", paymentId: String(ok.cf_payment_id), amount: Number(ok.payment_amount), method: ok.payment_group, paidAt: ok.payment_completion_time };
     if (list.some((p) => p.payment_status === "PENDING")) return { status: "pending" };
     const last = list[0];
     if (last && ["FAILED", "USER_DROPPED", "CANCELLED", "VOID"].includes(last.payment_status)) return { status: "failed", reason: last.payment_message || (last.payment_status === "USER_DROPPED" ? "The payment was not completed" : "The payment did not go through") };

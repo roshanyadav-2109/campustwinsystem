@@ -13,10 +13,11 @@ async function recheck(publicId: string) {
   const { data } = await admin.rpc("payment_order_for_gateway" as never, { p_public_id: publicId } as never);
   const order = ((data ?? []) as unknown as import("@/core/payments/gateways").GatewayOrder[])[0];
   const g = order ? HOSTED[order.provider] : undefined;
-  if (!order || !g || !["created", "pending"].includes(order.status)) return;
+  if (!order || !g || !["created", "pending", "failed", "expired"].includes(order.status)) return;
+  if (["failed", "expired"].includes(order.status) && Date.now() - new Date(order.expires_at).getTime() > 24 * 3600 * 1000) return;
   const keys = keysOf(order, g.fields);
   if (!keys) return;
-  try { const v = await g.verify(order, keys); if (v.status === "paid" || (v.status === "failed" && order.status === "created")) await recordVerified(admin as never, order, v); } catch { /* asked again on the next visit */ }
+  try { const v = await g.verify(order, keys); if (v.status === "paid" || v.status === "failed") await recordVerified(admin as never, order, v); } catch { /* asked again on the next visit */ }
 }
 
 // Where the payer lands after the gateway: what happened to this payment.
@@ -35,7 +36,7 @@ export default async function PaymentResultPage({ params }: { params: Promise<{ 
     : o.status === "pending" ? { title: "Payment being processed", text: "Your bank has not confirmed it yet. You do not need to pay again; this page and your receipts update when it is confirmed.", tone: "text-ink-900" }
     : o.status === "review" ? { title: "Payment received, being checked", text: "The school will check this payment and contact you if anything is needed. Please do not pay again.", tone: "text-ink-900" }
     : o.status === "created" ? { title: "Payment not finished", text: "The payment was not completed. You can try again from Fees.", tone: "text-ink-900" }
-    : { title: "Payment not completed", text: `${o.failure_reason ?? "The payment did not go through."} No money was taken. You can try again from Fees.`, tone: "text-down" };
+    : { title: "Payment not completed", text: `${o.failure_reason ?? "The payment did not go through."} If money was taken from your account, it shows here once the bank confirms it, or the bank returns it in a few days. You can try again from Fees.`, tone: "text-down" };
   return (
     <div className="mx-auto max-w-lg">
       <PageHeader title="Online payment" />

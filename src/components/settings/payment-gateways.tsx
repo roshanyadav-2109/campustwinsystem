@@ -137,7 +137,7 @@ function RazorpayKeys({ g, webhookBase, onMsg }: { g: GatewayRow; webhookBase: s
 }
 
 const NOTICE: Record<string, string> = {
-  payu: "In PayU, Developers, Webhooks: add this address for Successful and Failed payments.",
+  payu: "Required for PayU: in PayU, Developers, Webhooks, add this address for Successful payments (Payments type). Without it, a payer who closes the page before returning may not be credited automatically.",
   cashfree: "Cashfree is told this address with each payment; nothing to set up.",
   easebuzz: "In Easebuzz, Settings, Webhooks: add this address for transactions.",
 };
