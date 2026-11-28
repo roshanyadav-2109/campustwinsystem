@@ -18,7 +18,7 @@ async function verifyTxn(mode: string, key: string, salt: string, txnid: string)
   const command = "verify_payment";
   const r = await postForm(apiURL(mode), { key, command, var1: txnid, hash: sha512(`${key}|${command}|${txnid}|${salt}`) });
   if (!r.ok) { console.log("payu verify http", r.status, r.text.slice(0, 200)); return { http: r.status } as { status?: number; msg?: string; http?: number; transaction_details?: Record<string, Txn> }; }
-  try { return JSON.parse(r.text) as { status?: number; msg?: string; http?: number; transaction_details?: Record<string, Txn> }; } catch { return { http: r.status } as { http?: number }; }
+  try { return JSON.parse(r.text) as { status?: number; msg?: string; http?: number; transaction_details?: Record<string, Txn> }; } catch { return { http: r.status } as { status?: number; msg?: string; http?: number; transaction_details?: Record<string, Txn> }; }
 }
 
 export const payu: HostedGateway = {
