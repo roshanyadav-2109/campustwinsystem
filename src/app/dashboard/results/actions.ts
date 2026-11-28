@@ -43,7 +43,7 @@ export async function sectionGradeCards(semesterId: number, sectionId: number): 
   return { ok: true, cards: await loadCards(supabase, semesterId, ids, s.school.name) };
 }
 
-export async function requestRevaluation(resultId: number, kind: "revaluation" | "retotalling"): Promise<R> {
+export async function requestRevaluation(resultId: number, kind: "revaluation" | "retotalling" | "photocopy"): Promise<R> {
   const supabase = await createClient();
   const { error } = await supabase.rpc("request_revaluation" as never, { p_result: resultId, p_kind: kind } as never);
   if (error) return { ok: false, error: error.message.length < 140 ? error.message : "Could not send the request." };

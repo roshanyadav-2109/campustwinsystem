@@ -33,6 +33,7 @@ export function Returns({ stats, semesters, sections, canImport, collegeCode }: 
   const [sem, setSem] = useState(semesters[0]?.id ?? 0);
   const [sec, setSec] = useState(sections[0]?.id ?? 0);
   const [impSem, setImpSem] = useState(semesters[0]?.id ?? 0);
+  const [impKind, setImpKind] = useState<"regular" | "supplementary">("regular");
   const [msg, setMsg] = useState<{ ok: boolean; text: string } | null>(null);
   const [pending, start] = useTransition();
   const show = (r: { ok: boolean; message?: string; error?: string }) => setMsg(r.ok ? { ok: true, text: r.message ?? "Done." } : { ok: false, text: r.error ?? "Failed." });
@@ -71,9 +72,10 @@ export function Returns({ stats, semesters, sections, canImport, collegeCode }: 
       {canImport && <Card>
         <CardHeader title="Bring in the university's results" />
         <CardBody className="space-y-2 text-[13px]">
-          <p className="text-ink-700">A CSV with the columns <b>register_no</b> (or <b>admission_no</b>)<b>, course_code, grade, point, passed</b>. Each row sets that course&apos;s first-attempt result for the semester (an earlier one is kept in the record of changes); SGPA and CGPA are worked out again and students are told.</p>
+          <p className="text-ink-700">A CSV with the columns <b>register_no</b> (or <b>admission_no</b>)<b>, course_code, grade, point, passed</b>. Each row sets that course&apos;s first-attempt result for the semester (an earlier one is kept in the record of changes); SGPA and CGPA are worked out again and students are told. Grade AB means absent; WH means the university withheld the result. Supplementary results are added as a new attempt.</p>
           <div className="flex flex-wrap items-end gap-2">
             <label>Semester<Select className="mt-1" value={impSem} onChange={(e) => setImpSem(Number(e.target.value))}>{semesters.map((s) => <option key={s.id} value={s.id}>{s.label}</option>)}</Select></label>
+            <label>Results of<Select className="mt-1" aria-label="Kind of results" value={impKind} onChange={(e) => setImpKind(e.target.value as "regular" | "supplementary")}><option value="regular">The semester exam</option><option value="supplementary">A supplementary (backlog) exam</option></Select></label>
             <input type="file" accept=".csv,text/csv" aria-label="University results file" disabled={pending} onChange={(e) => { const file = e.target.files?.[0]; e.target.value = ""; if (!file) return; start(async () => {
               const rows = parseCsv(await file.text()); const head = (rows.shift() ?? []).map((h) => h.trim().toLowerCase().replace(/[^a-z]+/g, "_").replace(/^_|_$/g, ""));
               const at = (k: string) => head.indexOf(k);
@@ -81,7 +83,7 @@ export function Returns({ stats, semesters, sections, canImport, collegeCode }: 
               const yes = (v: string | undefined) => v == null || v.trim() === "" ? null : /^(y|yes|p|pass|passed|true|1)$/i.test(v.trim());
               const data: ImportRow[] = rows.map((r) => ({ admission_no: at("admission_no") >= 0 ? r[at("admission_no")]?.trim() || null : null, register_no: at("register_no") >= 0 ? r[at("register_no")]?.trim() || null : null, course_code: r[at("course_code")]?.trim() ?? "", grade: r[at("grade")]?.trim() ?? "",
                 point: at("point") >= 0 && r[at("point")]?.trim() ? Number(r[at("point")]) : null, passed: at("passed") >= 0 ? yes(r[at("passed")]) : null }));
-              show(await importUniversityResults(impSem, data));
+              show(await importUniversityResults(impSem, data, impKind));
             }); }} />
           </div>
           <div className="flex flex-wrap items-center gap-2 border-t border-hair pt-2">

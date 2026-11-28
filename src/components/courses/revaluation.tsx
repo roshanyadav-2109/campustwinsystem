@@ -5,6 +5,7 @@ import { Card, CardBody, CardHeader } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/field";
 import { decideRevaluation } from "@/app/dashboard/results/actions";
+import { signPhotocopy, supplyPhotocopy } from "@/app/dashboard/exam-cell/actions";
 
 export type RevalRow = { id: number; kind: string; status: string; old_ese: number | null; new_ese: number | null; old_grade: string | null; new_grade: string | null; note: string | null; created_at: string;
   invoice: { status: string; amount: number; paid_amount: number } | null; student: { full_name: string; admission_no: string };
@@ -27,8 +28,14 @@ function Row({ r, canDecide }: { r: RevalRow; canDecide: boolean }) {
       <td className="px-4 py-2 capitalize">{r.kind}</td>
       <td className="px-4 py-2 tabular">{n(r.old_ese)}/{n(r.result.ese_max)} · {r.old_grade}</td>
       <td className="px-4 py-2">
-        {r.status !== "requested" ? (
-          <span className={r.status === "revised" ? "text-up" : "text-ink-700"}>{r.status === "revised" ? `Revised to ${n(r.new_ese)} · ${r.new_grade}` : r.status.replace("_", " ")}{r.note ? <span className="block text-[12px] text-ink-500">{r.note}</span> : null}</span>
+        {r.kind === "photocopy" && r.status === "requested" && !unpaid ? (
+          <label className="text-[12px]">Upload the scanned script<input type="file" accept="application/pdf,image/jpeg,image/png" className="mt-1 block text-[12px]" aria-label={`Scanned script for ${r.student.full_name}, ${r.result.course.code}`} disabled={pending}
+            onChange={(e) => { const f = e.target.files?.[0]; e.target.value = ""; if (!f) return; start(async () => {
+              const t = await signPhotocopy(r.id, f.type, f.size); if (!t.ok) { setMsg({ ok: false, text: t.error }); return; }
+              const put = await fetch(t.uploadUrl, { method: "PUT", body: f, headers: { "Content-Type": f.type } }); if (!put.ok) { setMsg({ ok: false, text: "Upload failed." }); return; }
+              const x = await supplyPhotocopy(r.id, t.key); setMsg(x.ok ? { ok: true, text: x.message ?? "" } : { ok: false, text: x.error }); if (x.ok) router.refresh(); }); }} /></label>
+        ) : r.status !== "requested" ? (
+          <span className={r.status === "revised" ? "text-up" : "text-ink-700"}>{r.status === "revised" ? `Revised to ${n(r.new_ese)} · ${r.new_grade}` : r.status === "supplied" ? "Photocopy supplied" : r.status.replace("_", " ")}{r.note ? <span className="block text-[12px] text-ink-500">{r.note}</span> : null}</span>
         ) : unpaid ? <span className="text-ink-500">Fee not paid yet</span> : canDecide ? (
           <span className="flex flex-wrap items-center gap-1.5">
             <Input className="h-8 w-20 text-right text-[13px]" aria-label={`New end-semester marks for ${r.student.full_name}, ${r.result.course.code}`} value={ese} onChange={(e) => setEse(e.target.value)} />

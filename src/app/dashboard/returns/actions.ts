@@ -60,11 +60,11 @@ export async function setRegisterNumbers(rows: { admission_no: string; register_
   if (error) return { ok: false, error: clean(error, "Could not save the register numbers.") };
   return { ok: true, message: `Register numbers saved for ${Number(data ?? 0)} students.` };
 }
-export async function importUniversityResults(semesterId: number, rows: ImportRow[]): Promise<R> {
+export async function importUniversityResults(semesterId: number, rows: ImportRow[], kind: "regular" | "supplementary" = "regular"): Promise<R> {
   if (!rows.length) return { ok: false, error: "The file has no rows." };
   if (rows.length > 5000) return { ok: false, error: "Import at most 5,000 rows at a time." };
   const supabase = await createClient();
-  const { data, error } = await supabase.rpc("import_university_results" as never, { p_semester: semesterId, p_rows: rows } as never);
+  const { data, error } = await supabase.rpc("import_university_results" as never, { p_semester: semesterId, p_rows: rows, p_kind: kind } as never);
   if (error) return { ok: false, error: clean(error, "Could not import.") };
   revalidatePath("/dashboard/results");
   return { ok: true, message: `Imported ${Number(data ?? 0)} course results. Students see them on their Results page.` };

@@ -8,6 +8,7 @@ import { downloadPdf, downloadPdfBook } from "@/lib/pdf";
 import { gradeCardPdf, consolidatedPdf, suppMemoPdf } from "@/components/courses/grade-card-pdf";
 import { publishResults, sectionGradeCards, holdResult, requestRevaluation, withdrawRevaluation, consolidatedData, suppMemoData, rankList } from "@/app/dashboard/results/actions";
 import { applySupplementary } from "@/app/dashboard/supplementary/actions";
+import { photocopyLink } from "@/app/dashboard/exam-cell/actions";
 import type { GradeCard } from "@/lib/data/results";
 
 export type PreviewRow = { student_id: number; student_name: string; roll_no: number | null; course_id: number; course_code: string; course_name: string; credits: number;
@@ -108,8 +109,8 @@ export type OpenExam = { session_id: number; session_name: string; for_semester_
 
 // A student's (or parent's) grade cards: download, ask for revaluation or retotalling while the window is open,
 // apply for an improvement exam, and download the consolidated marksheet and supplementary memos.
-export function MyResults({ cards, verifyBase, signers, studentId, open = [], windowDays = 15, revalFee = null, retotalFee = null, requested = [] }: {
-  cards: GradeCard[]; verifyBase: string; signers: string[]; studentId?: number; open?: OpenExam[]; windowDays?: number; revalFee?: number | null; retotalFee?: number | null;
+export function MyResults({ cards, verifyBase, signers, studentId, open = [], windowDays = 15, revalFee = null, retotalFee = null, photocopyFee = null, requested = [] }: {
+  cards: GradeCard[]; verifyBase: string; signers: string[]; studentId?: number; open?: OpenExam[]; windowDays?: number; revalFee?: number | null; retotalFee?: number | null; photocopyFee?: number | null;
   requested?: RequestView[];
 }) {
   const [confirming, setConfirming] = useState<string | null>(null);
@@ -149,7 +150,8 @@ export function MyResults({ cards, verifyBase, signers, studentId, open = [], wi
                     <td className="py-1 text-right">
                       {asked.filter((a) => a.status !== "withdrawn").map((a) => (
                         <span key={a.id} className="block text-[12px] text-ink-700">
-                          <span className="capitalize">{a.kind}</span>: {a.status === "requested" ? (a.fee_pending ? "fee pending" : "waiting for the exam cell") : a.status === "revised" ? `revised ${n(a.old_ese)} to ${n(a.new_ese)}, ${a.old_grade} to ${a.new_grade}` : a.status === "no_change" ? "no change" : a.status}
+                          <span className="capitalize">{a.kind}</span>: {a.status === "requested" ? (a.fee_pending ? "fee pending" : "waiting for the exam cell") : a.status === "revised" ? `revised ${n(a.old_ese)} to ${n(a.new_ese)}, ${a.old_grade} to ${a.new_grade}` : a.status === "no_change" ? "no change" : a.status === "supplied" ? "ready" : a.status}
+                          {a.kind === "photocopy" && a.status === "supplied" ? <Button size="sm" variant="ghost" disabled={pending} aria-label={`Download the photocopy of ${x.code}`} onClick={() => start(async () => { const r = await photocopyLink(a.id); if (r.ok) window.open(r.url, "_blank", "noopener"); else setMsg({ ok: false, text: r.error }); })}>Download</Button> : null}
                           {a.note ? ` (${a.note})` : ""}
                           {a.status === "requested" && studentId ? <Button size="sm" variant="ghost" disabled={pending} aria-label={`Withdraw ${a.kind} of ${x.code}`} onClick={() => act(() => withdrawRevaluation(a.id))}>Withdraw</Button> : null}
                         </span>))}
@@ -158,9 +160,10 @@ export function MyResults({ cards, verifyBase, signers, studentId, open = [], wi
                           <span className="inline-flex flex-wrap gap-1">
                             {!asked.some((a) => a.kind === "revaluation" && a.status !== "withdrawn") && <Button size="sm" disabled={pending} aria-label={`Confirm revaluation of ${x.code}`} onClick={() => { setConfirming(null); act(() => requestRevaluation(x.result_id, "revaluation")); }}>Confirm revaluation{revalFee ? ` (Rs ${n(revalFee)})` : ""}</Button>}
                             {!asked.some((a) => a.kind === "retotalling" && a.status !== "withdrawn") && <Button size="sm" variant="subtle" disabled={pending} aria-label={`Confirm retotalling of ${x.code}`} onClick={() => { setConfirming(null); act(() => requestRevaluation(x.result_id, "retotalling")); }}>Confirm retotalling{retotalFee ? ` (Rs ${n(retotalFee)})` : ""}</Button>}
+                            {!asked.some((a) => a.kind === "photocopy" && a.status !== "withdrawn") && <Button size="sm" variant="subtle" disabled={pending} aria-label={`Confirm photocopy of ${x.code}`} onClick={() => { setConfirming(null); act(() => requestRevaluation(x.result_id, "photocopy")); }}>Photocopy of the script{photocopyFee ? ` (Rs ${n(photocopyFee)})` : ""}</Button>}
                             <Button size="sm" variant="ghost" onClick={() => setConfirming(null)}>Cancel</Button>
                           </span>
-                        ) : (asked.filter((a) => a.status !== "withdrawn").length < 2 ? <Button size="sm" variant="ghost" disabled={pending} aria-label={`Revaluation of ${x.code}`} onClick={() => setConfirming(`${x.result_id}`)}>Revaluation / retotalling</Button> : null)
+                        ) : (asked.filter((a) => a.status !== "withdrawn").length < 3 ? <Button size="sm" variant="ghost" disabled={pending} aria-label={`Revaluation of ${x.code}`} onClick={() => setConfirming(`${x.result_id}`)}>Revaluation, retotalling, photocopy</Button> : null)
                       ) : null}
                       {studentId && improve && x.passed && <Button size="sm" variant="ghost" disabled={pending} aria-label={`Improve ${x.code}`} onClick={() => act(() => applySupplementary(improve.session_id, studentId, x.course_id))}>Improve{improve.fee_per_course ? ` (Rs ${n(improve.fee_per_course)})` : ""}</Button>}
                     </td></tr>);
